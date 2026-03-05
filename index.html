@@ -618,7 +618,6 @@
                     alt="Nebari" />
             </a>
             <ul class="nav-links">
-                <li><a href="#software-packs">Software Packs</a></li>
                 <li><a href="#quickstart">Quick Start</a></li>
                 <li><a href="#charts">Charts</a></li>
                 <li><a href="https://nebari.dev/docs" target="_blank" rel="noopener">Docs</a></li>
@@ -631,10 +630,12 @@
     <!-- ── Hero ────────────────────────────────────────────────────────── -->
     <section class="hero">
         <div class="container">
-            <!--  -->
             <h1>Helm charts for<br /><span>Nebari's ecosystem</span></h1>
             <p>
-                A curated Helm chart repository for deploying <a href="#software-packs" style="color:var(--color-accent);text-decoration:underline;text-decoration-color:rgba(234,181,78,0.4);text-underline-offset:3px">Nebari Software Packs</a> and its companion tools on
+                A curated Helm chart repository for deploying <a href="https://github.com/nebari-dev/nebari-software-pack-template"
+                    target="_blank" rel="noopener"
+                    style="color:var(--color-accent);text-decoration:underline;text-decoration-color:rgba(234,181,78,0.4);text-underline-offset:3px">Nebari
+                    Software Packs</a> and companion tools on
                 Kubernetes—versioned, indexed, and always up to date.
             </p>
             <div class="hero-actions">
@@ -653,54 +654,6 @@
                     </svg>
                     GitHub
                 </a>
-            </div>
-        </div>
-    </section>
-
-    <!-- ── Software Packs ─────────────────────────────────────────────────── -->
-    <section class="section" id="software-packs">
-        <div class="container">
-            <p class="section-label">Concepts</p>
-            <h2 class="section-title">What is a Nebari Software Pack?</h2>
-            <p class="section-subtitle">
-                A software pack is any Kubernetes deployment that includes a <code
-                    style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">NebariApp</code>
-                custom resource. The <code
-                    style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">NebariApp</code>
-                tells the <code
-                    style="font-family:var(--font-mono);font-size:0.85em">nebari-operator</code> to auto-configure:
-            </p>
-            <div class="info-grid" style="margin-bottom:32px">
-                <div class="info-card">
-                    <div class="info-card-icon">🌐</div>
-                    <h3>Routing</h3>
-                    <p>Creates an <code style="font-family:var(--font-mono);font-size:0.85em">HTTPRoute</code> on the
-                        shared Envoy Gateway, making your application instantly reachable under the Nebari domain.</p>
-                </div>
-                <div class="info-card">
-                    <div class="info-card-icon">🔒</div>
-                    <h3>TLS</h3>
-                    <p>Provisions a certificate automatically via <code
-                            style="font-family:var(--font-mono);font-size:0.85em">cert-manager</code> — no manual
-                        certificate management required.</p>
-                </div>
-                <div class="info-card">
-                    <div class="info-card-icon">🔑</div>
-                    <h3>Authentication</h3>
-                    <p>Sets up Keycloak OIDC via an Envoy Gateway <code
-                            style="font-family:var(--font-mono);font-size:0.85em">SecurityPolicy</code>, giving your
-                        app single sign-on with the rest of the Nebari platform.</p>
-                </div>
-            </div>
-            <div
-                style="background:var(--color-surface);border:1px solid var(--color-border);border-left:3px solid var(--color-primary);border-radius:var(--radius-md);padding:20px 24px">
-                <p style="font-size:0.9rem;color:var(--color-text-muted);line-height:1.65;margin:0">
-                    The <code
-                        style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">NebariApp</code>
-                    CRD is the integration point between your application and the Nebari platform. How you deploy the
-                    rest of your application is up to you — Helm charts, Kustomize overlays, and plain YAML manifests
-                    are all supported. All three are first-class deployment methods in <strong>ArgoCD</strong>.
-                </p>
             </div>
         </div>
     </section>
@@ -740,10 +693,13 @@
                         <div class="step-content">
                             <h3>Add the Helm repository</h3>
                             <p>Register the Nebari Helm repository under the alias <code
-                                    style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">nebari</code>.
+                                    style="font-family:var(--font-mono);font-size:0.92em;color:var(--color-accent)">nebari</code>.
                             </p>
-                            <div class="code-block" id="cb-add"><pre><span class="cmd">helm</span> repo add nebari \
-  https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/</pre><button class="code-copy" onclick="copyCode('cb-add')">Copy</button></div>
+                            <div class="code-block" id="cb-add">
+                                <pre><span class="cmd">helm</span> repo add nebari \
+  https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/</pre><button class="code-copy"
+                                    onclick="copyCode('cb-add')">Copy</button>
+                            </div>
                         </div>
                     </div>
 
@@ -752,7 +708,10 @@
                         <div class="step-content">
                             <h3>Update the local cache</h3>
                             <p>Pull the latest chart index from the repository.</p>
-                            <div class="code-block" id="cb-update"><pre><span class="cmd">helm</span> repo update nebari</pre><button class="code-copy" onclick="copyCode('cb-update')">Copy</button></div>
+                            <div class="code-block" id="cb-update">
+                                <pre><span class="cmd">helm</span> repo update nebari</pre><button class="code-copy"
+                                    onclick="copyCode('cb-update')">Copy</button>
+                            </div>
                         </div>
                     </div>
 
@@ -761,8 +720,11 @@
                         <div class="step-content">
                             <h3>Install a chart</h3>
                             <p>Browse the charts below, then install the one you need.</p>
-                            <div class="code-block" id="cb-install"><pre><span class="comment"># Replace &lt;chart-name&gt; with the desired chart</span>
-<span class="cmd">helm</span> install my-release nebari/<span class="flag">&lt;chart-name&gt;</span></pre><button class="code-copy" onclick="copyCode('cb-install')">Copy</button></div>
+                            <div class="code-block" id="cb-install">
+                                <pre><span class="comment"># Replace &lt;chart-name&gt; with the desired chart</span>
+<span class="cmd">helm</span> install my-release nebari/<span class="flag">&lt;chart-name&gt;</span></pre><button
+                                    class="code-copy" onclick="copyCode('cb-install')">Copy</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -775,15 +737,18 @@
                         <div class="step-num">1</div>
                         <div class="step-content">
                             <h3>Install directly — no <code
-                                    style="font-family:var(--font-mono);font-size:0.85em">helm repo add</code> needed
+                                    style="font-family:var(--font-mono);font-size:0.92em">helm repo add</code> needed
                             </h3>
                             <p>Charts are published to <code
-                                    style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">quay.io/nebari-dev</code>
+                                    style="font-family:var(--font-mono);font-size:0.92em;color:var(--color-accent)">quay.io/nebari-dev</code>
                                 as public OCI artifacts. Use the chart's version tag directly.</p>
-                            <div class="code-block" id="cb-oci-install"><pre><span class="comment"># --version is required for OCI refs</span>
+                            <div class="code-block" id="cb-oci-install">
+                                <pre><span class="comment"># --version is required for OCI refs</span>
 <span class="cmd">helm</span> install my-release \
   oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> \
-  <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre><button class="code-copy" onclick="copyCode('cb-oci-install')">Copy</button></div>
+  <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre><button class="code-copy"
+                                    onclick="copyCode('cb-oci-install')">Copy</button>
+                            </div>
                         </div>
                     </div>
 
@@ -791,11 +756,14 @@
                         <div class="step-num">2</div>
                         <div class="step-content">
                             <h3>Pull or inspect without installing</h3>
-                            <div class="code-block" id="cb-oci-pull"><pre><span class="comment"># Download the chart archive</span>
+                            <div class="code-block" id="cb-oci-pull">
+                                <pre><span class="comment"># Download the chart archive</span>
 <span class="cmd">helm</span> pull oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
 
 <span class="comment"># Inspect chart metadata</span>
-<span class="cmd">helm</span> show chart oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre><button class="code-copy" onclick="copyCode('cb-oci-pull')">Copy</button></div>
+<span class="cmd">helm</span> show chart oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre>
+                                <button class="code-copy" onclick="copyCode('cb-oci-pull')">Copy</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -813,7 +781,7 @@
                     </h3>
                     <p style="font-size:0.875rem;color:var(--color-text-muted);">
                         All Nebari OCI charts on quay.io are public. You do not need to run
-                        <code style="font-family:var(--font-mono);font-size:0.85em">helm registry login</code>
+                        <code style="font-family:var(--font-mono);font-size:0.92em">helm registry login</code>
                         to pull or install them. The version tag for each chart is shown in the
                         <a href="#charts">chart catalog</a> below.
                     </p>
@@ -828,7 +796,8 @@
             <p class="section-label">Available Charts</p>
             <h2 class="section-title">Browse the chart catalog</h2>
             <p class="section-subtitle">
-                Charts are automatically published here whenever a new package is pushed to the repository.
+                Charts are automatically packaged and published whenever a new chart directory is merged into
+                <code style="font-family:var(--font-mono);font-size:0.92em">main</code>.
             </p>
 
             <div class="charts-grid" id="charts-container">
@@ -852,27 +821,30 @@
                 <div class="info-card">
                     <div class="info-card-icon">📦</div>
                     <h3>Automated publishing</h3>
-                    <p>Push a packaged <code style="font-family:var(--font-mono);font-size:0.85em">.tgz</code> chart to
-                        the <code style="font-family:var(--font-mono);font-size:0.85em">charts/</code> folder on <code
-                            style="font-family:var(--font-mono);font-size:0.85em">main</code> and a GitHub Actions
-                        workflow will update the index and deploy it automatically.</p>
+                    <p>Add a chart source directory to <code
+                            style="font-family:var(--font-mono);font-size:0.92em">charts/</code> on
+                        <code style="font-family:var(--font-mono);font-size:0.92em">main</code> and a GitHub Actions
+                        workflow automatically packages it, updates <code
+                            style="font-family:var(--font-mono);font-size:0.92em">index.yaml</code>, and deploys
+                        everything to GitHub Pages.
+                    </p>
                 </div>
                 <div class="info-card">
                     <div class="info-card-icon">🏷️</div>
                     <h3>Versioned index</h3>
                     <p>Each chart version is preserved in <code
-                            style="font-family:var(--font-mono);font-size:0.85em">index.yaml</code> with its original
+                            style="font-family:var(--font-mono);font-size:0.92em">index.yaml</code> with its original
                         creation date, so <code
-                            style="font-family:var(--font-mono);font-size:0.85em">helm repo update</code> always gives
+                            style="font-family:var(--font-mono);font-size:0.92em">helm repo update</code> always gives
                         you the full history.</p>
                 </div>
                 <div class="info-card">
                     <div class="info-card-icon">�</div>
                     <h3>OCI on quay.io</h3>
                     <p>Every chart is also pushed to <code
-                            style="font-family:var(--font-mono);font-size:0.85em">quay.io/nebari-dev</code> as a public
+                            style="font-family:var(--font-mono);font-size:0.92em">quay.io/nebari-dev</code> as a public
                         OCI artifact, matching Nebari's existing container image workflow. Install with a single
-                        <code style="font-family:var(--font-mono);font-size:0.85em">helm install oci://…</code>
+                        <code style="font-family:var(--font-mono);font-size:0.92em">helm install oci://…</code>
                         command — no repo registration needed.
                     </p>
                 </div>
