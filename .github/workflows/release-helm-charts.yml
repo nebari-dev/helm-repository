@@ -88,13 +88,8 @@ jobs:
           # Update the root index.yaml on gh-pages
           cp -p ./packaged/index.yaml ../dest/index.yaml
 
-      # Deploy the landing page from main → gh-pages.
-      # gh-pages is the deploy target only; main is the source of truth.
-      - name: Copy site to gh-pages
-        run: |
-          cp -rp src/site/. dest/
-
       # Commit and push only to gh-pages — main is never modified by this workflow.
+      # Note: index.html is managed directly on gh-pages (not copied from main).
       - name: Commit and push to gh-pages
         working-directory: dest
         run: |
