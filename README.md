@@ -68,8 +68,8 @@ The [Release Helm Charts](.github/workflows/release-helm-charts.yml) GitHub Acti
 - Merge the new packages into `index.yaml` on `gh-pages` (preserving historical `created` timestamps)
 - Copy chart archives to `helm/` on `gh-pages`
 
-> **`gh-pages` is CI-managed for chart releases.** The landing page (`index.html`) lives directly
-> on `gh-pages` — update it there via a PR targeting that branch.
+> **`gh-pages` is CI-managed for chart releases.** The landing page (`index.html`) lives directly on `gh-pages` — update
+> it there via a PR targeting that branch.
 
 ## Syncing charts from other repositories (automated)
 
@@ -139,9 +139,8 @@ gh-pages/
 └── index.yaml                        # Helm repository index (written by CI)
 ```
 
-Chart releases (packaging, index updates, OCI push) are fully automated by CI.
-The landing page (`index.html`) is managed directly on `gh-pages` — to update it,
-open a PR targeting the `gh-pages` branch.
+Chart releases (packaging, index updates, OCI push) are fully automated by CI. The landing page (`index.html`) is
+managed directly on `gh-pages` — to update it, open a PR targeting the `gh-pages` branch.
 
 ## GitHub Pages site
 
