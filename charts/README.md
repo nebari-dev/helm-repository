@@ -29,6 +29,6 @@ The [Release Helm Charts](../.github/workflows/release-helm-charts.yml) workflow
 
 1. Run `helm package` on every chart directory.
 2. Merge the new packages into `index.yaml` on `gh-pages` (preserving historical `created` timestamps).
-3. Deploy the updated index, chart archives, and landing page to `gh-pages`.
+3. Push the updated index and chart archives to `gh-pages`.
 
 > **Note:** never commit pre-packaged `.tgz` files here. CI does the packaging.
