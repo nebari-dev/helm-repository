@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nebari Helm Repository</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+    <style>
+        /* ─── Design tokens ───────────────────────────────────────────── */
+        :root {
+            --color-bg: #0f0f14;
+            --color-surface: #16161f;
+            --color-surface-2: #1e1e2e;
+            --color-border: #2a2a3d;
+
+            --color-primary: #7c5cfc;
+            --color-primary-dim: #5a3fd4;
+            --color-accent: #c9b8ff;
+            --color-accent-soft: rgba(124, 92, 252, 0.12);
+
+            --color-text: #e2e0f0;
+            --color-text-muted: #8a8aab;
+            --color-text-faint: #55556a;
+
+            --color-success: #43c880;
+            --color-warning: #f5c542;
+
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+
+            --font-body: 'Inter', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+            --shadow-glow: 0 0 40px rgba(124, 92, 252, 0.25);
+        }
+
+        /* ─── Reset ───────────────────────────────────────────────────── */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a {
+            color: var(--color-accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        img {
+            max-width: 100%;
+        }
+
+        /* ─── Layout helpers ─────────────────────────────────────────── */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ─── Nav ────────────────────────────────────────────────────── */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15, 15, 20, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--color-text);
+        }
+
+        .nav-logo svg {
+            flex-shrink: 0;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--color-text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--color-text);
+            text-decoration: none;
+        }
+
+        /* ─── Hero ───────────────────────────────────────────────────── */
+        .hero {
+            position: relative;
+            padding: 96px 0 80px;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 70% 50% at 50% 0%, rgba(124, 92, 252, 0.18) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--color-accent-soft);
+            border: 1px solid rgba(124, 92, 252, 0.3);
+            border-radius: 100px;
+            padding: 4px 14px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--color-accent);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.2rem, 5vw, 3.5rem);
+            font-weight: 700;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            margin-bottom: 20px;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, #c9b8ff 0%, #7c5cfc 60%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.15rem;
+            color: var(--color-text-muted);
+            max-width: 560px;
+            margin: 0 auto 40px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(124, 92, 252, 0.35);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-dim);
+            box-shadow: 0 4px 28px rgba(124, 92, 252, 0.5);
+            text-decoration: none;
+            color: #fff;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--color-primary);
+            color: var(--color-accent);
+            text-decoration: none;
+        }
+
+        /* ─── Section ────────────────────────────────────────────────── */
+        .section {
+            padding: 72px 0;
+        }
+
+        .section+.section {
+            border-top: 1px solid var(--color-border);
+        }
+
+        .section-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--color-primary);
+            margin-bottom: 10px;
+        }
+
+        .section-title {
+            font-size: 1.85rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+
+        .section-subtitle {
+            font-size: 1rem;
+            color: var(--color-text-muted);
+            max-width: 580px;
+            margin-bottom: 40px;
+        }
+
+        /* ─── Code blocks ────────────────────────────────────────────── */
+        .code-block {
+            position: relative;
+            background: var(--color-surface-2);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 20px 52px 20px 20px;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            color: #cdd6f4;
+            overflow-x: auto;
+            line-height: 1.7;
+        }
+
+        .code-block .comment {
+            color: var(--color-text-faint);
+        }
+
+        .code-block .cmd {
+            color: var(--color-accent);
+        }
+
+        .code-block .flag {
+            color: var(--color-success);
+        }
+
+        .code-copy {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            color: var(--color-text-muted);
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: var(--font-body);
+        }
+
+        .code-copy:hover {
+            color: var(--color-text);
+            border-color: var(--color-primary);
+        }
+
+        /* ─── Steps ──────────────────────────────────────────────────── */
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .step {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .step-num {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--color-accent-soft);
+            border: 1px solid rgba(124, 92, 252, 0.4);
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--color-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .step-content h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .step-content p {
+            font-size: 0.9rem;
+            color: var(--color-text-muted);
+            margin-bottom: 12px;
+        }
+
+        /* ─── Charts table ───────────────────────────────────────────── */
+        .charts-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .chart-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: start;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .chart-card:hover {
+            border-color: rgba(124, 92, 252, 0.4);
+            box-shadow: 0 0 0 1px rgba(124, 92, 252, 0.1);
+        }
+
+        .chart-name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--color-text);
+            margin-bottom: 4px;
+        }
+
+        .chart-description {
+            font-size: 0.875rem;
+            color: var(--color-text-muted);
+            margin-bottom: 10px;
+        }
+
+        .chart-meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 10px;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-version {
+            background: rgba(67, 200, 128, 0.12);
+            color: var(--color-success);
+            border: 1px solid rgba(67, 200, 128, 0.2);
+        }
+
+        .badge-app {
+            background: var(--color-accent-soft);
+            color: var(--color-accent);
+            border: 1px solid rgba(124, 92, 252, 0.2);
+        }
+
+        .chart-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: var(--color-accent-soft);
+            color: var(--color-accent);
+            border: 1px solid rgba(124, 92, 252, 0.25);
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .chart-download:hover {
+            background: var(--color-primary);
+            color: #fff;
+            border-color: var(--color-primary);
+            text-decoration: none;
+        }
+
+        .chart-date {
+            font-size: 0.75rem;
+            color: var(--color-text-faint);
+            align-self: end;
+            text-align: right;
+        }
+
+        .charts-empty,
+        .charts-loading {
+            text-align: center;
+            padding: 60px 24px;
+            color: var(--color-text-muted);
+            font-size: 0.95rem;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            border: 3px solid var(--color-border);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ─── Info grid ──────────────────────────────────────────────── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .info-card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 24px;
+        }
+
+        .info-card-icon {
+            font-size: 1.6rem;
+            margin-bottom: 14px;
+        }
+
+        .info-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .info-card p {
+            font-size: 0.875rem;
+            color: var(--color-text-muted);
+            line-height: 1.55;
+        }
+
+        /* ─── Footer ─────────────────────────────────────────────────── */
+        .footer {
+            border-top: 1px solid var(--color-border);
+            padding: 36px 0;
+        }
+
+        .footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .footer-copy {
+            font-size: 0.85rem;
+            color: var(--color-text-faint);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+        }
+
+        .footer-links a:hover {
+            color: var(--color-text);
+        }
+
+        /* ─── Method tabs ────────────────────────────────────────────── */
+        .method-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 28px;
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 0;
+        }
+
+        .method-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 10px 18px;
+            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: var(--font-body);
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            background: transparent;
+            color: var(--color-text-muted);
+            transition: all 0.18s;
+            margin-bottom: -1px;
+        }
+
+        .method-tab:hover {
+            color: var(--color-text);
+        }
+
+        .method-tab.active {
+            background: var(--color-surface-2);
+            border-color: var(--color-border);
+            border-bottom-color: var(--color-surface-2);
+            color: var(--color-accent);
+        }
+
+        /* ─── Responsive ─────────────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 64px 0 56px;
+            }
+
+            .step {
+                flex-direction: column;
+            }
+
+            .footer-inner {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── Navigation ──────────────────────────────────────────────────── -->
+    <nav class="nav">
+        <div class="container nav-inner">
+            <a class="nav-logo" href="#">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="28" height="28" rx="7" fill="#7c5cfc" />
+                    <path d="M7 20L14 8L21 20" stroke="white" stroke-width="2.2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    <path d="M9.5 16H18.5" stroke="white" stroke-width="2.2" stroke-linecap="round" />
+                </svg>
+                Nebari Helm Repository
+            </a>
+            <ul class="nav-links">
+                <li><a href="#quickstart">Quick Start</a></li>
+                <li><a href="#charts">Charts</a></li>
+                <li><a href="https://nebari.dev/docs" target="_blank" rel="noopener">Docs</a></li>
+                <li><a href="https://github.com/nebari-dev/helm-repository" target="_blank" rel="noopener">GitHub</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- ── Hero ────────────────────────────────────────────────────────── -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-badge">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                    <circle cx="5" cy="5" r="4" />
+                </svg>
+                Open Source · GitHub Pages
+            </div>
+            <h1>Helm charts for<br /><span>Nebari's ecosystem</span></h1>
+            <p>
+                A curated Helm chart repository for deploying Nebari and its companion tools on Kubernetes—versioned,
+                indexed, and always up to date.
+            </p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="#quickstart">
+                    Get Started
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                    </svg>
+                </a>
+                <a class="btn btn-outline" href="https://github.com/nebari-dev/helm-repository" target="_blank"
+                    rel="noopener">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path
+                            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                    </svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Quick Start ──────────────────────────────────────────────────── -->
+    <section class="section" id="quickstart">
+        <div class="container">
+            <p class="section-label">Quick Start</p>
+            <h2 class="section-title">Install a Nebari Helm chart</h2>
+            <p class="section-subtitle">
+                Choose your preferred installation method below.
+            </p>
+
+            <!-- Method tabs -->
+            <div class="method-tabs" role="tablist">
+                <button class="method-tab active" role="tab" aria-selected="true" onclick="switchMethod('index', this)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                        <rect x="1" y="1" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.4" />
+                        <path d="M4 5h7M4 8h5M4 11h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                    </svg>
+                    Helm Index
+                </button>
+                <button class="method-tab" role="tab" aria-selected="false" onclick="switchMethod('oci', this)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                        <circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.4" />
+                        <path d="M7.5 4v3.5l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                    </svg>
+                    OCI · quay.io
+                </button>
+            </div>
+
+            <!-- ── Helm Index method ─────────────────────────────────── -->
+            <div class="method-panel" id="method-index">
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <h3>Add the Helm repository</h3>
+                            <p>Register the Nebari Helm repository under the alias <code
+                                    style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">nebari</code>.
+                            </p>
+                            <div class="code-block" id="cb-add">
+                                <span class="cmd">helm</span> repo add nebari \
+                                https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/
+                                <button class="code-copy" onclick="copyCode('cb-add')">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <h3>Update the local cache</h3>
+                            <p>Pull the latest chart index from the repository.</p>
+                            <div class="code-block" id="cb-update">
+                                <span class="cmd">helm</span> repo update nebari
+                                <button class="code-copy" onclick="copyCode('cb-update')">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-content">
+                            <h3>Install a chart</h3>
+                            <p>Browse the charts below, then install the one you need.</p>
+                            <div class="code-block" id="cb-install">
+                                <span class="comment"># Replace &lt;chart-name&gt; with the desired chart</span>
+                                <span class="cmd">helm</span> install my-release nebari/<span
+                                    class="flag">&lt;chart-name&gt;</span>
+                                <button class="code-copy" onclick="copyCode('cb-install')">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Private repo note -->
+                <div
+                    style="margin-top:32px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:20px 24px;">
+                    <h3
+                        style="font-size:0.95rem;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <rect x="2" y="7" width="12" height="8" rx="2" stroke="#f5c542" stroke-width="1.5" />
+                            <path d="M5 7V5a3 3 0 016 0v2" stroke="#f5c542" stroke-width="1.5" stroke-linecap="round" />
+                        </svg>
+                        <span style="color:var(--color-warning)">Private repository access</span>
+                    </h3>
+                    <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:12px;">
+                        If you are using a private fork of this repository (requires a GitHub Enterprise license),
+                        authenticate with a personal access token (PAT):
+                    </p>
+                    <div class="code-block" id="cb-private">
+                        <span class="cmd">helm</span> repo add nebari \
+                        https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/ \
+                        <span class="flag">--username</span> <span class="comment">&lt;your-github-username&gt;</span> \
+                        <span class="flag">--password</span> <span class="comment">&lt;your-PAT&gt;</span>
+                        <button class="code-copy" onclick="copyCode('cb-private')">Copy</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── OCI method ────────────────────────────────────────── -->
+            <div class="method-panel" id="method-oci" style="display:none">
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <h3>Install directly — no <code
+                                    style="font-family:var(--font-mono);font-size:0.85em">helm repo add</code> needed
+                            </h3>
+                            <p>Charts are published to <code
+                                    style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">quay.io/nebari-dev</code>
+                                as public OCI artifacts. Use the chart's version tag directly.</p>
+                            <div class="code-block" id="cb-oci-install">
+                                <span class="comment"># --version is required for OCI refs</span>
+                                <span class="cmd">helm</span> install my-release \
+                                oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> \
+                                <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
+                                <button class="code-copy" onclick="copyCode('cb-oci-install')">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <h3>Pull or inspect without installing</h3>
+                            <div class="code-block" id="cb-oci-pull">
+                                <span class="comment"># Download the chart archive</span>
+                                <span class="cmd">helm</span> pull oci://quay.io/nebari-dev/<span
+                                    class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span
+                                    class="comment">&lt;version&gt;</span>
+
+                                <span class="comment"># Inspect chart metadata</span>
+                                <span class="cmd">helm</span> show chart oci://quay.io/nebari-dev/<span
+                                    class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span
+                                    class="comment">&lt;version&gt;</span>
+                                <button class="code-copy" onclick="copyCode('cb-oci-pull')">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    style="margin-top:32px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:20px 24px;">
+                    <h3
+                        style="font-size:0.95rem;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <circle cx="8" cy="8" r="6" stroke="var(--color-success)" stroke-width="1.5" />
+                            <path d="M5.5 8l2 2 3-3" stroke="var(--color-success)" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        <span style="color:var(--color-success)">No authentication required</span>
+                    </h3>
+                    <p style="font-size:0.875rem;color:var(--color-text-muted);">
+                        All Nebari OCI charts on quay.io are public. You do not need to run
+                        <code style="font-family:var(--font-mono);font-size:0.85em">helm registry login</code>
+                        to pull or install them. The version tag for each chart is shown in the
+                        <a href="#charts">chart catalog</a> below.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Charts ───────────────────────────────────────────────────────── -->
+    <section class="section" id="charts">
+        <div class="container">
+            <p class="section-label">Available Charts</p>
+            <h2 class="section-title">Browse the chart catalog</h2>
+            <p class="section-subtitle">
+                Charts are automatically published here whenever a new package is pushed to the repository.
+            </p>
+
+            <div class="charts-grid" id="charts-container">
+                <div class="charts-loading">
+                    <div class="spinner"></div>
+                    <div>Loading charts from index…</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Info cards ───────────────────────────────────────────────────── -->
+    <section class="section">
+        <div class="container">
+            <p class="section-label">About</p>
+            <h2 class="section-title">How it works</h2>
+            <p class="section-subtitle">
+                This repository is powered by GitHub Actions and GitHub Pages — no external infrastructure required.
+            </p>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-card-icon">📦</div>
+                    <h3>Automated publishing</h3>
+                    <p>Push a packaged <code style="font-family:var(--font-mono);font-size:0.85em">.tgz</code> chart to
+                        the <code style="font-family:var(--font-mono);font-size:0.85em">charts/</code> folder on <code
+                            style="font-family:var(--font-mono);font-size:0.85em">main</code> and a GitHub Actions
+                        workflow will update the index and deploy it automatically.</p>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-icon">🔒</div>
+                    <h3>Access control</h3>
+                    <p>Public repositories are accessible to everyone. Private forks (GitHub Enterprise) support
+                        token-based authentication via the <code
+                            style="font-family:var(--font-mono);font-size:0.85em">raw.githubusercontent.com</code>
+                        endpoint.</p>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-icon">🏷️</div>
+                    <h3>Versioned index</h3>
+                    <p>Each chart version is preserved in <code
+                            style="font-family:var(--font-mono);font-size:0.85em">index.yaml</code> with its original
+                        creation date, so <code
+                            style="font-family:var(--font-mono);font-size:0.85em">helm repo update</code> always gives
+                        you the full history.</p>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-icon">�</div>
+                    <h3>OCI on quay.io</h3>
+                    <p>Every chart is also pushed to <code
+                            style="font-family:var(--font-mono);font-size:0.85em">quay.io/nebari-dev</code> as a public
+                        OCI artifact, matching Nebari's existing container image workflow. Install with a single
+                        <code style="font-family:var(--font-mono);font-size:0.85em">helm install oci://…</code>
+                        command — no repo registration needed.
+                    </p>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-icon">🚀</div>
+                    <h3>Zero maintenance</h3>
+                    <p>No ChartMuseum, no external object storage. Everything is automated via GitHub Actions —
+                        GitHub Pages serves the Helm index and quay.io serves the OCI artifacts.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Footer ───────────────────────────────────────────────────────── -->
+    <footer class="footer">
+        <div class="container footer-inner">
+            <span class="footer-copy">
+                Copyright © <span id="footer-year"></span> | Made with 💜 by the <a href="https://nebari.dev"
+                    style="color:var(--color-accent)">Nebari</a> dev team
+            </span>
+            <nav class="footer-links">
+                <a href="https://nebari.dev/docs" target="_blank" rel="noopener">Docs</a>
+                <a href="https://github.com/nebari-dev" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://github.com/orgs/nebari-dev/discussions" target="_blank" rel="noopener">Community</a>
+                <a href="./index.yaml" target="_blank">index.yaml</a>
+            </nav>
+        </div>
+    </footer>
+
+    <script>
+        /* ── Method tab switcher ── */
+        function switchMethod(method, btn) {
+            document.querySelectorAll('.method-tab').forEach(t => {
+                t.classList.remove('active');
+                t.setAttribute('aria-selected', 'false');
+            });
+            document.querySelectorAll('.method-panel').forEach(p => p.style.display = 'none');
+            btn.classList.add('active');
+            btn.setAttribute('aria-selected', 'true');
+            document.getElementById('method-' + method).style.display = '';
+        }
+
+        /* ── Footer year ── */
+        document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+        /* ── Copy to clipboard ── */
+        function copyCode(id) {
+            const el = document.getElementById(id);
+            const btn = el.querySelector('.code-copy');
+            // Extract text, stripping the button's own text
+            const text = el.cloneNode(true);
+            text.querySelectorAll('.code-copy').forEach(n => n.remove());
+            navigator.clipboard.writeText(text.innerText.trim()).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1800);
+            });
+        }
+
+        /* ── Load & render charts from index.yaml ── */
+        (async function loadCharts() {
+            const container = document.getElementById('charts-container');
+
+            // index.yaml lives at the repo root on gh-pages
+            const indexUrl = './index.yaml';
+
+            try {
+                const res = await fetch(indexUrl);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const text = await res.text();
+                const index = jsyaml.load(text);
+
+                const entries = index.entries || {};
+                const names = Object.keys(entries);
+
+                if (names.length === 0) {
+                    container.innerHTML = `<div class="charts-empty">No charts published yet. Push a <code>.tgz</code> to <code>charts/</code> on the <code>main</code> branch to get started.</div>`;
+                    return;
+                }
+
+                // Sort chart names alphabetically
+                names.sort();
+
+                container.innerHTML = '';
+
+                for (const name of names) {
+                    // Show latest version first
+                    const versions = [...entries[name]].sort((a, b) => new Date(b.created) - new Date(a.created));
+                    const latest = versions[0];
+
+                    const card = document.createElement('div');
+                    card.className = 'chart-card';
+
+                    const created = latest.created
+                        ? new Date(latest.created).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                        : '';
+
+                    const versionBadges = versions.slice(0, 5).map(v =>
+                        `<span class="badge badge-version">v${v.version}</span>`
+                    ).join('');
+
+                    const appBadge = latest.appVersion
+                        ? `<span class="badge badge-app">app v${latest.appVersion}</span>`
+                        : '';
+
+                    const ociRef = `oci://quay.io/nebari-dev/${name}`;
+
+                    card.innerHTML = `
+          <div>
+            <div class="chart-name">${escapeHtml(name)}</div>
+            <div class="chart-description">${escapeHtml(latest.description || 'No description provided.')}</div>
+            <div class="chart-meta">${versionBadges}${appBadge}</div>
+            <div style="margin-top:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--color-text-faint)">OCI</span>
+              <code style="font-family:var(--font-mono);font-size:0.78rem;color:var(--color-text-muted);background:var(--color-surface-2);padding:2px 8px;border-radius:4px;border:1px solid var(--color-border)">${escapeHtml(ociRef)}</code>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;min-width:120px">
+            <a class="chart-download" href="${escapeHtml(latest.urls[0])}" download>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M3.5 6l3.5 4 3.5-4M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Download
+            </a>
+            ${created ? `<span class="chart-date">${created}</span>` : ''}
+          </div>`;
+
+                    container.appendChild(card);
+                }
+            } catch (err) {
+                container.innerHTML = `<div class="charts-empty">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="margin-bottom:12px;opacity:0.4"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5M12 16v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <div>Could not load <code>index.yaml</code>. The chart catalog will appear here once the first chart is published.</div>
+        <div style="margin-top:8px;font-size:0.8rem;opacity:0.6">${escapeHtml(err.message)}</div>
+      </div>`;
+            }
+        })();
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+
+</html>

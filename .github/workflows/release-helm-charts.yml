@@ -1,0 +1,106 @@
+name: Release Helm Charts
+
+concurrency: release-helm
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'charts/**'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch (source)
+        uses: actions/checkout@v4
+        with:
+          path: src
+          ref: main
+          fetch-depth: 0
+
+      - name: Checkout gh-pages branch (deploy target)
+        uses: actions/checkout@v4
+        with:
+          path: dest
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      # Package every chart source directory found under charts/.
+      # Packaged .tgz files land in src/packaged/ (a temporary staging area).
+      - name: Package charts
+        working-directory: src
+        run: |
+          mkdir -p packaged
+          for chart_dir in charts/*/; do
+            [ -f "${chart_dir}Chart.yaml" ] || continue
+            echo "Packaging ${chart_dir}..."
+            helm package "${chart_dir}" --destination packaged/
+          done
+          echo "Packaged charts:"
+          ls packaged/ || echo "(none)"
+
+      # Log in to the quay.io OCI registry using the Nebari bot robot account
+      # and push every packaged chart. Charts become installable via:
+      #   helm install my-release oci://quay.io/nebari-dev/<chart-name> --version <version>
+      - name: Log in to quay.io
+        env:
+          QUAY_USERNAME: ${{ secrets.QUAY_ROBOT_USERNAME }}
+          QUAY_PASSWORD: ${{ secrets.QUAY_ROBOT_TOKEN }}
+        run: |
+          echo "${QUAY_PASSWORD}" | helm registry login quay.io \
+            --username "${QUAY_USERNAME}" \
+            --password-stdin
+
+      - name: Push charts to quay.io OCI registry
+        working-directory: src
+        run: |
+          for tgz in packaged/*.tgz; do
+            [ -f "$tgz" ] || continue
+            echo "Pushing ${tgz} → oci://quay.io/nebari-dev ..."
+            helm push "$tgz" oci://quay.io/nebari-dev
+          done
+
+      - name: Log out of quay.io
+        if: always()
+        run: helm registry logout quay.io || true
+
+      # Merge the new packages into the existing gh-pages index so that the
+      # original "created" timestamps of previously released charts are kept.
+      - name: Update Helm index
+        working-directory: src
+        run: |
+          mkdir -p ../dest/helm
+          # Rebuild the index, merging with the existing one on gh-pages
+          helm repo index ./packaged \
+            --merge ../dest/index.yaml \
+            --url https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/
+          # Copy new archives into gh-pages helm/ (skip already-present files)
+          cp -pn ./packaged/*.tgz ../dest/helm/ 2>/dev/null || true
+          # Update the root index.yaml on gh-pages
+          cp -p ./packaged/index.yaml ../dest/index.yaml
+
+      # Deploy the landing page from main → gh-pages.
+      # gh-pages is the deploy target only; main is the source of truth.
+      - name: Copy site to gh-pages
+        run: |
+          cp -rp src/site/. dest/
+
+      # Commit and push only to gh-pages — main is never modified by this workflow.
+      - name: Commit and push to gh-pages
+        working-directory: dest
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --cached --quiet && echo "Nothing to commit." && exit 0
+          git commit -m "chore: release charts from main@$GITHUB_SHA"
+          git push

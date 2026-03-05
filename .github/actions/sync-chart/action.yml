@@ -1,0 +1,212 @@
+name: Sync Helm Chart to nebari-dev/helm-repository
+description: |
+  Copies a Helm chart source directory from the calling repository into
+  nebari-dev/helm-repository and opens a pull request.  When the PR is
+  merged the existing Release Helm Charts workflow will package, index,
+  and publish the chart to the Nebari Helm repository automatically.
+
+  Required permissions on the token:
+    - contents: write   (nebari-dev/helm-repository)
+    - pull-requests: write (nebari-dev/helm-repository)
+
+inputs:
+  # ── Required ──────────────────────────────────────────────────────
+  token:
+    description: |
+      Fine-grained PAT owned by the Nebari bot account with contents:write and
+      pull-requests:write on nebari-dev/helm-repository.
+      This is provisioned once by a helm-repository maintainer and stored as the
+      organisation secret NEBARI_HELM_REPO_TOKEN.
+      See .github/actions/sync-chart/README.md for setup instructions.
+    required: true
+
+  chart-path:
+    description: |
+      Path to the Helm chart source directory inside the calling repository
+      (must contain a Chart.yaml).  Relative to the workspace root.
+    required: true
+    default: helm-chart
+
+  # ── Optional ──────────────────────────────────────────────────────
+  chart-name:
+    description: |
+      Override the chart name used for the destination directory
+      charts/<chart-name>/ in helm-repository.
+      Defaults to the `name` field read from Chart.yaml.
+    required: false
+    default: ''
+
+  helm-repository-ref:
+    description: Branch in nebari-dev/helm-repository to open the PR against.
+    required: false
+    default: main
+
+  pr-title:
+    description: |
+      Pull request title.  Leave empty to use the auto-generated default:
+      "chore(charts): sync <name> v<version> from <caller-repo>"
+    required: false
+    default: ''
+
+  pr-labels:
+    description: |
+      Comma-separated list of labels to apply to the pull request.
+      The labels must already exist in nebari-dev/helm-repository.
+    required: false
+    default: 'automated,helm-sync'
+
+  pr-reviewers:
+    description: |
+      Comma-separated list of GitHub usernames to request as reviewers.
+    required: false
+    default: ''
+
+  lint-chart:
+    description: Run `helm lint` against the chart before creating the PR.
+    required: false
+    default: 'true'
+
+outputs:
+  pr-number:
+    description: Pull request number created (or updated) in helm-repository.
+    value: ${{ steps.create-pr.outputs.pull-request-number }}
+
+  pr-url:
+    description: URL of the pull request.
+    value: ${{ steps.create-pr.outputs.pull-request-url }}
+
+  chart-name:
+    description: Resolved chart name.
+    value: ${{ steps.chart-meta.outputs.name }}
+
+  chart-version:
+    description: Resolved chart version.
+    value: ${{ steps.chart-meta.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    # ── 1. Helm ───────────────────────────────────────────────────────
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+
+    # ── 2. Resolve chart metadata ──────────────────────────────────────
+    - name: Resolve chart name and version
+      id: chart-meta
+      shell: bash
+      run: |
+        chart_yaml="${{ inputs.chart-path }}/Chart.yaml"
+
+        if [ ! -f "$chart_yaml" ]; then
+          echo "::error::Chart.yaml not found at ${chart_yaml}. Check 'chart-path'."
+          exit 1
+        fi
+
+        if [ -n "${{ inputs.chart-name }}" ]; then
+          chart_name="${{ inputs.chart-name }}"
+        else
+          chart_name=$(grep -E '^name:' "$chart_yaml" | head -1 | awk '{print $2}' | tr -d '"'"'"')
+        fi
+
+        chart_version=$(grep -E '^version:' "$chart_yaml" | head -1 | awk '{print $2}' | tr -d '"'"'"')
+
+        if [ -z "$chart_name" ]; then
+          echo "::error::Could not determine chart name. Set the 'chart-name' input explicitly."
+          exit 1
+        fi
+        if [ -z "$chart_version" ]; then
+          echo "::error::Could not determine chart version from Chart.yaml."
+          exit 1
+        fi
+
+        echo "name=$chart_name"    >> "$GITHUB_OUTPUT"
+        echo "version=$chart_version" >> "$GITHUB_OUTPUT"
+        echo "::notice::Chart: ${chart_name} v${chart_version}"
+
+    # ── 3. Lint (optional) ─────────────────────────────────────────────
+    - name: Lint chart
+      if: inputs.lint-chart == 'true'
+      shell: bash
+      run: |
+        echo "Running helm lint on ${{ inputs.chart-path }}..."
+        helm lint "${{ inputs.chart-path }}"
+
+    # ── 4. Check out helm-repository ──────────────────────────────────
+    - name: Checkout nebari-dev/helm-repository
+      uses: actions/checkout@v4
+      with:
+        repository: nebari-dev/helm-repository
+        ref: ${{ inputs.helm-repository-ref }}
+        token: ${{ inputs.token }}
+        path: _helm-repository
+        fetch-depth: 0
+
+    # ── 5. Copy chart source into helm-repository ──────────────────────
+    - name: Copy chart source
+      shell: bash
+      run: |
+        dest="_helm-repository/charts/${{ steps.chart-meta.outputs.name }}"
+        echo "Syncing '${{ inputs.chart-path }}' → '${dest}'"
+        rm -rf "${dest}"
+        cp -rp "${{ inputs.chart-path }}/." "${dest}/"
+
+    # ── 6. Open / update PR ────────────────────────────────────────────
+    - name: Create or update pull request
+      id: create-pr
+      uses: peter-evans/create-pull-request@v7
+      with:
+        token: ${{ inputs.token }}
+        path: _helm-repository
+        branch: sync/${{ steps.chart-meta.outputs.name }}-${{ steps.chart-meta.outputs.version }}
+        base: ${{ inputs.helm-repository-ref }}
+        title: >-
+          ${{
+            inputs.pr-title != '' && inputs.pr-title
+            || format(
+                 'chore(charts): sync {0} v{1} from {2}',
+                 steps.chart-meta.outputs.name,
+                 steps.chart-meta.outputs.version,
+                 github.repository
+               )
+          }}
+        body: |
+          ## Automated chart sync
+
+          | Field | Value |
+          |---|---|
+          | **Chart** | `${{ steps.chart-meta.outputs.name }}` |
+          | **Version** | `${{ steps.chart-meta.outputs.version }}` |
+          | **Source repository** | [${{ github.repository }}](https://github.com/${{ github.repository }}) |
+          | **Source ref** | `${{ github.ref_name }}` |
+          | **Triggered by** | `${{ github.event_name }}` at [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) |
+
+          ---
+
+          Merging this PR will trigger the
+          [Release Helm Charts](../../actions/workflows/release-helm-charts.yml)
+          workflow, which will:
+
+          1. Run `helm package` on the updated chart.
+          2. Merge the new package into `index.yaml` (preserving existing chart timestamps).
+          3. Publish the chart archive and updated index to the
+             [Nebari Helm Repository](https://nebari-dev.github.io/helm-repository/).
+
+          > **Note:** This PR was opened automatically. Review the chart diff before merging.
+          > To update it, push a new release from the source repository — this branch will be
+          > force-updated automatically.
+        labels: ${{ inputs.pr-labels }}
+        reviewers: ${{ inputs.pr-reviewers }}
+        delete-branch: true
+        draft: false
+
+    # ── 7. Summary ─────────────────────────────────────────────────────
+    - name: Write job summary
+      shell: bash
+      run: |
+        echo "### Helm chart sync 🚀" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| | |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Chart | \`${{ steps.chart-meta.outputs.name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Version | \`${{ steps.chart-meta.outputs.version }}\` |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| PR | ${{ steps.create-pr.outputs.pull-request-url }} |" >> "$GITHUB_STEP_SUMMARY"
