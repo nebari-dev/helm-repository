@@ -756,6 +756,7 @@
                         <div class="step-num">2</div>
                         <div class="step-content">
                             <h3>Pull or inspect without installing</h3>
+                            <p>Download the chart archive locally or inspect its metadata without deploying anything.</p>
                             <div class="code-block" id="cb-oci-pull">
                                 <pre><span class="comment"># Download the chart archive</span>
 <span class="cmd">helm</span> pull oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
@@ -839,7 +840,7 @@
                         you the full history.</p>
                 </div>
                 <div class="info-card">
-                    <div class="info-card-icon">�</div>
+                    <div class="info-card-icon">&#x1F4E1;</div>
                     <h3>OCI on quay.io</h3>
                     <p>Every chart is also pushed to <code
                             style="font-family:var(--font-mono);font-size:0.92em">quay.io/nebari-dev</code> as a public
@@ -918,7 +919,7 @@
                 const names = Object.keys(entries);
 
                 if (names.length === 0) {
-                    container.innerHTML = `<div class="charts-empty">No charts published yet. Push a <code>.tgz</code> to <code>charts/</code> on the <code>main</code> branch to get started.</div>`;
+                    container.innerHTML = `<div class="charts-empty">No charts published yet. Add a chart source directory to <code>charts/</code> on the <code>main</code> branch to get started.</div>`;
                     return;
                 }
 
