@@ -5,40 +5,41 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nebari Helm Repository</title>
+    <link rel="icon" href="https://raw.githubusercontent.com/nebari-dev/nebari-design/main/symbol/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
     <style>
         /* ─── Design tokens ───────────────────────────────────────────── */
         :root {
-            --color-bg: #0f0f14;
+            --color-bg: #0F1015;
             --color-surface: #16161f;
             --color-surface-2: #1e1e2e;
             --color-border: #2a2a3d;
 
-            --color-primary: #7c5cfc;
-            --color-primary-dim: #5a3fd4;
-            --color-accent: #c9b8ff;
-            --color-accent-soft: rgba(124, 92, 252, 0.12);
+            --color-primary: #BA18DA;
+            --color-primary-dim: #9a12b8;
+            --color-accent: #EAB54E;
+            --color-accent-soft: rgba(186, 24, 218, 0.12);
 
             --color-text: #e2e0f0;
             --color-text-muted: #8a8aab;
             --color-text-faint: #55556a;
 
-            --color-success: #43c880;
-            --color-warning: #f5c542;
+            --color-success: #20AAA1;
+            --color-warning: #EAB54E;
 
             --radius-sm: 6px;
             --radius-md: 12px;
             --radius-lg: 20px;
 
-            --font-body: 'Inter', system-ui, sans-serif;
-            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --font-body: 'Poppins', system-ui, sans-serif;
+            --font-mono: 'Atkinson Hyperlegible', monospace;
 
-            --shadow-glow: 0 0 40px rgba(124, 92, 252, 0.25);
+            --shadow-glow: 0 0 40px rgba(186, 24, 218, 0.25);
         }
 
         /* ─── Reset ───────────────────────────────────────────────────── */
@@ -108,8 +109,10 @@
             color: var(--color-text);
         }
 
-        .nav-logo svg {
+        .nav-logo img {
             flex-shrink: 0;
+            height: 28px;
+            width: auto;
         }
 
         .nav-links {
@@ -143,7 +146,7 @@
             position: absolute;
             inset: 0;
             background:
-                radial-gradient(ellipse 70% 50% at 50% 0%, rgba(124, 92, 252, 0.18) 0%, transparent 70%);
+                radial-gradient(ellipse 70% 50% at 50% 0%, rgba(186, 24, 218, 0.18) 0%, transparent 70%);
             pointer-events: none;
         }
 
@@ -152,7 +155,7 @@
             align-items: center;
             gap: 6px;
             background: var(--color-accent-soft);
-            border: 1px solid rgba(124, 92, 252, 0.3);
+            border: 1px solid rgba(186, 24, 218, 0.3);
             border-radius: 100px;
             padding: 4px 14px;
             font-size: 0.8rem;
@@ -172,7 +175,7 @@
         }
 
         .hero h1 span {
-            background: linear-gradient(135deg, #c9b8ff 0%, #7c5cfc 60%);
+            background: linear-gradient(135deg, #EAB54E 0%, #BA18DA 60%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -209,12 +212,12 @@
         .btn-primary {
             background: var(--color-primary);
             color: #fff;
-            box-shadow: 0 4px 20px rgba(124, 92, 252, 0.35);
+            box-shadow: 0 4px 20px rgba(186, 24, 218, 0.35);
         }
 
         .btn-primary:hover {
             background: var(--color-primary-dim);
-            box-shadow: 0 4px 28px rgba(124, 92, 252, 0.5);
+            box-shadow: 0 4px 28px rgba(186, 24, 218, 0.5);
             text-decoration: none;
             color: #fff;
         }
@@ -277,6 +280,16 @@
             line-height: 1.7;
         }
 
+        .code-block pre {
+            margin: 0;
+            padding: 0;
+            font-family: inherit;
+            font-size: inherit;
+            color: inherit;
+            line-height: inherit;
+            white-space: pre;
+        }
+
         .code-block .comment {
             color: var(--color-text-faint);
         }
@@ -328,7 +341,7 @@
             height: 36px;
             border-radius: 50%;
             background: var(--color-accent-soft);
-            border: 1px solid rgba(124, 92, 252, 0.4);
+            border: 1px solid rgba(186, 24, 218, 0.4);
             font-weight: 700;
             font-size: 0.9rem;
             color: var(--color-accent);
@@ -368,8 +381,8 @@
         }
 
         .chart-card:hover {
-            border-color: rgba(124, 92, 252, 0.4);
-            box-shadow: 0 0 0 1px rgba(124, 92, 252, 0.1);
+            border-color: rgba(186, 24, 218, 0.4);
+            box-shadow: 0 0 0 1px rgba(186, 24, 218, 0.1);
         }
 
         .chart-name {
@@ -402,15 +415,15 @@
         }
 
         .badge-version {
-            background: rgba(67, 200, 128, 0.12);
+            background: rgba(32, 170, 161, 0.12);
             color: var(--color-success);
-            border: 1px solid rgba(67, 200, 128, 0.2);
+            border: 1px solid rgba(32, 170, 161, 0.2);
         }
 
         .badge-app {
             background: var(--color-accent-soft);
             color: var(--color-accent);
-            border: 1px solid rgba(124, 92, 252, 0.2);
+            border: 1px solid rgba(186, 24, 218, 0.2);
         }
 
         .chart-download {
@@ -423,7 +436,7 @@
             font-weight: 600;
             background: var(--color-accent-soft);
             color: var(--color-accent);
-            border: 1px solid rgba(124, 92, 252, 0.25);
+            border: 1px solid rgba(186, 24, 218, 0.25);
             white-space: nowrap;
             transition: all 0.2s;
         }
@@ -597,13 +610,8 @@
     <nav class="nav">
         <div class="container nav-inner">
             <a class="nav-logo" href="#">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="28" height="28" rx="7" fill="#7c5cfc" />
-                    <path d="M7 20L14 8L21 20" stroke="white" stroke-width="2.2" stroke-linecap="round"
-                        stroke-linejoin="round" />
-                    <path d="M9.5 16H18.5" stroke="white" stroke-width="2.2" stroke-linecap="round" />
-                </svg>
-                Nebari Helm Repository
+                <img src="https://raw.githubusercontent.com/nebari-dev/nebari-design/main/logo-mark/horizontal/Nebari-Logo-Horizontal-Lockup-White-text.svg"
+                    alt="Nebari" />
             </a>
             <ul class="nav-links">
                 <li><a href="#quickstart">Quick Start</a></li>
@@ -618,15 +626,11 @@
     <!-- ── Hero ────────────────────────────────────────────────────────── -->
     <section class="hero">
         <div class="container">
-            <div class="hero-badge">
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                    <circle cx="5" cy="5" r="4" />
-                </svg>
-                Open Source · GitHub Pages
-            </div>
+            <!--  -->
             <h1>Helm charts for<br /><span>Nebari's ecosystem</span></h1>
             <p>
-                A curated Helm chart repository for deploying Nebari and its companion tools on Kubernetes—versioned,
+                A curated Helm chart repository for deploying Nebari Software Packs and its companion tools on
+                Kubernetes—versioned,
                 indexed, and always up to date.
             </p>
             <div class="hero-actions">
@@ -686,11 +690,8 @@
                             <p>Register the Nebari Helm repository under the alias <code
                                     style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">nebari</code>.
                             </p>
-                            <div class="code-block" id="cb-add">
-                                <span class="cmd">helm</span> repo add nebari \
-                                https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/
-                                <button class="code-copy" onclick="copyCode('cb-add')">Copy</button>
-                            </div>
+                            <div class="code-block" id="cb-add"><pre><span class="cmd">helm</span> repo add nebari \
+  https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/</pre><button class="code-copy" onclick="copyCode('cb-add')">Copy</button></div>
                         </div>
                     </div>
 
@@ -699,10 +700,7 @@
                         <div class="step-content">
                             <h3>Update the local cache</h3>
                             <p>Pull the latest chart index from the repository.</p>
-                            <div class="code-block" id="cb-update">
-                                <span class="cmd">helm</span> repo update nebari
-                                <button class="code-copy" onclick="copyCode('cb-update')">Copy</button>
-                            </div>
+                            <div class="code-block" id="cb-update"><pre><span class="cmd">helm</span> repo update nebari</pre><button class="code-copy" onclick="copyCode('cb-update')">Copy</button></div>
                         </div>
                     </div>
 
@@ -711,37 +709,9 @@
                         <div class="step-content">
                             <h3>Install a chart</h3>
                             <p>Browse the charts below, then install the one you need.</p>
-                            <div class="code-block" id="cb-install">
-                                <span class="comment"># Replace &lt;chart-name&gt; with the desired chart</span>
-                                <span class="cmd">helm</span> install my-release nebari/<span
-                                    class="flag">&lt;chart-name&gt;</span>
-                                <button class="code-copy" onclick="copyCode('cb-install')">Copy</button>
-                            </div>
+                            <div class="code-block" id="cb-install"><pre><span class="comment"># Replace &lt;chart-name&gt; with the desired chart</span>
+<span class="cmd">helm</span> install my-release nebari/<span class="flag">&lt;chart-name&gt;</span></pre><button class="code-copy" onclick="copyCode('cb-install')">Copy</button></div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Private repo note -->
-                <div
-                    style="margin-top:32px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:20px 24px;">
-                    <h3
-                        style="font-size:0.95rem;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <rect x="2" y="7" width="12" height="8" rx="2" stroke="#f5c542" stroke-width="1.5" />
-                            <path d="M5 7V5a3 3 0 016 0v2" stroke="#f5c542" stroke-width="1.5" stroke-linecap="round" />
-                        </svg>
-                        <span style="color:var(--color-warning)">Private repository access</span>
-                    </h3>
-                    <p style="font-size:0.875rem;color:var(--color-text-muted);margin-bottom:12px;">
-                        If you are using a private fork of this repository (requires a GitHub Enterprise license),
-                        authenticate with a personal access token (PAT):
-                    </p>
-                    <div class="code-block" id="cb-private">
-                        <span class="cmd">helm</span> repo add nebari \
-                        https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/ \
-                        <span class="flag">--username</span> <span class="comment">&lt;your-github-username&gt;</span> \
-                        <span class="flag">--password</span> <span class="comment">&lt;your-PAT&gt;</span>
-                        <button class="code-copy" onclick="copyCode('cb-private')">Copy</button>
                     </div>
                 </div>
             </div>
@@ -758,13 +728,10 @@
                             <p>Charts are published to <code
                                     style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">quay.io/nebari-dev</code>
                                 as public OCI artifacts. Use the chart's version tag directly.</p>
-                            <div class="code-block" id="cb-oci-install">
-                                <span class="comment"># --version is required for OCI refs</span>
-                                <span class="cmd">helm</span> install my-release \
-                                oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> \
-                                <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
-                                <button class="code-copy" onclick="copyCode('cb-oci-install')">Copy</button>
-                            </div>
+                            <div class="code-block" id="cb-oci-install"><pre><span class="comment"># --version is required for OCI refs</span>
+<span class="cmd">helm</span> install my-release \
+  oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> \
+  <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre><button class="code-copy" onclick="copyCode('cb-oci-install')">Copy</button></div>
                         </div>
                     </div>
 
@@ -772,18 +739,11 @@
                         <div class="step-num">2</div>
                         <div class="step-content">
                             <h3>Pull or inspect without installing</h3>
-                            <div class="code-block" id="cb-oci-pull">
-                                <span class="comment"># Download the chart archive</span>
-                                <span class="cmd">helm</span> pull oci://quay.io/nebari-dev/<span
-                                    class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span
-                                    class="comment">&lt;version&gt;</span>
+                            <div class="code-block" id="cb-oci-pull"><pre><span class="comment"># Download the chart archive</span>
+<span class="cmd">helm</span> pull oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
 
-                                <span class="comment"># Inspect chart metadata</span>
-                                <span class="cmd">helm</span> show chart oci://quay.io/nebari-dev/<span
-                                    class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span
-                                    class="comment">&lt;version&gt;</span>
-                                <button class="code-copy" onclick="copyCode('cb-oci-pull')">Copy</button>
-                            </div>
+<span class="comment"># Inspect chart metadata</span>
+<span class="cmd">helm</span> show chart oci://quay.io/nebari-dev/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre><button class="code-copy" onclick="copyCode('cb-oci-pull')">Copy</button></div>
                         </div>
                     </div>
                 </div>
@@ -844,14 +804,6 @@
                         the <code style="font-family:var(--font-mono);font-size:0.85em">charts/</code> folder on <code
                             style="font-family:var(--font-mono);font-size:0.85em">main</code> and a GitHub Actions
                         workflow will update the index and deploy it automatically.</p>
-                </div>
-                <div class="info-card">
-                    <div class="info-card-icon">🔒</div>
-                    <h3>Access control</h3>
-                    <p>Public repositories are accessible to everyone. Private forks (GitHub Enterprise) support
-                        token-based authentication via the <code
-                            style="font-family:var(--font-mono);font-size:0.85em">raw.githubusercontent.com</code>
-                        endpoint.</p>
                 </div>
                 <div class="info-card">
                     <div class="info-card-icon">🏷️</div>
@@ -918,10 +870,8 @@
         function copyCode(id) {
             const el = document.getElementById(id);
             const btn = el.querySelector('.code-copy');
-            // Extract text, stripping the button's own text
-            const text = el.cloneNode(true);
-            text.querySelectorAll('.code-copy').forEach(n => n.remove());
-            navigator.clipboard.writeText(text.innerText.trim()).then(() => {
+            const pre = el.querySelector('pre');
+            navigator.clipboard.writeText(pre.innerText.trim()).then(() => {
                 btn.textContent = 'Copied!';
                 setTimeout(() => btn.textContent = 'Copy', 1800);
             });
