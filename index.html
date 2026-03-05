@@ -78,7 +78,7 @@
 
         /* ─── Layout helpers ─────────────────────────────────────────── */
         .container {
-            max-width: 1100px;
+            max-width: 1260px;
             margin: 0 auto;
             padding: 0 24px;
         }
@@ -272,12 +272,15 @@
             background: var(--color-surface-2);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
-            padding: 20px 52px 20px 20px;
+            padding: 24px 60px 24px 24px;
             font-family: var(--font-mono);
-            font-size: 0.875rem;
+            font-size: 0.9rem;
             color: #cdd6f4;
             overflow-x: auto;
-            line-height: 1.7;
+            line-height: 1.8;
+            min-height: 130px;
+            display: flex;
+            align-items: flex-start;
         }
 
         .code-block pre {
@@ -288,6 +291,7 @@
             color: inherit;
             line-height: inherit;
             white-space: pre;
+            flex: 1;
         }
 
         .code-block .comment {
@@ -614,6 +618,7 @@
                     alt="Nebari" />
             </a>
             <ul class="nav-links">
+                <li><a href="#software-packs">Software Packs</a></li>
                 <li><a href="#quickstart">Quick Start</a></li>
                 <li><a href="#charts">Charts</a></li>
                 <li><a href="https://nebari.dev/docs" target="_blank" rel="noopener">Docs</a></li>
@@ -629,9 +634,8 @@
             <!--  -->
             <h1>Helm charts for<br /><span>Nebari's ecosystem</span></h1>
             <p>
-                A curated Helm chart repository for deploying Nebari Software Packs and its companion tools on
-                Kubernetes—versioned,
-                indexed, and always up to date.
+                A curated Helm chart repository for deploying <a href="#software-packs" style="color:var(--color-accent);text-decoration:underline;text-decoration-color:rgba(234,181,78,0.4);text-underline-offset:3px">Nebari Software Packs</a> and its companion tools on
+                Kubernetes—versioned, indexed, and always up to date.
             </p>
             <div class="hero-actions">
                 <a class="btn btn-primary" href="#quickstart">
@@ -649,6 +653,54 @@
                     </svg>
                     GitHub
                 </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Software Packs ─────────────────────────────────────────────────── -->
+    <section class="section" id="software-packs">
+        <div class="container">
+            <p class="section-label">Concepts</p>
+            <h2 class="section-title">What is a Nebari Software Pack?</h2>
+            <p class="section-subtitle">
+                A software pack is any Kubernetes deployment that includes a <code
+                    style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">NebariApp</code>
+                custom resource. The <code
+                    style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">NebariApp</code>
+                tells the <code
+                    style="font-family:var(--font-mono);font-size:0.85em">nebari-operator</code> to auto-configure:
+            </p>
+            <div class="info-grid" style="margin-bottom:32px">
+                <div class="info-card">
+                    <div class="info-card-icon">🌐</div>
+                    <h3>Routing</h3>
+                    <p>Creates an <code style="font-family:var(--font-mono);font-size:0.85em">HTTPRoute</code> on the
+                        shared Envoy Gateway, making your application instantly reachable under the Nebari domain.</p>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-icon">🔒</div>
+                    <h3>TLS</h3>
+                    <p>Provisions a certificate automatically via <code
+                            style="font-family:var(--font-mono);font-size:0.85em">cert-manager</code> — no manual
+                        certificate management required.</p>
+                </div>
+                <div class="info-card">
+                    <div class="info-card-icon">🔑</div>
+                    <h3>Authentication</h3>
+                    <p>Sets up Keycloak OIDC via an Envoy Gateway <code
+                            style="font-family:var(--font-mono);font-size:0.85em">SecurityPolicy</code>, giving your
+                        app single sign-on with the rest of the Nebari platform.</p>
+                </div>
+            </div>
+            <div
+                style="background:var(--color-surface);border:1px solid var(--color-border);border-left:3px solid var(--color-primary);border-radius:var(--radius-md);padding:20px 24px">
+                <p style="font-size:0.9rem;color:var(--color-text-muted);line-height:1.65;margin:0">
+                    The <code
+                        style="font-family:var(--font-mono);font-size:0.85em;color:var(--color-accent)">NebariApp</code>
+                    CRD is the integration point between your application and the Nebari platform. How you deploy the
+                    rest of your application is up to you — Helm charts, Kustomize overlays, and plain YAML manifests
+                    are all supported. All three are first-class deployment methods in <strong>ArgoCD</strong>.
+                </p>
             </div>
         </div>
     </section>
