@@ -1,6 +1,16 @@
 # Nebari Helm Repository
 
+[![Release Helm Charts](https://github.com/nebari-dev/helm-repository/actions/workflows/release-helm-charts.yml/badge.svg)](https://github.com/nebari-dev/helm-repository/actions/workflows/release-helm-charts.yml)
+[![License](https://img.shields.io/badge/License-Apache%202.0-purple.svg)](LICENSE)
+[![Chart Catalog](https://img.shields.io/badge/chart%20catalog-nebari--dev.github.io-BA18DA)](https://nebari-dev.github.io/helm-repository/)
+
 An automated Helm chart repository for the [Nebari](https://nebari.dev) ecosystem, published via GitHub Pages.
+
+| | |
+|---|---|
+| **Chart catalog** | https://nebari-dev.github.io/helm-repository/ |
+| **Helm index URL** | `https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/` |
+| **Raw index.yaml** | https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/index.yaml |
 
 ## Using the repository
 
@@ -40,7 +50,7 @@ helm install my-release oci://quay.io/nebari-dev/<chart-name> --version <version
 # Pull without installing
 helm pull oci://quay.io/nebari-dev/<chart-name> --version <version>
 
-# Inspect available versions
+# Inspect chart metadata
 helm show chart oci://quay.io/nebari-dev/<chart-name> --version <version>
 ```
 
@@ -141,12 +151,6 @@ gh-pages/
 
 Chart releases (packaging, index updates, OCI push) are fully automated by CI. The landing page (`index.html`) is
 managed directly on `gh-pages` — to update it, open a PR targeting the `gh-pages` branch.
-
-## GitHub Pages site
-
-The live chart catalog is available at: **https://nebari-dev.github.io/helm-repository/**
-
-The raw Helm index is at: **https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/index.yaml**
 
 ## License
 
