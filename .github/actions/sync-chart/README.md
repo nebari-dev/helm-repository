@@ -76,8 +76,8 @@ a **robot account** under the `nebari-dev` quay.io organisation.
 
 | Secret name | Value | Repository access |
 |---|---|---|
-| `QUAY_ROBOT_USERNAME` | `nebari-dev+helm_publisher` | `nebari-dev/helm-repository` only |
-| `QUAY_ROBOT_TOKEN` | _(generated token)_ | `nebari-dev/helm-repository` only |
+| `QUAY_USERNAME` | `nebari-dev+helm_publisher` | `nebari-dev/helm-repository` only |
+| `QUAY_PASSWORD` | _(generated token)_ | `nebari-dev/helm-repository` only |
 
 > These secrets are consumed by the **Release Helm Charts** workflow in this repo only — tool repositories do not need
 > them.
