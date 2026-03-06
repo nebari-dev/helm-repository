@@ -1,0 +1,82 @@
+# Example workflow for a TOOL repository
+# ───────────────────────────────────────────────────────────────────────────────
+# Copy this file into your repository at:
+#   .github/workflows/sync-helm-chart.yml
+#
+# Prerequisites
+# ─────────────────────────────────────────────────────────────────────────────
+# A maintainer of nebari-dev/helm-repository must complete the one-time setup
+# described in .github/actions/sync-chart/README.md before this workflow will
+# work.  That includes creating the Nebari bot token and storing it as an
+# organisation (or repository) secret named NEBARI_HELM_REPO_TOKEN.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Sync Helm Chart to nebari-dev/helm-repository
+
+on:
+  # Trigger on a published GitHub release (most common for tool repos)
+  release:
+    types: [published]
+
+  # Allow manual runs from the Actions tab (useful for testing)
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Skip PR creation and just lint the chart"
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  sync:
+    name: Sync chart
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read   # to check out this repo
+
+    steps:
+      - name: Checkout calling repository
+        uses: actions/checkout@v4
+
+      # ── Optional: update the chart version from the release tag ─────────
+      # Uncomment and adapt if your Chart.yaml version should match the
+      # GitHub release tag (strips a leading 'v' if present).
+      #
+      # - name: Bump chart version to release tag
+      #   run: |
+      #     version="${{ github.event.release.tag_name }}"
+      #     version="${version#v}"   # strip leading 'v'
+      #     sed -i "s/^version:.*/version: ${version}/" helm-chart/Chart.yaml
+      #     sed -i "s/^appVersion:.*/appVersion: \"${version}\"/" helm-chart/Chart.yaml
+      # ─────────────────────────────────────────────────────────────────────
+
+      - name: Sync chart to helm-repository
+        # Skip PR creation on dry-run (manual dispatch only)
+        if: github.event.inputs.dry-run != 'true'
+        uses: nebari-dev/helm-repository/.github/actions/sync-chart@main
+        with:
+          # Path to the chart source directory within this repository.
+          chart-path: helm-chart
+
+          # PAT stored as a secret in this repository.
+          token: ${{ secrets.NEBARI_HELM_REPO_TOKEN }}
+
+          # Optional: override the destination directory name (charts/<chart-name>/).
+          # Defaults to the 'name' field in Chart.yaml.
+          # chart-name: my-custom-name
+
+          # Optional: request human review before the chart is published.
+          # pr-reviewers: nebari-dev/core-team
+
+          # Labels must exist in nebari-dev/helm-repository.
+          pr-labels: 'automated,helm-sync'
+
+      # ── Dry-run path: just lint ──────────────────────────────────────────
+      - name: Install Helm (dry-run)
+        if: github.event.inputs.dry-run == 'true'
+        uses: azure/setup-helm@v4
+
+      - name: Lint chart (dry-run)
+        if: github.event.inputs.dry-run == 'true'
+        run: helm lint helm-chart
