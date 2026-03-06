@@ -95,7 +95,8 @@ repo, the action:
 > [maintainer setup guide](.github/actions/sync-chart/README.md) for token creation, organisation secret configuration,
 > and per-repo rollout steps.
 
-## Directory structure
+<details>
+<summary><strong>Directory structure</strong></summary>
 
 ### `main` branch (source of truth)
 
@@ -131,6 +132,8 @@ gh-pages/
 
 Chart releases (packaging, index updates, OCI push) are fully automated by CI. The landing page (`index.html`) is
 managed directly on `gh-pages` — to update it, open a PR targeting the `gh-pages` branch.
+
+</details>
 
 ## License
 
