@@ -95,26 +95,6 @@ repo, the action:
 > [maintainer setup guide](.github/actions/sync-chart/README.md) for token creation, organisation secret configuration,
 > and per-repo rollout steps.
 
-## Repository setup (one-time)
-
-### 1. Create the `gh-pages` branch
-
-```bash
-git checkout --orphan gh-pages
-git rm -rf .
-git commit --allow-empty -m "init: gh-pages branch"
-git push origin gh-pages
-git checkout main
-```
-
-### 2. Enable GitHub Pages
-
-Go to **Settings → Pages → Branch → `gh-pages` / `(root)`** and click **Save**.
-
-### 3. Grant workflow write permissions
-
-Go to **Settings → General → Actions → Workflow permissions → Read and write permissions** and click **Save**.
-
 ## Directory structure
 
 ### `main` branch (source of truth)
