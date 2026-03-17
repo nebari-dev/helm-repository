@@ -50,7 +50,7 @@ jobs:
 
       # Log in to the quay.io OCI registry using the Nebari bot robot account
       # and push every packaged chart. Charts become installable via:
-      #   helm install my-release oci://quay.io/nebari-dev/<chart-name> --version <version>
+      #   helm install my-release oci://quay.io/nebari/<chart-name> --version <version>
       - name: Log in to quay.io
         env:
           QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
@@ -65,8 +65,8 @@ jobs:
         run: |
           for tgz in packaged/*.tgz; do
             [ -f "$tgz" ] || continue
-            echo "Pushing ${tgz} → oci://quay.io/nebari-dev ..."
-            helm push "$tgz" oci://quay.io/nebari-dev
+            echo "Pushing ${tgz} → oci://quay.io/nebari ..."
+            helm push "$tgz" oci://quay.io/nebari
           done
 
       - name: Log out of quay.io
