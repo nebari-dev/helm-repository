@@ -1,0 +1,18 @@
+apiVersion: v2
+name: nebari-landing
+description: >
+  Nebari Landing Page — React frontend (OAuth2 Proxy sidecar) +
+  Go webapi backend, backed by Redis for pins, notifications,
+  access requests and WebSocket fan-out.
+type: application
+version: 0.1.0-alpha.1
+appVersion: "v0.1.0-alpha.1"
+maintainers:
+  - name: OpenTeams
+    url: https://github.com/nebari-dev
+
+dependencies:
+  - name: redis
+    version: "23.1.1"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
+    condition: redis.enabled
