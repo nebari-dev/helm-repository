@@ -1,3 +1,24 @@
 apiVersion: v1
-entries: {}
-generated: "2026-03-17T13:24:15.603883558Z"
+entries:
+  nebari-landing:
+  - apiVersion: v2
+    appVersion: v0.1.0-alpha.1
+    created: "2026-03-17T13:40:09.095061584Z"
+    dependencies:
+    - condition: redis.enabled
+      name: redis
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 23.1.1
+    description: 'Nebari Landing Page — React frontend (OAuth2 Proxy sidecar) + Go
+      webapi backend, backed by Redis for pins, notifications, access requests and
+      WebSocket fan-out. '
+    digest: 3d9b8272413d05ed936a5cceda0689a49e2498f57b7bd01623639c4659598b4f
+    maintainers:
+    - name: OpenTeams
+      url: https://github.com/nebari-dev
+    name: nebari-landing
+    type: application
+    urls:
+    - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/nebari-landing-0.1.0-alpha.1.tgz
+    version: 0.1.0-alpha.1
+generated: "2026-03-17T13:40:09.087572204Z"
