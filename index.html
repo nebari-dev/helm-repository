@@ -945,17 +945,13 @@
                         `<span class="badge badge-version">v${v.version}</span>`
                     ).join('');
 
-                    const appBadge = latest.appVersion
-                        ? `<span class="badge badge-app">app v${latest.appVersion}</span>`
-                        : '';
-
                     const ociRef = `oci://quay.io/nebari/${name}`;
 
                     card.innerHTML = `
           <div>
             <div class="chart-name">${escapeHtml(name)}</div>
             <div class="chart-description">${escapeHtml(latest.description || 'No description provided.')}</div>
-            <div class="chart-meta">${versionBadges}${appBadge}</div>
+            <div class="chart-meta">${versionBadges}</div>
             <div style="margin-top:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
               <span style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--color-text-faint)">OCI</span>
               <code style="font-family:var(--font-mono);font-size:0.78rem;color:var(--color-text-muted);background:var(--color-surface-2);padding:2px 8px;border-radius:4px;border:1px solid var(--color-border)">${escapeHtml(ociRef)}</code>
