@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nebari-landing.fullname" . }}-webapi
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-landing.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webapi
+spec:
+  # NOTE: Keep replicas at 1 if using Redis Sentinel/cluster is not configured.
+  # With Redis enabled (subchart), horizontal scaling is fully supported.
+  replicas: {{ .Values.webapi.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "nebari-landing.webapi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "nebari-landing.labels" . | nindent 8 }}
+        {{- include "nebari-landing.webapi.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "nebari-landing.webapi.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+
+      initContainers:
+        - name: wait-for-redis
+          image: busybox:1.36
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+            runAsNonRoot: true
+            runAsUser: 65532
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z -w 2 {{ .Release.Name }}-redis-master 6379; do
+                echo "waiting for Redis at {{ .Release.Name }}-redis-master:6379 …"
+                sleep 2
+              done
+              echo "Redis is ready"
+
+      containers:
+        - name: webapi
+          image: "{{ .Values.webapi.image.repository }}:{{ .Values.webapi.image.tag }}"
+          imagePullPolicy: {{ .Values.webapi.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.webapi.port }}
+              protocol: TCP
+          env:
+            # Server
+            - name: PORT
+              value: {{ .Values.webapi.port | quote }}
+            # Keycloak JWT
+            - name: ENABLE_AUTH
+              value: {{ .Values.webapi.keycloak.enableAuth | quote }}
+            - name: KEYCLOAK_URL
+              value: {{ .Values.webapi.keycloak.url | quote }}
+            - name: KEYCLOAK_REALM
+              value: {{ .Values.webapi.keycloak.realm | quote }}
+            {{- if .Values.webapi.keycloak.issuerUrl }}
+            - name: KEYCLOAK_ISSUER_URL
+              value: {{ .Values.webapi.keycloak.issuerUrl | quote }}
+            {{- end }}
+            - name: KEYCLOAK_ADMIN_SECRET_NAME
+              value: {{ .Values.webapi.keycloak.adminSecretName | quote }}
+            - name: KEYCLOAK_ADMIN_SECRET_NAMESPACE
+              value: {{ .Values.webapi.keycloak.adminSecretNamespace | quote }}
+            - name: ADMIN_GROUP
+              value: {{ .Values.webapi.keycloak.adminGroup | quote }}
+            # CORS — comma-separated allowed origins; "*" permits all.
+            # The webapi is ClusterIP-only (never exposed by the Gateway); this
+            # setting matters only when using a Vite dev server with port-forward.
+            - name: ALLOWED_ORIGINS
+              value: {{ .Values.webapi.allowedOrigins | quote }}
+            # Debug mode — enables GET /api/v1/debug and verbose JWT logging.
+            # Set webapi.debugMode=true in values to activate. Never use in production.
+            - name: DEBUG_MODE
+              value: {{ .Values.webapi.debugMode | quote }}
+            # Automatic notifications
+            - name: NOTIFICATIONS_STARTUP
+              value: {{ .Values.webapi.notifications.startupNotification | quote }}
+            - name: NOTIFICATIONS_LIFECYCLE
+              value: {{ .Values.webapi.notifications.lifecycleNotifications | quote }}
+            # Health
+            - name: HEALTH_INTERVAL
+              value: {{ .Values.webapi.healthInterval | quote }}
+            # Redis
+            - name: REDIS_ADDR
+              value: {{ include "nebari-landing.redisAddr" . | quote }}
+            {{- if .Values.redis.auth.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.redis.auth.existingSecret }}
+                  name: {{ .Values.redis.auth.existingSecret }}
+                  key: {{ .Values.redis.auth.existingSecretPasswordKey }}
+                  {{- else }}
+                  name: {{ printf "%s-redis" .Release.Name }}
+                  key: redis-password
+                  {{- end }}
+            {{- if .Values.redis.auth.username }}
+            - name: REDIS_USERNAME
+              value: {{ .Values.redis.auth.username | quote }}
+            {{- end }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: {{ .Values.webapi.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: {{ .Values.webapi.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.webapi.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+
+      terminationGracePeriodSeconds: 10
