@@ -105,10 +105,10 @@ runs:
         if [ -n "${{ inputs.chart-name }}" ]; then
           chart_name="${{ inputs.chart-name }}"
         else
-          chart_name=$(grep -E '^name:' "$chart_yaml" | head -1 | awk '{print $2}' | tr -d '"'"'"')
+          chart_name=$(grep -E '^name:' "$chart_yaml" | head -1 | awk '{print $2}' | tr -d "\"'")
         fi
 
-        chart_version=$(grep -E '^version:' "$chart_yaml" | head -1 | awk '{print $2}' | tr -d '"'"'"')
+        chart_version=$(grep -E '^version:' "$chart_yaml" | head -1 | awk '{print $2}' | tr -d "\"'")
 
         if [ -z "$chart_name" ]; then
           echo "::error::Could not determine chart name. Set the 'chart-name' input explicitly."
