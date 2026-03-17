@@ -1,0 +1,300 @@
+# Default values for nebari-landing.
+
+# -- Global image pull policy applied to all containers.
+global:
+  imagePullPolicy: IfNotPresent
+
+# ---------------------------------------------------------------------------
+# Frontend pod  (static assets + OAuth2 Proxy sidecar)
+# ---------------------------------------------------------------------------
+frontend:
+  # Set to false to skip deploying the frontend (e.g. webapi-only test environments
+  # that do not have the oauth2-proxy Secret pre-created).
+  enabled: true
+
+  replicaCount: 1
+
+  image:
+    repository: quay.io/nebari/nebari-landing
+    tag: "v0.1.0-alpha.1"
+    pullPolicy: IfNotPresent
+
+  # Port the static file server listens on *inside the pod* (reachable only
+  # via the OAuth2 Proxy sidecar; not exposed externally).
+  # Must be > 1024 — the nginx container runs as non-root (UID 101) with all
+  # capabilities dropped and cannot bind privileged ports.
+  port: 8080
+
+  # Keycloak connection settings — rendered into /config.json at deploy time
+  # by the frontend ConfigMap. The frontend fetches this file at startup so
+  # the image is config-agnostic (no build-time VITE_* args needed).
+  keycloak:
+    # Full Keycloak base URL (Keycloak 17+ no longer uses /auth as a context root).
+    # e.g. https://keycloak.example.com
+    url: ""
+    realm: "nebari"
+    # OIDC client ID sent by the Keycloak JS adapter in the browser.
+    # Leave empty to use the operator SPA client convention: <namespace>-<nebariapp-name>-spa.
+    # The SPA client is a separate *public* Keycloak client (no secret, PKCE only)
+    # provisioned by the operator when nebariApp.spaClient.enabled=true.
+    # Override only when using a manually provisioned client with a different ID.
+    clientId: ""
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+  # OAuth2 Proxy runs as a sidecar in front of the static server.
+  oauth2Proxy:
+    image:
+      repository: quay.io/oauth2-proxy/oauth2-proxy
+      tag: "v7.14.3"
+      pullPolicy: IfNotPresent
+
+    # Port exposed by the Service / Envoy Gateway route.
+    port: 4180
+
+    # OIDC provider — Keycloak realm URL.
+    # e.g. https://keycloak.example.com/realms/nebari
+    oidcIssuerUrl: ""
+
+    # Name of the Secret containing the OIDC client-secret key.
+    # The nebari-operator creates this automatically when it reconciles the
+    # frontend NebariApp: it follows the pattern <nebariapp-name>-oidc-client.
+    # Leave empty to use the operator-created default derived from the chart
+    # fullname: "<fullname>-oidc-client".
+    # OIDC client ID passed to oauth2-proxy via --client-id.
+    # Leave empty to use the operator convention: <namespace>-<nebariapp-name>.
+    # Override only when the Keycloak client was provisioned with a different ID.
+    clientId: ""
+    existingClientSecret: ""
+
+    # Key inside existingClientSecret that holds the OIDC client secret value.
+    clientSecretKey: "client-secret"
+
+    # Name of a Secret containing a 'cookie-secret' key (32-byte random base64
+    # string used by oauth2-proxy to encrypt session cookies).
+    # Leave empty to let the chart generate and manage this secret automatically.
+    # The auto-generated secret is stable across upgrades (uses Helm lookup to
+    # preserve the existing value rather than re-rolling on each helm upgrade).
+    existingCookieSecret: ""
+
+    # If true the access token is forwarded to the upstream (webapi calls from
+    # the browser will arrive pre-authorised).
+    passAccessToken: true
+
+    # Email domain restriction ("*" allows any authenticated user).
+    emailDomain: "*"
+
+    # Extra args passed verbatim to the oauth2-proxy binary.
+    # Use --skip-auth-route to whitelist paths that must be accessible without auth
+    # (e.g. the public landing page). Regex is matched against the full path.
+    extraArgs:
+      - --skip-auth-route=^/public
+      # Static assets must bypass auth so the browser can load JS/CSS chunks
+      # for public routes without being redirected to Keycloak login.
+      - --skip-auth-route=^/assets/
+      - --skip-auth-route=^/favicon
+      - --skip-auth-route=^/config\.json$
+      # Token refresh: tell oauth2-proxy to proactively refresh the access token
+      # before it expires so the webapi never receives a stale Bearer token.
+      # --cookie-refresh instructs oauth2-proxy to exchange the refresh token for
+      # a new access token on the next request after this duration has elapsed.
+      # Set to 4m — just under Keycloak's 5m accessTokenLifespan — so the token
+      # is always live when forwarded to the webapi via Authorization: Bearer.
+      - --cookie-refresh=4m
+    # - --skip-provider-button
+
+    # Init container that blocks oauth2-proxy from starting until Keycloak's
+    # OIDC discovery endpoint responds with HTTP 200. Prevents the crash-loop
+    # that occurs when oauth2-proxy tries to fetch the JWKS before Keycloak
+    # is ready.
+    waitForKeycloak:
+      enabled: true
+      # busybox is tiny and available on every node without a registry pull.
+      image:
+        repository: busybox
+        tag: "1.37"
+        pullPolicy: IfNotPresent
+      # How long to wait for Keycloak before giving up (seconds).
+      timeoutSeconds: 300
+      # Polling interval (seconds).
+      periodSeconds: 5
+      # Pass --no-check-certificate to wget — useful when Keycloak is behind
+      # a self-signed TLS terminator. Safe to leave true for HTTP endpoints.
+      insecure: false
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+  service:
+    type: ClusterIP
+    port: 4180
+
+# ---------------------------------------------------------------------------
+# Webapi pod  (Go binary — REST API + WebSocket)
+# ---------------------------------------------------------------------------
+webapi:
+  replicaCount: 1
+
+  image:
+    repository: quay.io/nebari/nebari-webapi
+    tag: "v0.1.0-alpha.1"
+    pullPolicy: IfNotPresent
+
+  port: 8080
+
+  # Keycloak JWT validation.
+  keycloak:
+    url: ""           # http://keycloak-keycloakx-http.keycloak.svc:8080
+    realm: "nebari"
+    issuerUrl: ""     # overrides `url` for `iss` claim validation when different
+    enableAuth: true
+    adminGroup: "admin"
+    # Name of a Kubernetes Secret (in keycloak namespace) holding admin creds.
+    # Keys: username / password  (or admin-username / admin-password)
+    adminSecretName: "nebari-realm-admin-credentials"
+    adminSecretNamespace: "keycloak"
+
+  # Comma-separated list of Origins the webapi CORS middleware will accept.
+  # "*" (default) allows all origins — safe because the webapi is ClusterIP-only
+  # and never exposed through the Gateway. Set explicit origins only when running
+  # the Vite dev server directly against a port-forwarded webapi, e.g.:
+  #   allowedOrigins: "http://localhost:5173"
+  allowedOrigins: "*"
+
+  # Enable the GET /api/v1/debug endpoint and verbose JWT logging.
+  # When true, the debug endpoint returns request headers (Bearer tokens redacted),
+  # resolved JWT claims, and per-visibility service counts — useful for diagnosing
+  # auth and proxy-forwarding problems in dev/staging.
+  # NEVER enable in production (it exposes internal auth state).
+  debugMode: false
+
+  healthInterval: 30
+
+  # Automatic platform notifications — require Redis (notifications.enabled implies redis.enabled).
+  notifications:
+    # Post a welcome/feedback notification every time the webapi starts.
+    # Disable if you prefer a clean slate on each restart.
+    startupNotification: true
+    # Auto-post notifications for service lifecycle events:
+    #   - Service added to the landing page (post-startup only)
+    #   - Service removed from the landing page
+    #   - Service recovers from unhealthy → healthy ("back online")
+    lifecycleNotifications: true
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+# ---------------------------------------------------------------------------
+# NebariApp CRs  (recommended on a full Nebari / nebari-operator deployment)
+# ---------------------------------------------------------------------------
+# When nebariApp.enabled=true the chart creates two NebariApp custom resources
+# instead of managing the HTTPRoute directly:
+#   <release>        — routes /oauth2/* and /* to the oauth2-proxy frontend
+#   <release>-api    — routes /api/*     to the webapi (JWT auth in-process)
+# The nebari-operator reconciles each NebariApp into an HTTPRoute, keeping
+# routing lifecycle in sync with cluster state.
+#
+# Set nebariApp.enabled=false (default) for standalone deployments (local dev,
+# CI) where the nebari-operator is not present.  The chart will create the
+# HTTPRoute directly via httpRoute.* values instead.
+nebariApp:
+  enabled: false
+
+  # SPA client: the operator provisions a second *public* Keycloak client
+  # (publicClient: true, PKCE S256) for the React frontend (keycloak-js).
+  # The confidential oauth2-proxy client and this public SPA client are
+  # intentionally separate — they cannot share the same Keycloak client.
+  # Default client ID: <namespace>-<nebariapp-name>-spa
+  spaClient:
+    enabled: true
+    # Optional override. Leave empty to use the operator convention.
+    clientId: ""
+
+  # Controls whether the landing page registers *itself* as a card on the
+  # landing page.  Usually false — the landing page IS the landing page.
+  landingPage:
+    enabled: false
+    displayName: "Nebari"
+    description: "Nebari platform landing page"
+    icon: "kubernetes"
+    category: "Platform"
+    priority: 0
+    visibility: "public"
+
+# ---------------------------------------------------------------------------
+# Envoy Gateway HTTPRoute  (used when nebariApp.enabled=false)
+# ---------------------------------------------------------------------------
+# When nebariApp.enabled=true this section is ignored — the operator creates
+# HTTPRoutes from the NebariApp CRs above.  hostname and tls are still read
+# by the NebariApp template so keep them set even when switching modes.
+httpRoute:
+  # Automatically disabled when nebariApp.enabled=true.
+  # Explicitly set to false if you want neither HTTPRoute nor NebariApp CRs.
+  enabled: true
+  # Name of the Gateway to attach to.
+  gatewayName: "envoy-gateway"
+  gatewayNamespace: "envoy-gateway-system"
+  # Hostname the landing page is served on.
+  hostname: "nebari.example.com"
+  # TLS is terminated by the Gateway; set to true when the Gateway listener
+  # uses HTTPS so the route is only matched on the TLS listener.
+  tls: true
+
+# ---------------------------------------------------------------------------
+# Redis subchart (bitnami/redis 23.1.1)
+# ---------------------------------------------------------------------------
+redis:
+  enabled: true
+
+  architecture: standalone   # standalone is sufficient; use replication for HA
+
+  auth:
+    enabled: true
+    # Redis 6 ACL username. Empty string means the Redis "default" user, which
+    # is what the Bitnami subchart creates. Set only when using a custom ACL
+    # user provisioned outside the chart.
+    username: ""
+    # Name of an existing secret with key `redis-password`.
+    # When empty, the subchart auto-generates a password.
+    existingSecret: ""
+    existingSecretPasswordKey: "redis-password"
+
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
+    # Enable AOF persistence for durability.
+    extraFlags:
+      - "--appendonly yes"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi

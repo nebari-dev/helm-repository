@@ -1,0 +1,52 @@
+{{- if and .Values.httpRoute.enabled (not .Values.nebariApp.enabled) }}
+# Gateway API HTTPRoute — attaches to the Envoy Gateway and routes:
+#   /api/*      → webapi Service
+#   /oauth2/*   → frontend Service (OAuth2 Proxy callback routes)
+#   /*          → frontend Service (all other requests, incl. SPA routes)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "nebari-landing.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-landing.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.httpRoute.gatewayName }}
+      namespace: {{ .Values.httpRoute.gatewayNamespace }}
+      {{- if .Values.httpRoute.tls }}
+      sectionName: https
+      {{- else }}
+      sectionName: http
+      {{- end }}
+  hostnames:
+    - {{ .Values.httpRoute.hostname | quote }}
+  rules:
+    # /api/* — routed directly to the Go webapi (JWT auth handled in-process).
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/
+      backendRefs:
+        - name: {{ include "nebari-landing.fullname" . }}-webapi
+          port: {{ .Values.webapi.service.port }}
+
+    # /oauth2/* — OAuth2 Proxy sign-in / callback / sign-out routes.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /oauth2/
+      backendRefs:
+        - name: {{ include "nebari-landing.fullname" . }}-frontend
+          port: {{ .Values.frontend.service.port }}
+
+    # /* — everything else goes to the OAuth2 Proxy sidecar (which proxies
+    #        to the static server after validating the session cookie).
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ include "nebari-landing.fullname" . }}-frontend
+          port: {{ .Values.frontend.service.port }}
+{{- end }}
