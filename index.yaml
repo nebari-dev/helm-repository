@@ -3,7 +3,7 @@ entries:
   nebari-landing:
   - apiVersion: v2
     appVersion: v0.1.0-alpha.1
-    created: "2026-03-17T13:40:09.095061584Z"
+    created: "2026-03-23T15:24:33.542179212Z"
     dependencies:
     - condition: redis.enabled
       name: redis
@@ -12,7 +12,7 @@ entries:
     description: 'Nebari Landing Page — React frontend (OAuth2 Proxy sidecar) + Go
       webapi backend, backed by Redis for pins, notifications, access requests and
       WebSocket fan-out. '
-    digest: 3d9b8272413d05ed936a5cceda0689a49e2498f57b7bd01623639c4659598b4f
+    digest: e32a9f8f16c01efb3ca743402921ca192a46187038f4564662264a7aa0b41961
     maintainers:
     - name: OpenTeams
       url: https://github.com/nebari-dev
@@ -21,4 +21,16 @@ entries:
     urls:
     - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/nebari-landing-0.1.0-alpha.1.tgz
     version: 0.1.0-alpha.1
-generated: "2026-03-17T13:40:09.087572204Z"
+  skillsctl:
+  - apiVersion: v2
+    appVersion: 0.1.0
+    created: "2026-03-23T15:24:33.542633608Z"
+    description: A registry for discovering, installing, and publishing Claude Code
+      skills
+    digest: 3581bdd136c230a8798487aa7983a6d06538f99ab55ace25b2c5f54a64fc8946
+    name: skillsctl
+    type: application
+    urls:
+    - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/skillsctl-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-03-23T15:24:33.53492346Z"
