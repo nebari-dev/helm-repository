@@ -1,3 +1,13 @@
+<p align="center">
+  <a href="https://nebari.dev">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/nebari-dev/nebari-design/main/logo-mark/horizontal/standard/Nebari-Logo-Horizontal-Lockup-White-text.png">
+      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/nebari-dev/nebari-design/main/logo-mark/horizontal/standard/Nebari-Logo-Horizontal-Lockup.png">
+      <img alt="Nebari" src="docs/Nebari-Logo-Horizontal-Lockup.png" width="300">
+    </picture>
+  </a>
+</p>
+
 # Nebari Helm Repository
 
 [![Release Helm Charts](https://github.com/nebari-dev/helm-repository/actions/workflows/release-helm-charts.yml/badge.svg)](https://github.com/nebari-dev/helm-repository/actions/workflows/release-helm-charts.yml)
