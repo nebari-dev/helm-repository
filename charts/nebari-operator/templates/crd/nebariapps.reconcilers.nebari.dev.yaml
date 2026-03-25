@@ -1,0 +1,649 @@
+{{- if .Values.crd.enable }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    {{- if .Values.crd.keep }}
+    "helm.sh/resource-policy": keep
+    {{- end }}
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: nebariapps.reconcilers.nebari.dev
+spec:
+  group: reconcilers.nebari.dev
+  names:
+    kind: NebariApp
+    listKind: NebariAppList
+    plural: nebariapps
+    shortNames:
+    - nebariapp
+    singular: nebariapp
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          NebariApp is the Schema for the nebariapps API
+          It represents an application onboarding intent, specifying how an application
+          should be exposed (routing), secured (TLS), and protected (authentication).
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of NebariApp
+            properties:
+              auth:
+                description: |-
+                  Auth configures authentication/authorization for the application.
+                  When enabled, the application will require OIDC authentication via supporting OIDC Provider.
+                properties:
+                  clientSecretRef:
+                    description: |-
+                      ClientSecretRef references a Kubernetes Secret containing OIDC client credentials.
+                      The secret must be in the same namespace as the NebariApp and contain:
+                        - client-id: The OIDC client ID
+                        - client-secret: The OIDC client secret
+                      If not specified and ProvisionClient is enabled, the operator will create
+                      a secret named "<nebariapp-name>-oidc-client".
+                    type: string
+                  deviceFlowClient:
+                    description: |-
+                      DeviceFlowClient configures a public OIDC client for CLI/native app authentication
+                      using the OAuth2 Device Authorization Grant (RFC 8628).
+                      When enabled, the operator provisions a separate public client configured for device flow.
+                      The device flow client ID is written to the OIDC client Secret under key "device-client-id".
+                      Only supported for provider="keycloak".
+                    properties:
+                      enabled:
+                        default: false
+                        description: |-
+                          Enabled determines whether a public OIDC client should be provisioned for device flow.
+                          When true, the operator creates a Keycloak client configured with:
+                            - publicClient: true (no secret needed for CLI usage)
+                            - OAuth2 Device Authorization Grant enabled
+                            - standardFlowEnabled: false
+                          The device flow client ID is written to the OIDC secret for runtime consumption.
+                        type: boolean
+                    type: object
+                  enabled:
+                    default: false
+                    description: |-
+                      Enabled determines whether authentication should be enforced for this application.
+                      When true, users must authenticate via OIDC before accessing the application.
+                    type: boolean
+                  enforceAtGateway:
+                    default: true
+                    description: |-
+                      EnforceAtGateway determines whether the operator should create an Envoy Gateway
+                      SecurityPolicy to enforce authentication at the gateway level.
+                      When true (default), the operator creates a SecurityPolicy that handles
+                      the OIDC flow at the gateway before requests reach the application.
+                      When false, the operator provisions the OIDC client and stores credentials
+                      in a Secret, but does NOT create a SecurityPolicy - the application is
+                      expected to handle OAuth natively (e.g., Grafana's built-in generic_oauth).
+                    type: boolean
+                  groups:
+                    description: |-
+                      Groups specifies the list of groups that should have access to this application.
+                      When specified, only users belonging to these groups will be authorized.
+                      Group matching is case-sensitive and depends on the OIDC provider's group claim.
+                    items:
+                      type: string
+                    type: array
+                  issuerURL:
+                    description: |-
+                      IssuerURL specifies the OIDC issuer URL for generic-oidc provider.
+                      Required when provider="generic-oidc", ignored for other providers.
+                      Example: https://accounts.google.com, https://login.microsoftonline.com/<tenant>/v2.0
+                    type: string
+                  keycloakConfig:
+                    description: |-
+                      KeycloakConfig provides Keycloak-specific configuration for fine-grained control
+                      over realm resources like groups, client scopes, and protocol mappers.
+                      Only used when provider="keycloak" and provisionClient=true; silently ignored
+                      for other providers (e.g., generic-oidc).
+                    properties:
+                      groups:
+                        description: |-
+                          Groups defines Keycloak groups to ensure exist in the realm,
+                          with optional user membership assignments.
+                        items:
+                          description: KeycloakGroup defines a Keycloak group to create
+                            in the realm with optional member assignments.
+                          properties:
+                            members:
+                              description: |-
+                                Members is a list of Keycloak usernames that should be members of this group.
+                                Membership sync is additive-only: users in this list will be added to the group,
+                                but existing group members not in this list will NOT be removed.
+                                Users that don't exist in Keycloak will be logged as warnings but won't cause errors.
+                              items:
+                                type: string
+                              type: array
+                            name:
+                              description: Name is the group name to create in Keycloak.
+                              minLength: 1
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                      protocolMappers:
+                        description: |-
+                          ProtocolMappers defines client-level protocol mappers to configure on the
+                          OIDC client. These are applied directly to the client (not to shared client
+                          scopes), so each NebariApp gets isolated mapper configuration.
+                          When specified, the operator's default mappers (e.g., group-membership) are
+                          not auto-created - the user's configuration takes full control.
+                        items:
+                          description: KeycloakProtocolMapperConfig defines a protocol
+                            mapper with arbitrary configuration.
+                          properties:
+                            config:
+                              additionalProperties:
+                                type: string
+                              description: |-
+                                Config is the mapper configuration as arbitrary key-value pairs.
+                                Keys and values are specific to the mapper type.
+                                Example for group-membership mapper: {"claim.name": "groups", "full.path": "false"}
+                              type: object
+                            name:
+                              description: Name of the protocol mapper.
+                              minLength: 1
+                              type: string
+                            protocolMapper:
+                              description: |-
+                                ProtocolMapper is the mapper type identifier.
+                                Example: "oidc-group-membership-mapper", "oidc-usermodel-attribute-mapper"
+                              minLength: 1
+                              type: string
+                          required:
+                          - name
+                          - protocolMapper
+                          type: object
+                        type: array
+                    type: object
+                  provider:
+                    default: keycloak
+                    description: |-
+                      Provider specifies the OIDC authentication provider to use.
+                      Supported values: keycloak, generic-oidc
+                    enum:
+                    - keycloak
+                    - generic-oidc
+                    type: string
+                  provisionClient:
+                    default: true
+                    description: |-
+                      ProvisionClient determines whether the operator should automatically provision
+                      an OIDC client in the provider. When true, the operator will create a client
+                      (e.g., in Keycloak) and store the credentials in a Secret.
+                      Only supported for provider="keycloak".
+                      Defaults to true if not specified.
+                    type: boolean
+                  redirectURI:
+                    description: |-
+                      RedirectURI specifies the OAuth2 callback path for the application.
+                      If not specified, defaults to "/oauth2/callback" which is the Envoy Gateway default.
+                      For application-level auth handling, specify the app's callback path (e.g., "/auth/callback").
+                      The full redirect URL will be: https://<hostname><redirectURI>
+                    type: string
+                  scopes:
+                    description: |-
+                      Scopes defines the OIDC scopes to request during authentication.
+                      Common scopes: openid, profile, email, roles, groups
+                      If not specified, defaults to: ["openid", "profile", "email"]
+                    items:
+                      type: string
+                    type: array
+                  spaClient:
+                    description: |-
+                      SPAClient configures a public OIDC client for browser-based authentication.
+                      When enabled, the operator provisions a separate public client for Single-Page
+                      Applications that use PKCE flows (e.g., React apps with keycloak-js).
+                      This is distinct from the confidential client used for server-side auth (oauth2-proxy).
+                      The public client is configured with:
+                        - publicClient: true (no client secret, safe for browser)
+                        - Redirect URIs: https://<hostname>/* and https://<hostname>
+                        - PKCE enforcement (S256)
+                      Only supported for provider="keycloak".
+                    properties:
+                      clientId:
+                        description: |-
+                          ClientID optionally overrides the generated client ID for the SPA client.
+                          If not specified, defaults to: <namespace>-<name>-spa
+                          This allows custom client naming for organizational conventions.
+                        type: string
+                      enabled:
+                        default: false
+                        description: |-
+                          Enabled determines whether a public OIDC client should be provisioned for SPA use.
+                          When true, the operator creates a second Keycloak client configured as:
+                            - publicClient: true (no client secret, safe for browser)
+                            - Redirect URIs: https://<hostname>/* and https://<hostname>
+                            - PKCE enforcement with S256 code challenge method
+                          The public client ID will be written to a ConfigMap or the OIDC secret for
+                          runtime consumption by the frontend application.
+                        type: boolean
+                    type: object
+                type: object
+              gateway:
+                default: public
+                description: |-
+                  Gateway specifies which shared Gateway to use for routing.
+                  Valid values are "public" (default) or "internal".
+                enum:
+                - public
+                - internal
+                type: string
+              hostname:
+                description: |-
+                  Hostname is the fully qualified domain name where the application should be accessible.
+                  This will be used to generate HTTPRoute.
+                  Example: "myapp.nebari.local" or "api.example.com"
+                minLength: 1
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                type: string
+              landingPage:
+                description: |-
+                  LandingPage configures how this service appears on the Nebari landing page.
+                  When enabled, the service will be discoverable through the landing page portal.
+                properties:
+                  category:
+                    description: |-
+                      Category groups related services together on the landing page.
+                      Common categories: Development, Monitoring, Platform, Data Science
+                    type: string
+                  description:
+                    description: |-
+                      Description provides additional context about the service.
+                      Shown as supplementary text on the service card.
+                    maxLength: 256
+                    type: string
+                  displayName:
+                    description: |-
+                      DisplayName is the human-readable name shown on the landing page.
+                      Required when Enabled is true.
+                    maxLength: 64
+                    type: string
+                  enabled:
+                    default: false
+                    description: |-
+                      Enabled determines if this service appears on the landing page.
+                      When false, the service is not shown on the landing page.
+                    type: boolean
+                  externalUrl:
+                    description: |-
+                      ExternalUrl overrides the default URL derived from the hostname.
+                      Use this when the service URL differs from https://<hostname>
+                    type: string
+                  healthCheck:
+                    description: HealthCheck configures health status monitoring for
+                      this service.
+                    properties:
+                      enabled:
+                        default: false
+                        description: Enabled determines if health checks are performed.
+                        type: boolean
+                      intervalSeconds:
+                        default: 30
+                        description: IntervalSeconds is how often to perform health
+                          checks (in seconds).
+                        maximum: 300
+                        minimum: 10
+                        type: integer
+                      path:
+                        default: /health
+                        description: |-
+                          Path is the HTTP path to check for health status.
+                          Common paths: /health, /healthz, /api/health
+                        type: string
+                      port:
+                        description: |-
+                          Port is the port number to use for health checks.
+                          If not specified, defaults to the service port defined in spec.service.port.
+                        format: int32
+                        maximum: 65535
+                        minimum: 1
+                        type: integer
+                      timeoutSeconds:
+                        default: 5
+                        description: TimeoutSeconds is the request timeout for health
+                          checks (in seconds).
+                        maximum: 30
+                        minimum: 1
+                        type: integer
+                    required:
+                    - enabled
+                    type: object
+                  icon:
+                    description: |-
+                      Icon is an identifier for the service icon (e.g., "jupyter", "grafana")
+                      or a URL to a custom icon image.
+                      Supported built-in icons: jupyter, grafana, prometheus, keycloak, argocd, kubernetes
+                    type: string
+                  priority:
+                    default: 100
+                    description: |-
+                      Priority determines sort order within a category (lower number = higher priority).
+                      Services are displayed in ascending priority order within each category.
+                    maximum: 1000
+                    minimum: 0
+                    type: integer
+                required:
+                - enabled
+                type: object
+              routing:
+                description: Routing configures routing behavior including path-based
+                  rules and TLS.
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Annotations defines additional annotations to merge onto the generated HTTPRoute.
+                      Useful for tools like ArgoCD that track resources via annotations
+                      (e.g. argocd.argoproj.io/tracking-id).
+                      These annotations are merged with any operator-managed annotations; operator
+                      annotations always take precedence to avoid breaking internal behaviour.
+                    type: object
+                  publicRoutes:
+                    description: |-
+                      PublicRoutes specifies paths that should bypass OIDC authentication.
+                      When auth is enabled and these are specified, these paths will be routed
+                      via a separate HTTPRoute that is not protected by the SecurityPolicy.
+                      Each entry uses the same RouteMatch format as routes, supporting both
+                      PathPrefix (default) and Exact matching via the pathType field.
+                      Example: [{pathPrefix: "/api/v1/health", pathType: "Exact"}]
+                    items:
+                      description: RouteMatch defines a path-based routing rule.
+                      properties:
+                        pathPrefix:
+                          description: |-
+                            PathPrefix specifies the path prefix to match for routing.
+                            Traffic matching this prefix will be routed to the service.
+                            Must start with "/". Example: "/app-1", "/api/v1"
+                          pattern: ^/.*
+                          type: string
+                        pathType:
+                          description: |-
+                            PathType specifies how the path should be matched.
+                            Valid values:
+                              - "PathPrefix": Match requests with the specified path prefix
+                              - "Exact": Match requests with the exact path
+                            When used in routing.routes, defaults to "PathPrefix".
+                            When used in routing.publicRoutes, defaults to "Exact" (safer for auth bypass).
+                          enum:
+                          - PathPrefix
+                          - Exact
+                          type: string
+                      required:
+                      - pathPrefix
+                      type: object
+                    type: array
+                  routes:
+                    description: |-
+                      Routes defines path-based routing rules for the application.
+                      If not specified, all traffic to the hostname will be routed to the service.
+                      When specified, only traffic matching these path prefixes will be routed.
+                      Example: ["/app-1", "/api/v1"]
+                    items:
+                      description: RouteMatch defines a path-based routing rule.
+                      properties:
+                        pathPrefix:
+                          description: |-
+                            PathPrefix specifies the path prefix to match for routing.
+                            Traffic matching this prefix will be routed to the service.
+                            Must start with "/". Example: "/app-1", "/api/v1"
+                          pattern: ^/.*
+                          type: string
+                        pathType:
+                          description: |-
+                            PathType specifies how the path should be matched.
+                            Valid values:
+                              - "PathPrefix": Match requests with the specified path prefix
+                              - "Exact": Match requests with the exact path
+                            When used in routing.routes, defaults to "PathPrefix".
+                            When used in routing.publicRoutes, defaults to "Exact" (safer for auth bypass).
+                          enum:
+                          - PathPrefix
+                          - Exact
+                          type: string
+                      required:
+                      - pathPrefix
+                      type: object
+                    type: array
+                  tls:
+                    description: |-
+                      TLS configures TLS certificate management and termination behavior.
+                      When TLS is enabled (the default), the operator creates a cert-manager Certificate
+                      for the application's hostname and adds a per-app HTTPS listener to the shared Gateway.
+                    properties:
+                      enabled:
+                        default: true
+                        description: |-
+                          Enabled determines whether TLS termination should be used.
+                          When nil or true, the operator will create a cert-manager Certificate
+                          for the application's hostname and configure a per-app Gateway HTTPS listener.
+                          When explicitly set to false, only HTTP listeners will be used.
+                        type: boolean
+                    type: object
+                type: object
+              service:
+                description: Service defines the backend Kubernetes Service that should
+                  receive traffic.
+                properties:
+                  name:
+                    description: Name is the name of the Kubernetes Service in the
+                      same namespace.
+                    minLength: 1
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace is the namespace of the Service (if different from the NebariApp).
+                      If not specified, defaults to the NebariApp's namespace.
+                      This allows referencing services in other namespaces for centralized service architectures.
+                      Note: The operator has cluster-scoped permissions to read Services across all namespaces.
+                    minLength: 1
+                    type: string
+                  port:
+                    description: Port is the port number on the Service to route traffic
+                      to.
+                    format: int32
+                    maximum: 65535
+                    minimum: 1
+                    type: integer
+                required:
+                - name
+                - port
+                type: object
+              serviceAccountName:
+                description: |-
+                  ServiceAccountName is the name of the Kubernetes ServiceAccount used by the
+                  app's pods. Used for RBAC scoping of OIDC secrets so only the app's pods
+                  can read its credentials. Defaults to the NebariApp's name if omitted.
+                minLength: 1
+                type: string
+            required:
+            - hostname
+            - service
+            type: object
+          status:
+            description: status defines the observed state of NebariApp
+            properties:
+              clientSecretRef:
+                description: ClientSecretRef identifies the Secret containing OIDC
+                  client credentials.
+                properties:
+                  name:
+                    description: Name of the resource.
+                    type: string
+                  namespace:
+                    description: Namespace of the resource (if namespaced).
+                    type: string
+                required:
+                - name
+                type: object
+              conditions:
+                description: |-
+                  Conditions represent the current state of the NebariApp resource.
+                  Standard condition types:
+                    - "RoutingReady": HTTPRoute has been created and is functioning
+                    - "TLSReady": TLS certificate is available and configured
+                    - "AuthReady": Authentication policy is configured (if auth is enabled)
+                    - "Ready": All components are ready (aggregate condition)
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              gatewayRef:
+                description: GatewayRef identifies the Gateway resource that routes
+                  traffic to this application.
+                properties:
+                  name:
+                    description: Name of the Gateway.
+                    type: string
+                  namespace:
+                    description: Namespace of the Gateway.
+                    type: string
+                required:
+                - name
+                - namespace
+                type: object
+              hostname:
+                description: |-
+                  Hostname is the actual hostname where the application is accessible.
+                  This mirrors the spec.hostname for easy reference.
+                type: string
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the most recent generation observed for this NebariApp.
+                  It corresponds to the NebariApp's generation, which is updated on mutation by the API Server.
+                format: int64
+                type: integer
+              serviceDiscovery:
+                description: |-
+                  ServiceDiscovery is the computed service discovery descriptor.
+                  The controller populates this after reconciling spec.landingPage so the
+                  webapi watcher can consume a pre-validated, URL-resolved view via
+                  status.serviceDiscovery.* without re-deriving it from spec.
+                properties:
+                  category:
+                    description: Category groups related services on the landing page.
+                    type: string
+                  description:
+                    description: Description is supplementary text for the service
+                      card.
+                    type: string
+                  displayName:
+                    description: DisplayName is the human-readable name shown on the
+                      landing page.
+                    type: string
+                  enabled:
+                    description: Enabled mirrors spec.landingPage.enabled at the time
+                      of last reconciliation.
+                    type: boolean
+                  icon:
+                    description: Icon identifies the service icon.
+                    type: string
+                  priority:
+                    description: Priority controls sort order within a category (lower
+                      = higher priority).
+                    maximum: 1000
+                    minimum: 0
+                    type: integer
+                  requiredGroups:
+                    description: RequiredGroups lists groups required when visibility
+                      is "private".
+                    items:
+                      type: string
+                    type: array
+                  url:
+                    description: |-
+                      URL is the effective service URL (derived from spec.hostname or
+                      spec.landingPage.externalUrl by the controller).
+                    type: string
+                  visibility:
+                    description: Visibility controls who can see this service (public/private).
+                    type: string
+                required:
+                - enabled
+                type: object
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- end }}
