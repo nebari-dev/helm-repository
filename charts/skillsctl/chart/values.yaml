@@ -1,0 +1,101 @@
+# skillsctl Helm chart values
+
+image:
+  repository: ghcr.io/nebari-dev/skillsctl-backend
+  tag: ""  # defaults to .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicaCount: 1
+# HA: For multiple replicas, set persistence.accessMode to ReadWriteMany and
+# use an RWX-capable storage class (NFS, EFS, CephFS). SQLite handles concurrent
+# writes via WAL mode with busy_timeout=5000ms, but multiple pods require a storage
+# backend that supports RWX access. Most cloud providers default to ReadWriteOnce
+# which only allows one node to mount the volume.
+
+serviceAccount:
+  create: true
+  name: ""  # defaults to release fullname
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+persistence:
+  enabled: true
+  storageClassName: ""  # uses cluster default if empty
+  accessMode: ReadWriteOnce  # set to ReadWriteMany for HA
+  size: 1Gi
+  mountPath: /data
+
+# OIDC configuration - set these to enable authentication.
+# issuerURL and clientID are not secrets (returned by public /auth/config endpoint).
+# adminGroup and groupsClaim are server-side authorization config.
+oidc:
+  issuerURL: ""
+  clientID: ""
+  deviceClientID: ""  # Public client ID for CLI device flow auth (standalone mode only)
+  adminGroup: "skillsctl-admins"
+  groupsClaim: "groups"
+
+# Server configuration
+server:
+  port: 8080
+  dbPath: /data/skillsctl.db  # must be under persistence.mountPath
+  devMode: false  # set to true to run without OIDC (disables authentication)
+
+resources: {}
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # limits:
+  #   cpu: 500m
+  #   memory: 256Mi
+
+podAnnotations: {}
+podLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Ingress - disabled by default
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: skillsctl.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Nebari integration - disabled by default.
+# Creates a NebariApp CRD that configures routing, TLS, and auth via nebari-operator.
+nebariapp:
+  enabled: false
+  # hostname: skillsctl.nebari.example.com  # required when enabled
+  serviceAccountName: ""  # Passed to NebariApp CRD, defaults to release fullname
+  service:
+    name: ""  # defaults to release fullname
+    port: 80
+  routing: {}
+  auth:
+    enabled: true
+    provider: keycloak
+    provisionClient: true
+    deviceFlowClient:
+      enabled: false
+    redirectURI: /
+    scopes:
+      - openid
+      - profile
+      - email
+  gateway: public
+
+nameOverride: ""
+fullnameOverride: ""

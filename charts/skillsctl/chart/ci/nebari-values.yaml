@@ -1,0 +1,23 @@
+# CI test values for nebari-operator-managed mode
+image:
+  tag: latest
+
+persistence:
+  enabled: false
+
+server:
+  devMode: false
+
+nebariapp:
+  enabled: true
+  hostname: skillsctl.test.example.com
+  auth:
+    enabled: true
+    provider: keycloak
+    provisionClient: true
+    deviceFlowClient:
+      enabled: true
+    scopes:
+      - openid
+      - profile
+      - email

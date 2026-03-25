@@ -1,0 +1,9 @@
+# CI test values for dev mode (no auth)
+image:
+  tag: latest
+
+persistence:
+  enabled: false
+
+server:
+  devMode: true
