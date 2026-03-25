@@ -1,3 +1,6 @@
+{{- if and .Values.nebariapp.enabled .Values.server.devMode }}
+{{- fail "nebariapp.enabled and server.devMode cannot both be true - devMode disables authentication" }}
+{{- end }}
 {{- if .Values.nebariapp.enabled }}
 apiVersion: reconcilers.nebari.dev/v1
 kind: NebariApp
@@ -21,6 +24,9 @@ spec:
     enabled: {{ .enabled | default true }}
     provider: {{ .provider | default "keycloak" }}
     provisionClient: {{ .provisionClient | default true }}
+    {{- if hasKey . "enforceAtGateway" }}
+    enforceAtGateway: {{ .enforceAtGateway }}
+    {{- end }}
     {{- if .deviceFlowClient }}
     deviceFlowClient:
       enabled: {{ .deviceFlowClient.enabled }}
