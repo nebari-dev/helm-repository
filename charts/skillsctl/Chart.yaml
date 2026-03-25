@@ -2,5 +2,5 @@ apiVersion: v2
 name: skillsctl
 description: A registry for discovering, installing, and publishing Claude Code skills
 type: application
-version: 0.1.2
-appVersion: 0.1.2
+version: 0.1.3
+appVersion: 0.1.3
