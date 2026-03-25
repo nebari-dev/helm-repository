@@ -7,6 +7,7 @@ metadata:
 data:
   PORT: {{ .Values.server.port | quote }}
   DB_PATH: {{ .Values.server.dbPath | quote }}
+  APP_VERSION: {{ .Chart.AppVersion | quote }}
   {{- if .Values.server.devMode }}
   DEV_MODE: "true"
   {{- end }}
