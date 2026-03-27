@@ -1,0 +1,24 @@
+{{- if .Values.rbacHelpers.enable }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/name: {{ include "nebari-operator.name" . }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  name: {{ include "nebari-operator.resourceName" (dict "suffix" "nebariapp-admin-role" "context" $) }}
+rules:
+- apiGroups:
+  - reconcilers.nebari.dev
+  resources:
+  - nebariapps
+  verbs:
+  - '*'
+- apiGroups:
+  - reconcilers.nebari.dev
+  resources:
+  - nebariapps/status
+  verbs:
+  - get
+{{- end }}
