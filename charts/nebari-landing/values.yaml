@@ -16,7 +16,7 @@ frontend:
 
   image:
     repository: quay.io/nebari/nebari-landing
-    tag: "v0.1.0-alpha.1"
+    tag: "v0.1.0-alpha.2"
     pullPolicy: IfNotPresent
 
   # Port the static file server listens on *inside the pod* (reachable only
@@ -39,6 +39,15 @@ frontend:
     # provisioned by the operator when nebariApp.spaClient.enabled=true.
     # Override only when using a manually provisioned client with a different ID.
     clientId: ""
+
+  # Branding settings — rendered into /config.json at deploy time.
+  # Leave empty to use the built-in Nebari defaults.
+  branding:
+    # Browser tab title. Leave empty to keep the default ("Nebari | Launchpad").
+    title: ""
+    # URL to a custom logo image displayed in the header.
+    # Leave empty to use the built-in Nebari logo.
+    logoUrl: ""
 
   resources:
     requests:
@@ -148,7 +157,7 @@ webapi:
 
   image:
     repository: quay.io/nebari/nebari-webapi
-    tag: "v0.1.0-alpha.1"
+    tag: "v0.1.0-alpha.2"
     pullPolicy: IfNotPresent
 
   port: 8080
