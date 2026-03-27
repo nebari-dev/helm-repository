@@ -3,7 +3,7 @@ entries:
   nebari-landing:
   - apiVersion: v2
     appVersion: v0.1.0-alpha.1
-    created: "2026-03-25T12:07:19.76812528Z"
+    created: "2026-03-27T22:07:08.992513627Z"
     dependencies:
     - condition: redis.enabled
       name: redis
@@ -12,7 +12,7 @@ entries:
     description: 'Nebari Landing Page — React frontend (OAuth2 Proxy sidecar) + Go
       webapi backend, backed by Redis for pins, notifications, access requests and
       WebSocket fan-out. '
-    digest: 7439acecee7c0fef850ef1a6ec2295af1e0aa17909d4d487fd204011de2c7fdd
+    digest: dfae9df6932884335655a24aa38a022461da40a4315b750ccf7de555f8719bc6
     maintainers:
     - name: OpenTeams
       url: https://github.com/nebari-dev
@@ -21,13 +21,29 @@ entries:
     urls:
     - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/nebari-landing-0.1.0-alpha.1.tgz
     version: 0.1.0-alpha.1
+  nebari-operator:
+  - annotations:
+      kubebuilder.io/generated-by: kubebuilder
+    apiVersion: v2
+    appVersion: v0.1.0-alpha.14
+    created: "2026-03-27T22:07:08.993132198Z"
+    description: A Helm chart to distribute nebari-operator
+    digest: 4bf9e7d2609f0f1cafe3e39fe0c5164130f4c27b6ff5622cb3ed31f1b9cd9178
+    keywords:
+    - kubernetes
+    - operator
+    name: nebari-operator
+    type: application
+    urls:
+    - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/nebari-operator-0.1.0-alpha.14.tgz
+    version: 0.1.0-alpha.14
   skillsctl:
   - apiVersion: v2
     appVersion: 0.1.4
-    created: "2026-03-25T12:07:19.768618392Z"
+    created: "2026-03-27T22:07:08.993644742Z"
     description: A registry for discovering, installing, and publishing Claude Code
       skills
-    digest: d02e833d9f7ac609bbb0cc02cad896dabea5bbb1718eade38b4156c5ed2d5495
+    digest: b47760f8683370ddc78aea7e4756490fc41a017639e62dc80fa3b419f85194af
     name: skillsctl
     type: application
     urls:
@@ -77,4 +93,4 @@ entries:
     urls:
     - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/skillsctl-0.1.0.tgz
     version: 0.1.0
-generated: "2026-03-25T12:07:19.760740151Z"
+generated: "2026-03-27T22:07:08.985060104Z"
