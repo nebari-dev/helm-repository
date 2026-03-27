@@ -16,7 +16,9 @@ data:
         "url":      {{ .Values.frontend.keycloak.url      | quote }},
         "realm":    {{ .Values.frontend.keycloak.realm     | quote }},
         "clientId": {{ default (printf "%s-%s-spa" .Release.Namespace (include "nebari-landing.fullname" .)) .Values.frontend.keycloak.clientId | quote }}
-      }
+      },
+      "title":   {{ .Values.frontend.branding.title   | quote }},
+      "logoUrl": {{ .Values.frontend.branding.logoUrl | quote }}
     }
 
   # nginx configuration for the frontend pod.
