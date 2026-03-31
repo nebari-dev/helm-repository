@@ -3,8 +3,8 @@ name: nebari-operator
 description: A Helm chart to distribute nebari-operator
 type: application
 
-version: 0.1.0-alpha.14
-appVersion: "v0.1.0-alpha.14"
+version: 0.1.0-alpha.15
+appVersion: "v0.1.0-alpha.15"
 
 keywords:
   - kubernetes
