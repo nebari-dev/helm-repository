@@ -5,8 +5,8 @@ description: >
   Go webapi backend, backed by Redis for pins, notifications,
   access requests and WebSocket fan-out.
 type: application
-version: 0.2.0
-appVersion: "v0.2.0"
+version: 0.1.0-alpha.2
+appVersion: "v0.1.0-alpha.2"
 maintainers:
   - name: OpenTeams
     url: https://github.com/nebari-dev

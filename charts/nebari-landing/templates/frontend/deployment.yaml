@@ -104,9 +104,6 @@ spec:
                 secretKeyRef:
                   name: {{ default (printf "%s-oauth2-proxy-cookie" (include "nebari-landing.fullname" .)) .Values.frontend.oauth2Proxy.existingCookieSecret }}
                   key: cookie-secret
-            {{- with .Values.frontend.oauth2Proxy.extraEnv }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
           ports:
             - name: proxy
               containerPort: {{ .Values.frontend.oauth2Proxy.port }}
