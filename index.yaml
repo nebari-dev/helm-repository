@@ -3,7 +3,7 @@ entries:
   nebari-landing:
   - apiVersion: v2
     appVersion: v0.1.0-alpha.2
-    created: "2026-03-31T13:37:24.051255996Z"
+    created: "2026-04-07T17:40:10.162259882Z"
     dependencies:
     - condition: redis.enabled
       name: redis
@@ -12,7 +12,7 @@ entries:
     description: 'Nebari Landing Page — React frontend (OAuth2 Proxy sidecar) + Go
       webapi backend, backed by Redis for pins, notifications, access requests and
       WebSocket fan-out. '
-    digest: ede152542ef38a3ece7f733599c1a53f654e8d7f87b1ed74ffe394cec7190973
+    digest: 57430557af3102d53af5776ccea5808be4cb78386d21831afc125cbe16df57a6
     maintainers:
     - name: OpenTeams
       url: https://github.com/nebari-dev
@@ -46,9 +46,9 @@ entries:
       kubebuilder.io/generated-by: kubebuilder
     apiVersion: v2
     appVersion: v0.1.0-alpha.15
-    created: "2026-03-31T13:37:24.051868255Z"
+    created: "2026-04-07T17:40:10.162919486Z"
     description: A Helm chart to distribute nebari-operator
-    digest: 5d112ea1dfe323dc56af7269611f82db8d332b7b9f0080991cf1dd1f69003f83
+    digest: 5301fa46ee8ed9b7e81a035025692f656fb93e1afd6ad5cb0b35f657ba282d5d
     keywords:
     - kubernetes
     - operator
@@ -75,10 +75,10 @@ entries:
   skillsctl:
   - apiVersion: v2
     appVersion: 0.1.4
-    created: "2026-03-31T13:37:24.052387797Z"
+    created: "2026-04-07T17:40:10.163396901Z"
     description: A registry for discovering, installing, and publishing Claude Code
       skills
-    digest: da17e0b1374cc0d0b88ca9f35eb1d6050afcf65ff43aaae7716f7b490944fb9d
+    digest: 8803ac33f78ee8e6bffdcd0a04e10a699fb72bd2e020a73ac916a6f9c79993c2
     name: skillsctl
     type: application
     urls:
@@ -128,4 +128,4 @@ entries:
     urls:
     - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/skillsctl-0.1.0.tgz
     version: 0.1.0
-generated: "2026-03-31T13:37:24.043285369Z"
+generated: "2026-04-07T17:40:10.154769372Z"
