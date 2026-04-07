@@ -48,6 +48,7 @@ manager:
   ##
   podSecurityContext:
     runAsNonRoot: true
+    runAsUser: 65532
     seccompProfile:
       type: RuntimeDefault
 
