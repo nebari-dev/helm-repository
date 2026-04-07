@@ -16,7 +16,7 @@ frontend:
 
   image:
     repository: quay.io/nebari/nebari-landing
-    tag: "v0.2.0"
+    tag: "v0.1.0-alpha.2"
     pullPolicy: IfNotPresent
 
   # Port the static file server listens on *inside the pod* (reachable only
@@ -118,16 +118,6 @@ frontend:
       - --cookie-refresh=4m
     # - --skip-provider-button
 
-    # Extra environment variables for the oauth2-proxy container.
-    # Useful for passing additional configuration (e.g., OAUTH2_PROXY_* vars).
-    # Example:
-    # extraEnv:
-    #   - name: OAUTH2_PROXY_SKIP_OIDC_DISCOVERY
-    #     value: "false"
-    #   - name: OAUTH2_PROXY_COOKIE_SECURE
-    #     value: "true"
-    extraEnv: []
-
     # Init container that blocks oauth2-proxy from starting until Keycloak's
     # OIDC discovery endpoint responds with HTTP 200. Prevents the crash-loop
     # that occurs when oauth2-proxy tries to fetch the JWKS before Keycloak
@@ -167,7 +157,7 @@ webapi:
 
   image:
     repository: quay.io/nebari/nebari-webapi
-    tag: "v0.2.0"
+    tag: "v0.1.0-alpha.2"
     pullPolicy: IfNotPresent
 
   port: 8080
