@@ -2,6 +2,26 @@ apiVersion: v1
 entries:
   nebari-landing:
   - apiVersion: v2
+    appVersion: v0.1.0-alpha.3
+    created: "2026-04-07T17:40:54.409170078Z"
+    dependencies:
+    - condition: redis.enabled
+      name: redis
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: 23.1.1
+    description: 'Nebari Landing Page — React frontend (OAuth2 Proxy sidecar) + Go
+      webapi backend, backed by Redis for pins, notifications, access requests and
+      WebSocket fan-out. '
+    digest: fb0ed423f61559d371b10bd5a75792fc9cd0b57bdbaa0d61ecb838b52b6e2c6d
+    maintainers:
+    - name: OpenTeams
+      url: https://github.com/nebari-dev
+    name: nebari-landing
+    type: application
+    urls:
+    - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/nebari-landing-0.1.0-alpha.3.tgz
+    version: 0.1.0-alpha.3
+  - apiVersion: v2
     appVersion: v0.1.0-alpha.2
     created: "2026-04-07T17:40:10.162259882Z"
     dependencies:
@@ -46,9 +66,9 @@ entries:
       kubebuilder.io/generated-by: kubebuilder
     apiVersion: v2
     appVersion: v0.1.0-alpha.15
-    created: "2026-04-07T17:40:10.162919486Z"
+    created: "2026-04-07T17:40:54.409822583Z"
     description: A Helm chart to distribute nebari-operator
-    digest: 5301fa46ee8ed9b7e81a035025692f656fb93e1afd6ad5cb0b35f657ba282d5d
+    digest: 13456e2d1a09577294248b44a6060df90444e8e0e83abfcef337afa50b1123be
     keywords:
     - kubernetes
     - operator
@@ -75,10 +95,10 @@ entries:
   skillsctl:
   - apiVersion: v2
     appVersion: 0.1.4
-    created: "2026-04-07T17:40:10.163396901Z"
+    created: "2026-04-07T17:40:54.410349906Z"
     description: A registry for discovering, installing, and publishing Claude Code
       skills
-    digest: 8803ac33f78ee8e6bffdcd0a04e10a699fb72bd2e020a73ac916a6f9c79993c2
+    digest: 391e16aef4427072d51c329d56ebc82d052a30a4ee7e1a9826f8e0e8ad2ba0ba
     name: skillsctl
     type: application
     urls:
@@ -128,4 +148,4 @@ entries:
     urls:
     - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/skillsctl-0.1.0.tgz
     version: 0.1.0
-generated: "2026-04-07T17:40:10.154769372Z"
+generated: "2026-04-07T17:40:54.400820567Z"
