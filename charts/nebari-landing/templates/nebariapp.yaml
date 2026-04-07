@@ -38,6 +38,24 @@ spec:
     enabled: true
     enforceAtGateway: false
     redirectURI: /oauth2/callback
+    # The landing page webapi filters services by group visibility. Without the
+    # groups scope and mapper, tokens lack group claims and all group-restricted
+    # services are silently hidden from the landing page.
+    scopes:
+      - openid
+      - profile
+      - email
+      - groups
+    keycloakConfig:
+      protocolMappers:
+        - name: group-membership
+          protocolMapper: oidc-group-membership-mapper
+          config:
+            claim.name: groups
+            full.path: "false"
+            id.token.claim: "true"
+            access.token.claim: "true"
+            userinfo.token.claim: "true"
     # A second public Keycloak client is provisioned for the React SPA (keycloak-js
     # PKCE flow). Public clients carry no secret and use PKCE instead, which is
     # required for browser-based apps. The client ID defaults to

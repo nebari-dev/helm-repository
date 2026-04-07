@@ -16,7 +16,7 @@ frontend:
 
   image:
     repository: quay.io/nebari/nebari-landing
-    tag: "v0.1.0-alpha.2"
+    tag: "v0.1.0-alpha.4"
     pullPolicy: IfNotPresent
 
   # Port the static file server listens on *inside the pod* (reachable only
@@ -48,6 +48,9 @@ frontend:
     # URL to a custom logo image displayed in the header.
     # Leave empty to use the built-in Nebari logo.
     logoUrl: ""
+    # URL to a custom favicon.
+    # Leave empty to use the built-in Nebari favicon.
+    faviconUrl: ""
 
   resources:
     requests:
@@ -109,6 +112,11 @@ frontend:
       - --skip-auth-route=^/assets/
       - --skip-auth-route=^/favicon
       - --skip-auth-route=^/config\.json$
+      # API and WebSocket calls are authenticated by the webapi's JWT validator.
+      # Bypassing oauth2-proxy auth checks here avoids 302 redirects to Keycloak
+      # on expired sessions, which otherwise surface as opaque CORS/network errors
+      # in the SPA fetch/WebSocket clients.
+      - --skip-auth-route=^/api/
       # Token refresh: tell oauth2-proxy to proactively refresh the access token
       # before it expires so the webapi never receives a stale Bearer token.
       # --cookie-refresh instructs oauth2-proxy to exchange the refresh token for
@@ -117,6 +125,16 @@ frontend:
       # is always live when forwarded to the webapi via Authorization: Bearer.
       - --cookie-refresh=4m
     # - --skip-provider-button
+
+    # Extra environment variables for the oauth2-proxy container.
+    # Useful for passing additional configuration (e.g., OAUTH2_PROXY_* vars).
+    # Example:
+    # extraEnv:
+    #   - name: OAUTH2_PROXY_SKIP_OIDC_DISCOVERY
+    #     value: "false"
+    #   - name: OAUTH2_PROXY_COOKIE_SECURE
+    #     value: "true"
+    extraEnv: []
 
     # Init container that blocks oauth2-proxy from starting until Keycloak's
     # OIDC discovery endpoint responds with HTTP 200. Prevents the crash-loop
@@ -157,7 +175,7 @@ webapi:
 
   image:
     repository: quay.io/nebari/nebari-webapi
-    tag: "v0.1.0-alpha.2"
+    tag: "v0.1.0-alpha.4"
     pullPolicy: IfNotPresent
 
   port: 8080
