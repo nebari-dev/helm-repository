@@ -58,8 +58,8 @@ configuration:
 
 ### 3. Create the quay.io robot account and secrets
 
-Charts are pushed to `quay.io/nebari-dev` as OCI artifacts during each release. The release workflow authenticates using
-a **robot account** under the `nebari-dev` quay.io organisation.
+Charts are pushed to `quay.io/nebari/charts` as OCI artifacts during each release. The release workflow authenticates using
+a **robot account** under the `nebari` quay.io organisation.
 
 #### Create the robot account
 

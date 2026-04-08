@@ -51,17 +51,17 @@ helm repo add nebari \
 
 ### Option B — OCI registry (quay.io)
 
-Charts are also published as OCI artifacts to `quay.io/nebari-dev`. No `helm repo add` step is required.
+Charts are also published as OCI artifacts to `quay.io/nebari/charts`. No `helm repo add` step is required.
 
 ```bash
 # Install directly — version flag is required for OCI
-helm install my-release oci://quay.io/nebari-dev/<chart-name> --version <version>
+helm install my-release oci://quay.io/nebari/charts/<chart-name> --version <version>
 
 # Pull without installing
-helm pull oci://quay.io/nebari-dev/<chart-name> --version <version>
+helm pull oci://quay.io/nebari/charts/<chart-name> --version <version>
 
 # Inspect chart metadata
-helm show chart oci://quay.io/nebari-dev/<chart-name> --version <version>
+helm show chart oci://quay.io/nebari/charts/<chart-name> --version <version>
 ```
 
 > OCI charts are public and require no authentication to pull. The OCI reference for each chart is shown in the
