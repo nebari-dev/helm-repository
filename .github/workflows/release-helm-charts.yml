@@ -78,6 +78,36 @@ jobs:
             --username "${QUAY_USERNAME}" \
             --password-stdin
 
+      # Quay.io does not auto-create repositories on push — a push to a
+      # non-existent repo returns 401. The robot account token doubles as a
+      # Quay API Bearer token, so we use it to create each charts/<name>
+      # repository as public before pushing.
+      - name: Ensure Quay.io chart repositories exist
+        working-directory: src
+        env:
+          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+        run: |
+          for tgz in packaged/*.tgz; do
+            [ -f "$tgz" ] || continue
+            chart_name=$(helm show chart "$tgz" | awk '/^name:/{print $2}')
+            repo_path="nebari/charts/${chart_name}"
+            echo "Checking quay.io/${repo_path} ..."
+            http_status=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer ${QUAY_PASSWORD}" \
+              "https://quay.io/api/v1/repository/${repo_path}")
+            if [ "$http_status" = "200" ]; then
+              echo "  -> already exists, skipping."
+            else
+              echo "  -> not found (HTTP ${http_status}), creating..."
+              curl -sf -X POST \
+                -H "Authorization: Bearer ${QUAY_PASSWORD}" \
+                -H "Content-Type: application/json" \
+                -d "{\"namespace\":\"nebari\",\"repository\":\"charts/${chart_name}\",\"visibility\":\"public\",\"description\":\"Helm chart for ${chart_name}\",\"repo_kind\":\"image\"}" \
+                "https://quay.io/api/v1/repository"
+              echo "  -> created."
+            fi
+          done
+
       - name: Push charts to quay.io OCI registry
         working-directory: src
         run: |
