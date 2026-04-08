@@ -1,0 +1,107 @@
+# chart/values.yaml
+
+# -- Override the chart name
+nameOverride: ""
+# -- Override the full release name
+fullnameOverride: ""
+
+# ============================================================
+# NebariApp CRD Configuration
+# When enabled, creates a NebariApp resource for Nebari integration.
+# ============================================================
+nebariapp:
+  # -- Enable the NebariApp custom resource
+  enabled: false
+  # -- FQDN hostname for the application (required when enabled)
+  hostname: ""
+  service:
+    # -- Kubernetes service name. Auto-derived from release name if empty.
+    name: ""
+    # -- Service port
+    port: 8088
+  # -- Routing configuration for HTTPRoute and TLS provisioning.
+  # When omitted, the operator will not create HTTPRoutes or TLS certs.
+  # routing:
+  #   tls:
+  #     enabled: true
+  #   routes:
+  #     - pathPrefix: /
+  #       pathType: PathPrefix
+  auth:
+    # -- Enable gateway-level authentication enforcement
+    enabled: false
+    # -- Auth provider
+    provider: keycloak
+    # -- Auto-provision a Keycloak client via the nebari-operator
+    provisionClient: true
+    # -- OAuth scopes
+    scopes:
+      - openid
+      - profile
+      - email
+    # -- Restrict access to specific groups (empty = all authenticated users)
+    groups: []
+  # -- Gateway type: "public" or "internal"
+  gateway: public
+
+# ============================================================
+# OAuth Configuration
+# ============================================================
+# Superset-native OAuth (e.g., Keycloak) is configured via
+# superset.configOverrides.oauth_config in your values override.
+# See examples/nebari-values.yaml for a complete Keycloak/Nebari setup.
+# See examples/standalone-values.yaml for a standalone setup.
+#
+# On Nebari clusters, the operator creates an OIDC secret
+# (<release>-nebari-superset-oidc-client) with keys:
+#   - client-id
+#   - client-secret
+#   - issuer-url
+# Reference it via superset.extraEnv to inject credentials.
+
+# ============================================================
+# Upstream Superset Chart Configuration
+# All values here pass through to the superset sub-chart.
+# See: https://github.com/apache/superset/tree/master/helm/superset
+# ============================================================
+superset:
+  service:
+    type: ClusterIP
+    port: 8088
+
+  configOverrides:
+    proxy_fix: |
+      ENABLE_PROXY_FIX = True
+      PROXY_FIX_CONFIG = {
+          'x_for': 1,
+          'x_proto': 1,
+          'x_host': 1,
+          'x_port': 1,
+          'x_prefix': 1,
+      }
+
+      WTF_CSRF_ENABLED = True
+      WTF_CSRF_TIME_LIMIT = None
+
+      FEATURE_FLAGS = {
+          "DYNAMIC_PLUGINS": True,
+      }
+
+  extraSecretEnv: {}
+
+  # -- Override default Bitnami images (upstream defaults reference removed tags).
+  # Using bitnamilegacy mirrors which retain older image versions.
+  postgresql:
+    enabled: true
+    image:
+      repository: bitnamilegacy/postgresql
+
+  redis:
+    enabled: true
+    image:
+      repository: bitnamilegacy/redis
+
+  bootstrapScript: |
+    #!/bin/bash
+    uv pip install authlib ".[postgres]" && \
+    if [ ! -f ~/bootstrap ]; then echo "Running Superset with uid {{ .Values.runAsUser }}" > ~/bootstrap; fi

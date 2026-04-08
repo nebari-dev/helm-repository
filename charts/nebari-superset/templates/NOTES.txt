@@ -1,0 +1,26 @@
+nebari-superset has been deployed.
+
+{{- if .Values.nebariapp.enabled }}
+
+Nebari Integration: ENABLED
+  Hostname: {{ .Values.nebariapp.hostname }}
+  Gateway Auth: {{ .Values.nebariapp.auth.enabled }}
+  Gateway: {{ .Values.nebariapp.gateway }}
+
+  Superset will be accessible at: https://{{ .Values.nebariapp.hostname }}
+
+  {{- if .Values.nebariapp.auth.enabled }}
+  The nebari-operator will provision a Keycloak OIDC client.
+  Client credentials will be stored in secret: {{ include "nebari-superset.fullname" . }}-oidc-client
+  {{- end }}
+
+{{- else }}
+
+Nebari Integration: DISABLED
+
+  Access Superset via port-forward:
+    kubectl port-forward svc/{{ .Release.Name }} {{ .Values.superset.service.port | default 8088 }}:{{ .Values.superset.service.port | default 8088 }}
+
+  Then open: http://localhost:{{ .Values.superset.service.port | default 8088 }}
+
+{{- end }}
