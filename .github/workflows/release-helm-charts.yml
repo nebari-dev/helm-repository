@@ -78,36 +78,6 @@ jobs:
             --username "${QUAY_USERNAME}" \
             --password-stdin
 
-      # Quay.io does not auto-create repositories on push. The robot account only
-      # has rights on repositories that already exist (Quay auto-grants rights on
-      # creation). We use an OAuth token with repo:create scope to ensure each
-      # charts/<name> repository exists before the push step runs.
-      - name: Ensure Quay.io chart repositories exist
-        working-directory: src
-        env:
-          QUAY_OAUTH_TOKEN: ${{ secrets.QUAY_OAUTH_TOKEN }}
-        run: |
-          for tgz in packaged/*.tgz; do
-            [ -f "$tgz" ] || continue
-            chart_name=$(helm show chart "$tgz" | awk '/^name:/{print $2}')
-            repo_path="nebari/charts/${chart_name}"
-            echo "Checking quay.io/${repo_path} ..."
-            http_status=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "Authorization: Bearer ${QUAY_OAUTH_TOKEN}" \
-              "https://quay.io/api/v1/repository/${repo_path}")
-            if [ "$http_status" = "200" ]; then
-              echo "  -> already exists, skipping."
-            else
-              echo "  -> not found (HTTP ${http_status}), creating..."
-              curl -sf -X POST \
-                -H "Authorization: Bearer ${QUAY_OAUTH_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d "{\"namespace\":\"nebari\",\"repository\":\"charts/${chart_name}\",\"visibility\":\"public\",\"description\":\"Helm chart for ${chart_name}\",\"repo_kind\":\"image\"}" \
-                "https://quay.io/api/v1/repository"
-              echo "  -> created."
-            fi
-          done
-
       - name: Push charts to quay.io OCI registry
         working-directory: src
         run: |
