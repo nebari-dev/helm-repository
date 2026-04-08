@@ -1,0 +1,33 @@
+{{- if .Values.nebariapp.enabled }}
+{{- if not .Values.nebariapp.hostname }}
+{{- fail "nebariapp.hostname is required when nebariapp.enabled is true" }}
+{{- end }}
+apiVersion: reconcilers.nebari.dev/v1
+kind: NebariApp
+metadata:
+  name: {{ include "nebari-superset.fullname" . }}
+  labels:
+    {{- include "nebari-superset.labels" . | nindent 4 }}
+spec:
+  hostname: {{ .Values.nebariapp.hostname | quote }}
+  service:
+    name: {{ .Values.nebariapp.service.name | default .Release.Name }}
+    port: {{ .Values.nebariapp.service.port | default 8088 }}
+  {{- with .Values.nebariapp.routing }}
+  routing:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- if .Values.nebariapp.auth.enabled }}
+  auth:
+    enabled: true
+    provider: {{ .Values.nebariapp.auth.provider }}
+    provisionClient: {{ .Values.nebariapp.auth.provisionClient }}
+    scopes:
+      {{- toYaml .Values.nebariapp.auth.scopes | nindent 6 }}
+    {{- if .Values.nebariapp.auth.groups }}
+    groups:
+      {{- toYaml .Values.nebariapp.auth.groups | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  gateway: {{ .Values.nebariapp.gateway }}
+{{- end }}
