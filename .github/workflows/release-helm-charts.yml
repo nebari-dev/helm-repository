@@ -41,7 +41,8 @@ jobs:
           i=0
           for chart_dir in charts/*/; do
             [ -f "${chart_dir}Chart.yaml" ] || continue
-            grep -oP '^\s+repository:\s+\Khttps://\S+' "${chart_dir}Chart.yaml" | while read -r repo_url; do
+            for repo_url in $(grep 'repository:' "${chart_dir}Chart.yaml" | awk '{print $2}' | tr -d '"' | tr -d "'" | grep '^https://'); do
+              echo "Adding repo dep-${i} -> ${repo_url}"
               helm repo add "dep-${i}" "${repo_url}" 2>/dev/null || true
               i=$((i + 1))
             done
