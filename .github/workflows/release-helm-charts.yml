@@ -43,6 +43,9 @@ jobs:
           for chart_dir in charts/*/; do
             [ -f "${chart_dir}Chart.yaml" ] || continue
             echo "Packaging ${chart_dir}..."
+            if [ -f "${chart_dir}Chart.lock" ] || grep -q '^dependencies:' "${chart_dir}Chart.yaml"; then
+              helm dependency build "${chart_dir}"
+            fi
             helm package "${chart_dir}" --destination packaged/
           done
           echo "Packaged charts:"
