@@ -33,6 +33,8 @@ jobs:
 
       - name: Install Helm
         uses: azure/setup-helm@v4
+        with:
+          version: '3.x'
 
       # Add any non-OCI dependency repositories referenced by charts.
       - name: Add Helm dependency repositories
