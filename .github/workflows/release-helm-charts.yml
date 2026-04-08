@@ -34,6 +34,20 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
 
+      # Add any non-OCI dependency repositories referenced by charts.
+      - name: Add Helm dependency repositories
+        working-directory: src
+        run: |
+          i=0
+          for chart_dir in charts/*/; do
+            [ -f "${chart_dir}Chart.yaml" ] || continue
+            grep -oP '^\s+repository:\s+\Khttps://\S+' "${chart_dir}Chart.yaml" | while read -r repo_url; do
+              helm repo add "dep-${i}" "${repo_url}" 2>/dev/null || true
+              i=$((i + 1))
+            done
+          done
+          helm repo update 2>/dev/null || true
+
       # Package every chart source directory found under charts/.
       # Packaged .tgz files land in src/packaged/ (a temporary staging area).
       - name: Package charts
