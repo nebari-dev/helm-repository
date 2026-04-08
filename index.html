@@ -740,12 +740,12 @@
                                     style="font-family:var(--font-mono);font-size:0.92em">helm repo add</code> needed
                             </h3>
                             <p>Charts are published to <code
-                                    style="font-family:var(--font-mono);font-size:0.92em;color:var(--color-accent)">quay.io/nebari</code>
+                                    style="font-family:var(--font-mono);font-size:0.92em;color:var(--color-accent)">quay.io/nebari/charts</code>
                                 as public OCI artifacts. Use the chart's version tag directly.</p>
                             <div class="code-block" id="cb-oci-install">
                                 <pre><span class="comment"># --version is required for OCI refs</span>
 <span class="cmd">helm</span> install my-release \
-  oci://quay.io/nebari/<span class="flag">&lt;chart-name&gt;</span> \
+  oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> \
   <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre><button class="code-copy"
                                     onclick="copyCode('cb-oci-install')">Copy</button>
                             </div>
@@ -759,10 +759,10 @@
                             <p>Download the chart archive locally or inspect its metadata without deploying anything.</p>
                             <div class="code-block" id="cb-oci-pull">
                                 <pre><span class="comment"># Download the chart archive</span>
-<span class="cmd">helm</span> pull oci://quay.io/nebari/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
+<span class="cmd">helm</span> pull oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
 
 <span class="comment"># Inspect chart metadata</span>
-<span class="cmd">helm</span> show chart oci://quay.io/nebari/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre>
+<span class="cmd">helm</span> show chart oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre>
                                 <button class="code-copy" onclick="copyCode('cb-oci-pull')">Copy</button>
                             </div>
                         </div>
@@ -843,8 +843,8 @@
                     <div class="info-card-icon">&#x1F4E1;</div>
                     <h3>OCI on quay.io</h3>
                     <p>Every chart is also pushed to <code
-                            style="font-family:var(--font-mono);font-size:0.92em">quay.io/nebari</code> as a public
-                        OCI artifact, matching Nebari's existing container image workflow. Install with a single
+                            style="font-family:var(--font-mono);font-size:0.92em">quay.io/nebari/charts</code> as a public
+                        OCI artifact, separate from container image repositories. Install with a single
                         <code style="font-family:var(--font-mono);font-size:0.92em">helm install oci://…</code>
                         command — no repo registration needed.
                     </p>
@@ -945,7 +945,7 @@
                         `<span class="badge badge-version">v${v.version}</span>`
                     ).join('');
 
-                    const ociRef = `oci://quay.io/nebari/${name}`;
+                    const ociRef = `oci://quay.io/nebari/charts/${name}`;
 
                     card.innerHTML = `
           <div>
