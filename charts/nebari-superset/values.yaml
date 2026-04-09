@@ -28,12 +28,16 @@ nebariapp:
   #     - pathPrefix: /
   #       pathType: PathPrefix
   auth:
-    # -- Enable gateway-level authentication enforcement
+    # -- Enable authentication
     enabled: false
     # -- Auth provider
     provider: keycloak
     # -- Auto-provision a Keycloak client via the nebari-operator
     provisionClient: true
+    # -- Superset handles OAuth itself, so gateway enforcement is disabled.
+    enforceAtGateway: false
+    # -- OAuth callback path. Superset's Flask-AppBuilder uses /oauth-authorized/keycloak.
+    redirectURI: "/oauth-authorized/keycloak"
     # -- OAuth scopes
     scopes:
       - openid
@@ -41,8 +45,27 @@ nebariapp:
       - email
     # -- Restrict access to specific groups (empty = all authenticated users)
     groups: []
+  # -- Landing page configuration for the Nebari landing page.
+  # landingPage:
+  #   enabled: false
+  #   displayName: "Apache Superset"
+  #   description: "Data exploration and visualization platform"
+  #   icon: "https://superset.apache.org/img/superset-logo-horiz.svg"
+  #   category: "Data Science"
   # -- Gateway type: "public" or "internal"
   gateway: public
+
+# ============================================================
+# Secret Key
+# Superset requires a SECRET_KEY for encryption. If secretKey.create
+# is true, the chart generates one on first install and preserves it
+# across upgrades. Set to false if you manage the secret externally.
+# ============================================================
+secretKey:
+  # -- Create a Kubernetes Secret with an auto-generated SUPERSET_SECRET_KEY
+  create: true
+  # -- Override the secret name (default: <release>-secret-key)
+  secretName: ""
 
 # ============================================================
 # OAuth Configuration
@@ -86,6 +109,10 @@ superset:
       FEATURE_FLAGS = {
           "DYNAMIC_PLUGINS": True,
       }
+
+  # -- The chart-managed secret key is automatically included when secretKey.create is true.
+  envFromSecrets:
+    - '{{ .Release.Name }}-secret-key'
 
   extraSecretEnv: {}
 
