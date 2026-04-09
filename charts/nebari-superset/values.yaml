@@ -56,6 +56,18 @@ nebariapp:
   gateway: public
 
 # ============================================================
+# Secret Key
+# Superset requires a SECRET_KEY for encryption. If secretKey.create
+# is true, the chart generates one on first install and preserves it
+# across upgrades. Set to false if you manage the secret externally.
+# ============================================================
+secretKey:
+  # -- Create a Kubernetes Secret with an auto-generated SUPERSET_SECRET_KEY
+  create: true
+  # -- Override the secret name (default: <release>-secret-key)
+  secretName: ""
+
+# ============================================================
 # OAuth Configuration
 # ============================================================
 # Superset-native OAuth (e.g., Keycloak) is configured via
@@ -97,6 +109,10 @@ superset:
       FEATURE_FLAGS = {
           "DYNAMIC_PLUGINS": True,
       }
+
+  # -- The chart-managed secret key is automatically included when secretKey.create is true.
+  envFromSecrets:
+    - '{{ .Release.Name }}-secret-key'
 
   extraSecretEnv: {}
 
