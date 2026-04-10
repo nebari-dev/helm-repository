@@ -86,45 +86,11 @@ jobs:
       #      ArgoCD and unauthenticated clients.
       #   2. Helm >= 3.18 (oras-go v2) fails with 401 on the pre-push
       #      Exists check when the repo doesn't exist yet.
-      # Requires a Quay OAuth application token (QUAY_API_TOKEN) with
-      # repo:admin scope — robot account credentials do not work for
-      # the REST API (CSRF enforcement).
       - name: Ensure chart repositories exist and are public
-        working-directory: src
-        env:
-          QUAY_API_TOKEN: ${{ secrets.QUAY_API_TOKEN }}
-        run: |
-          for tgz in packaged/*.tgz; do
-            [ -f "$tgz" ] || continue
-            chart_name=$(helm show chart "$tgz" | awk '/^name:/{print $2}')
-            api_path="nebari/charts%2F${chart_name}"
-            echo "Checking quay.io/nebari/charts/${chart_name} ..."
-            http_code=$(curl -s -o /tmp/repo-check.json -w "%{http_code}" \
-              -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-              "https://quay.io/api/v1/repository/${api_path}")
-            if [ "$http_code" = "200" ]; then
-              is_public=$(python3 -c "import json; print(json.load(open('/tmp/repo-check.json')).get('is_public', False))")
-              if [ "$is_public" = "True" ]; then
-                echo "  -> exists and is public."
-              else
-                echo "  -> exists but is private, changing to public..."
-                curl -sf -X POST \
-                  -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-                  -H "Content-Type: application/json" \
-                  -d '{"visibility": "public"}' \
-                  "https://quay.io/api/v1/repository/${api_path}/changevisibility"
-                echo "  -> done."
-              fi
-            else
-              echo "  -> not found (HTTP ${http_code}), creating as public..."
-              curl -sf -X POST \
-                -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d "{\"namespace\":\"nebari\",\"repository\":\"charts/${chart_name}\",\"visibility\":\"public\",\"description\":\"Helm chart for ${chart_name}\",\"repo_kind\":\"image\"}" \
-                "https://quay.io/api/v1/repository"
-              echo "  -> created."
-            fi
-          done
+        uses: ./.github/actions/ensure-quay-repos
+        with:
+          token: ${{ secrets.QUAY_API_TOKEN }}
+          packaged-dir: src/packaged
 
       - name: Push charts to quay.io OCI registry
         working-directory: src

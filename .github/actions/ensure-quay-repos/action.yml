@@ -1,0 +1,48 @@
+name: Ensure Quay.io Repositories
+description: |
+  Ensures that quay.io OCI repositories exist and are public for every
+  packaged Helm chart in the given directory.
+
+  - Missing repos are created as public.
+  - Private repos are changed to public.
+  - Public repos are left untouched.
+
+  Requires a Quay OAuth application token (not robot account credentials)
+  because the Quay REST API enforces CSRF validation on mutating requests.
+
+inputs:
+  token:
+    description: |
+      Quay.io OAuth application token with repo:admin scope.
+      Create under: Quay org settings → Applications → Generate Token.
+    required: true
+
+  namespace:
+    description: Quay.io organisation name.
+    required: true
+    default: nebari
+
+  repo-prefix:
+    description: |
+      Repository path prefix. Charts are stored at
+      <namespace>/<repo-prefix>/<chart-name> on quay.io.
+    required: true
+    default: charts
+
+  packaged-dir:
+    description: |
+      Path to the directory containing packaged .tgz chart archives.
+      Each .tgz is inspected with `helm show chart` to extract the
+      chart name.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Ensure repositories exist and are public
+      shell: bash
+      env:
+        QUAY_API_TOKEN: ${{ inputs.token }}
+        QUAY_NAMESPACE: ${{ inputs.namespace }}
+        QUAY_REPO_PREFIX: ${{ inputs.repo-prefix }}
+      run: bash ${{ github.action_path }}/ensure.sh "${{ inputs.packaged-dir }}"
