@@ -16,7 +16,9 @@ description: |
 inputs:
   token:
     description: |
-      Quay.io OAuth application token with repo:admin scope.
+      Quay.io OAuth application token with repo:create and repo:admin scopes.
+      repo:create is needed to create new repositories, repo:admin to
+      change visibility on existing ones.
       Create under: Quay org settings → Applications → Generate Token.
     required: true
 
