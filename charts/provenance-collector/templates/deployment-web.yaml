@@ -1,0 +1,72 @@
+{{- if .Values.webUI.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "provenance-collector.fullname" . }}-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provenance-collector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.webUI.replicas }}
+  selector:
+    matchLabels:
+      {{- include "provenance-collector.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "provenance-collector.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      serviceAccountName: {{ include "provenance-collector.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: dashboard
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/dashboard"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          env:
+            - name: PROVENANCE_REPORT_PATH
+              value: {{ .Values.config.reportPath | quote }}
+            - name: PROVENANCE_DASHBOARD_ADDR
+              value: ":{{ .Values.webUI.port }}"
+          ports:
+            - name: http
+              containerPort: {{ .Values.webUI.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          volumeMounts:
+            - name: reports
+              mountPath: {{ .Values.config.reportPath }}
+              readOnly: true
+          resources:
+            {{- toYaml .Values.webUI.resources | nindent 12 }}
+      volumes:
+        - name: reports
+          persistentVolumeClaim:
+            claimName: {{ include "provenance-collector.fullname" . }}-reports
+{{- end }}
