@@ -5,8 +5,8 @@ description: >-
   resolves digests, verifies signatures, checks for updates, and generates
   compliance-grade provenance reports.
 type: application
-version: 0.1.0-alpha.2
-appVersion: "0.1.0-alpha.2"
+version: 0.1.0-alpha.3
+appVersion: "0.1.0-alpha.3"
 home: https://github.com/nebari-dev/provenance-collector
 sources:
   - https://github.com/nebari-dev/provenance-collector
