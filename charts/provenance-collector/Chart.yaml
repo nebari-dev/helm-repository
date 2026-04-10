@@ -1,0 +1,22 @@
+apiVersion: v2
+name: provenance-collector
+description: >-
+  Kubernetes provenance collector — discovers running container images,
+  resolves digests, verifies signatures, checks for updates, and generates
+  compliance-grade provenance reports.
+type: application
+version: 0.1.0-alpha.3
+appVersion: "0.1.0-alpha.3"
+home: https://github.com/nebari-dev/provenance-collector
+sources:
+  - https://github.com/nebari-dev/provenance-collector
+maintainers:
+  - name: nebari-dev
+    url: https://github.com/nebari-dev
+keywords:
+  - provenance
+  - compliance
+  - sbom
+  - cosign
+  - supply-chain
+  - nebari
