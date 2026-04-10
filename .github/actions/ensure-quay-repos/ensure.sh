@@ -13,7 +13,7 @@
 #   - Public   → skipped (no-op)
 #
 # Environment variables (required):
-#   QUAY_API_TOKEN   — OAuth application token with repo:admin scope
+#   QUAY_API_TOKEN   — OAuth application token with repo:create + repo:admin scopes
 #   QUAY_NAMESPACE   — quay.io organisation (e.g. "nebari")
 #   QUAY_REPO_PREFIX — repository path prefix (e.g. "charts")
 #
