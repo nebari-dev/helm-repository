@@ -1,0 +1,24 @@
+Provenance Collector has been deployed!
+
+Schedule: {{ .Values.schedule }}
+
+To trigger a collection immediately:
+
+  kubectl create job --from=cronjob/{{ include "provenance-collector.fullname" . }} \
+    manual-run -n {{ .Release.Namespace }}
+
+To view the latest report:
+{{- if .Values.persistence.enabled }}
+
+  # Get the most recent job pod
+  POD=$(kubectl get pods -n {{ .Release.Namespace }} \
+    -l app.kubernetes.io/name={{ include "provenance-collector.name" . }} \
+    --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}')
+
+  # Read the latest report from the PVC
+  kubectl exec -n {{ .Release.Namespace }} $POD -- cat {{ .Values.config.reportPath }}/provenance-latest.json | jq .
+{{- else }}
+
+  kubectl get configmap {{ .Values.config.reportConfigMap }} \
+    -n {{ .Release.Namespace }} -o jsonpath='{.data.report\.json}' | jq .
+{{- end }}

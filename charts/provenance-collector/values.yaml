@@ -1,0 +1,166 @@
+# =============================================================================
+# Image
+# =============================================================================
+image:
+  repository: quay.io/nebari/provenance-collector
+  tag: ""  # defaults to Chart appVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# =============================================================================
+# CronJob Schedule
+# =============================================================================
+# Cron expression for how often the collector runs.
+schedule: "0 6 * * *"  # Daily at 06:00 UTC
+
+# =============================================================================
+# Collector Configuration
+# =============================================================================
+config:
+  # Namespaces to scan (empty = all namespaces).
+  namespaces: []
+  # Namespaces to exclude from scanning.
+  excludeNamespaces: []
+  # Verify cosign signatures on discovered images.
+  verifySignatures: true
+  # Path or KMS URI for cosign public key (empty = existence check only).
+  cosignPublicKey: ""
+  # Discover deployed Helm releases.
+  helmEnabled: true
+  # Check registries for newer image/chart versions.
+  checkUpdates: true
+  # Skip pre-release versions (alpha, beta, rc) when checking for updates.
+  skipPrerelease: true
+  # Minimum version bump to flag as an update: "patch", "minor", or "major".
+  # "patch" flags all updates, "minor" ignores patch-only bumps, "major" only
+  # flags major version changes.
+  updateLevel: "patch"
+  # Check for SBOM attestations on discovered images.
+  checkSBOM: true
+  # Check for SLSA provenance attestations on discovered images.
+  checkProvenance: true
+  # Report output type: "pvc" or "configmap".
+  reportOutput: "pvc"
+  # Filesystem path for PVC-based reports.
+  reportPath: /reports
+  # How long to keep old reports. Use Go duration format (168h = 1 week).
+  # Set to "-1" to disable cleanup and keep all reports forever.
+  reportRetention: "168h"
+  # ConfigMap name for configmap-based reports.
+  reportConfigMap: provenance-report
+  # Timeout for registry operations.
+  registryTimeout: 30s
+  # Cluster name included in report metadata (informational).
+  clusterName: ""
+
+# =============================================================================
+# Web Dashboard
+# =============================================================================
+# Optional web UI that shows provenance reports, timelines, and summaries.
+# Requires persistence.enabled=true (reads reports from the shared PVC).
+webUI:
+  enabled: false
+  replicas: 1
+  port: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# =============================================================================
+# Persistence (PVC for report storage)
+# =============================================================================
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 1Gi
+  accessModes:
+    - ReadWriteOnce
+
+# =============================================================================
+# Registry Credentials
+# =============================================================================
+registryCredentials:
+  # Use an existing docker-registry Secret for private registry access.
+  existingSecret: ""
+
+# =============================================================================
+# Resources
+# =============================================================================
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# =============================================================================
+# Job Settings
+# =============================================================================
+backoffLimit: 3
+activeDeadlineSeconds: 3600
+successfulJobsHistoryLimit: 3
+failedJobsHistoryLimit: 3
+concurrencyPolicy: Forbid
+
+# =============================================================================
+# Service Account & RBAC
+# =============================================================================
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  create: true
+
+# =============================================================================
+# Nebari Integration
+# =============================================================================
+# Creates a NebariApp CRD that registers this pack with the nebari-operator.
+# When webUI.enabled is true, the NebariApp routes traffic to the dashboard.
+nebariapp:
+  enabled: false
+  # hostname: provenance.nebari.example.com  # Required when enabled
+  service:
+    name: ""   # Defaults to <fullname>-web
+    port: 8080
+  routing:
+    tls:
+      enabled: true
+  auth:
+    enabled: true
+    provider: keycloak
+    provisionClient: true
+    enforceAtGateway: true
+    redirectURI: /oauth2/callback
+    scopes:
+      - openid
+      - profile
+      - email
+      - groups
+    groups: []
+  landingPage:
+    enabled: false
+    displayName: "Provenance Collector"
+    description: "Container image provenance and compliance reports"
+    icon: ""
+    category: "Platform"
+    priority: 10
+    healthCheck:
+      enabled: true
+      path: /healthz
+      intervalSeconds: 30
+      timeoutSeconds: 5
+  gateway: ""
+
+# =============================================================================
+# Overrides
+# =============================================================================
+nameOverride: ""
+fullnameOverride: ""

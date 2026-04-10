@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "provenance-collector.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provenance-collector.labels" . | nindent 4 }}
+data:
+  PROVENANCE_NAMESPACES: {{ .Values.config.namespaces | join "," | quote }}
+  PROVENANCE_EXCLUDE_NAMESPACES: {{ .Values.config.excludeNamespaces | join "," | quote }}
+  PROVENANCE_VERIFY_SIGNATURES: {{ .Values.config.verifySignatures | quote }}
+  PROVENANCE_COSIGN_PUBLIC_KEY: {{ .Values.config.cosignPublicKey | quote }}
+  PROVENANCE_HELM_ENABLED: {{ .Values.config.helmEnabled | quote }}
+  PROVENANCE_CHECK_UPDATES: {{ .Values.config.checkUpdates | quote }}
+  PROVENANCE_SKIP_PRERELEASE: {{ .Values.config.skipPrerelease | quote }}
+  PROVENANCE_UPDATE_LEVEL: {{ .Values.config.updateLevel | quote }}
+  PROVENANCE_CHECK_SBOM: {{ .Values.config.checkSBOM | quote }}
+  PROVENANCE_CHECK_PROVENANCE: {{ .Values.config.checkProvenance | quote }}
+  PROVENANCE_REPORT_OUTPUT: {{ .Values.config.reportOutput | quote }}
+  PROVENANCE_REPORT_PATH: {{ .Values.config.reportPath | quote }}
+  PROVENANCE_REPORT_RETENTION: {{ .Values.config.reportRetention | quote }}
+  PROVENANCE_REPORT_CONFIGMAP: {{ .Values.config.reportConfigMap | quote }}
+  PROVENANCE_REPORT_CONFIGMAP_NAMESPACE: {{ .Release.Namespace | quote }}
+  PROVENANCE_REGISTRY_TIMEOUT: {{ .Values.config.registryTimeout | quote }}
+  PROVENANCE_CLUSTER_NAME: {{ .Values.config.clusterName | quote }}

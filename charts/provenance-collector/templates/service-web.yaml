@@ -1,0 +1,20 @@
+{{- if .Values.webUI.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "provenance-collector.fullname" . }}-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provenance-collector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.webUI.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "provenance-collector.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+{{- end }}
