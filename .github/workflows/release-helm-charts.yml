@@ -89,6 +89,39 @@ jobs:
             helm push "$tgz" oci://quay.io/nebari/charts
           done
 
+      # Quay.io creates OCI repos as private on first push. This step
+      # ensures every chart repo is set to public so ArgoCD and other
+      # unauthenticated clients can pull without credentials.
+      # Requires a Quay OAuth application token (QUAY_API_TOKEN) with
+      # repo:admin scope — robot account credentials do not work for
+      # the REST API (CSRF enforcement).
+      - name: Ensure chart repositories are public
+        working-directory: src
+        env:
+          QUAY_API_TOKEN: ${{ secrets.QUAY_API_TOKEN }}
+        run: |
+          for tgz in packaged/*.tgz; do
+            [ -f "$tgz" ] || continue
+            chart_name=$(helm show chart "$tgz" | awk '/^name:/{print $2}')
+            api_path="nebari/charts%2F${chart_name}"
+            echo "Checking visibility of quay.io/nebari/charts/${chart_name} ..."
+            is_public=$(curl -sf \
+              -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+              "https://quay.io/api/v1/repository/${api_path}" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin).get('is_public', False))")
+            if [ "$is_public" = "True" ]; then
+              echo "  -> already public."
+            else
+              echo "  -> private, changing to public..."
+              curl -sf -X POST \
+                -H "Authorization: Bearer ${QUAY_API_TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{"visibility": "public"}' \
+                "https://quay.io/api/v1/repository/${api_path}/changevisibility"
+              echo "  -> done."
+            fi
+          done
+
       - name: Log out of quay.io
         if: always()
         run: helm registry logout quay.io || true
