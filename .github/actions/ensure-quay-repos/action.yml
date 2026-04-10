@@ -1,10 +1,13 @@
-name: Ensure Quay.io Repositories
+name: Ensure Quay.io Chart Repositories
 description: |
-  Ensures that quay.io OCI repositories exist and are public for every
-  packaged Helm chart in the given directory.
+  Ensures that quay.io OCI repositories under <namespace>/<repo-prefix>/
+  exist and are public for every packaged Helm chart in the given directory.
+
+  Only repositories scoped to the configured repo-prefix (default: "charts")
+  are managed — this action will never modify repositories outside that path.
 
   - Missing repos are created as public.
-  - Private repos are changed to public.
+  - Private repos within the prefix are changed to public.
   - Public repos are left untouched.
 
   Requires a Quay OAuth application token (not robot account credentials)

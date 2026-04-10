@@ -1,17 +1,20 @@
 #!/usr/bin/env bash
 #
-# Ensure quay.io OCI repositories exist and are public.
+# Ensure quay.io OCI chart repositories exist and are public.
 #
-# For each packaged Helm chart (.tgz) in the given directory, this script
-# checks whether the corresponding quay.io repository exists and is public.
+# This script ONLY manages repositories under <namespace>/<repo-prefix>/,
+# e.g. nebari/charts/*. It will never modify repositories outside that
+# prefix — the repo path is derived from the chart name in each .tgz and
+# always prefixed with QUAY_REPO_PREFIX.
 #
+# For each packaged Helm chart (.tgz) in the given directory:
 #   - Missing  → created as public via POST /api/v1/repository
 #   - Private  → changed to public via POST .../changevisibility
 #   - Public   → skipped (no-op)
 #
 # Environment variables (required):
-#   QUAY_API_TOKEN  — OAuth application token with repo:admin scope
-#   QUAY_NAMESPACE  — quay.io organisation (e.g. "nebari")
+#   QUAY_API_TOKEN   — OAuth application token with repo:admin scope
+#   QUAY_NAMESPACE   — quay.io organisation (e.g. "nebari")
 #   QUAY_REPO_PREFIX — repository path prefix (e.g. "charts")
 #
 # Usage:
@@ -32,6 +35,15 @@ for tgz in "${PACKAGED_DIR}"/*.tgz; do
   [ -f "$tgz" ] || continue
 
   chart_name=$(helm show chart "$tgz" | awk '/^name:/{print $2}')
+
+  # Guard: only operate on repos within the expected prefix.
+  # Reject chart names containing slashes or path traversal sequences
+  # to prevent accidentally targeting repos outside <prefix>/<name>.
+  if [[ "$chart_name" == */* ]] || [[ "$chart_name" == *..* ]] || [[ -z "$chart_name" ]]; then
+    echo "  !! skipping '${chart_name}' — unexpected chart name" >&2
+    continue
+  fi
+
   repo_name="${QUAY_REPO_PREFIX}/${chart_name}"
   # Quay API expects slashes in repo names to be URL-encoded
   encoded_repo="${QUAY_REPO_PREFIX}%2F${chart_name}"
