@@ -85,7 +85,7 @@ jobs:
       #   2. Helm >= 3.18 (oras-go v2) fails with 401 on the pre-push
       #      Exists check when the repo doesn't exist yet.
       - name: Ensure chart repositories exist and are public
-        uses: ./.github/actions/ensure-quay-repos
+        uses: ./src/.github/actions/ensure-quay-repos
         with:
           token: ${{ secrets.QUAY_API_TOKEN }}
           packaged-dir: src/packaged
