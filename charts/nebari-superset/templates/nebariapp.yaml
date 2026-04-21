@@ -29,5 +29,9 @@ spec:
       {{- toYaml .Values.nebariapp.auth.groups | nindent 6 }}
     {{- end }}
   {{- end }}
+  {{- with .Values.nebariapp.landingPage }}
+  landingPage:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   gateway: {{ .Values.nebariapp.gateway }}
 {{- end }}
