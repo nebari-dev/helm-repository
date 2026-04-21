@@ -25,5 +25,9 @@ spec:
   landingPage:
     {{- toYaml . | nindent 4 }}
   {{- end }}
+  {{- with .Values.nebariapp.landingPage }}
+  landingPage:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   gateway: {{ .Values.nebariapp.gateway }}
 {{- end }}

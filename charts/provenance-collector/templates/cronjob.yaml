@@ -1,0 +1,79 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "provenance-collector.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provenance-collector.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  concurrencyPolicy: {{ .Values.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.failedJobsHistoryLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "provenance-collector.selectorLabels" . | nindent 8 }}
+    spec:
+      backoffLimit: {{ .Values.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "provenance-collector.selectorLabels" . | nindent 12 }}
+        spec:
+          serviceAccountName: {{ include "provenance-collector.serviceAccountName" . }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            fsGroup: 65532
+          restartPolicy: OnFailure
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: collector
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              envFrom:
+                - configMapRef:
+                    name: {{ include "provenance-collector.fullname" . }}-config
+              {{- if .Values.persistence.enabled }}
+              volumeMounts:
+                - name: reports
+                  mountPath: {{ .Values.config.reportPath }}
+              {{- end }}
+              {{- if .Values.registryCredentials.existingSecret }}
+              env:
+                - name: PROVENANCE_REGISTRY_AUTH
+                  value: /etc/docker/config.json
+              volumeMounts:
+                {{- if .Values.persistence.enabled }}
+                - name: reports
+                  mountPath: {{ .Values.config.reportPath }}
+                {{- end }}
+                - name: registry-creds
+                  mountPath: /etc/docker
+                  readOnly: true
+              {{- end }}
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+          {{- if or .Values.persistence.enabled .Values.registryCredentials.existingSecret }}
+          volumes:
+            {{- if .Values.persistence.enabled }}
+            - name: reports
+              persistentVolumeClaim:
+                claimName: {{ include "provenance-collector.fullname" . }}-reports
+            {{- end }}
+            {{- if .Values.registryCredentials.existingSecret }}
+            - name: registry-creds
+              secret:
+                secretName: {{ .Values.registryCredentials.existingSecret }}
+            {{- end }}
+          {{- end }}

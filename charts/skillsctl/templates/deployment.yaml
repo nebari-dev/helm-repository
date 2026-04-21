@@ -50,6 +50,25 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "skillsctl.fullname" . }}
+          {{- if .Values.nebariapp.enabled }}
+          env:
+            - name: OIDC_ISSUER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "skillsctl.fullname" . }}-oidc-client
+                  key: issuer-url
+            - name: OIDC_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "skillsctl.fullname" . }}-oidc-client
+                  key: client-id
+            - name: OIDC_DEVICE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "skillsctl.fullname" . }}-oidc-client
+                  key: device-client-id
+                  optional: true
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz

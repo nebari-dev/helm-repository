@@ -33,8 +33,6 @@ jobs:
 
       - name: Install Helm
         uses: azure/setup-helm@v4
-        with:
-          version: '3.17.4'
 
       # Add any non-OCI dependency repositories referenced by charts.
       - name: Add Helm dependency repositories
@@ -79,6 +77,18 @@ jobs:
           echo "${QUAY_PASSWORD}" | helm registry login quay.io \
             --username "${QUAY_USERNAME}" \
             --password-stdin
+
+      # Ensure each chart's OCI repository exists as public on quay.io
+      # BEFORE pushing. This avoids two problems:
+      #   1. Quay creates repos as private on first push, blocking
+      #      ArgoCD and unauthenticated clients.
+      #   2. Helm >= 3.18 (oras-go v2) fails with 401 on the pre-push
+      #      Exists check when the repo doesn't exist yet.
+      - name: Ensure chart repositories exist and are public
+        uses: ./src/.github/actions/ensure-quay-repos
+        with:
+          token: ${{ secrets.QUAY_API_TOKEN }}
+          packaged-dir: src/packaged
 
       - name: Push charts to quay.io OCI registry
         working-directory: src

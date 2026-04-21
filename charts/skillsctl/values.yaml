@@ -37,6 +37,7 @@ persistence:
 oidc:
   issuerURL: ""
   clientID: ""
+  deviceClientID: ""  # Public client ID for CLI device flow auth (standalone mode only)
   adminGroup: "skillsctl-admins"
   groupsClaim: "groups"
 
@@ -44,6 +45,7 @@ oidc:
 server:
   port: 8080
   dbPath: /data/skillsctl.db  # must be under persistence.mountPath
+  devMode: false  # set to true to run without OIDC (disables authentication)
 
 resources: {}
   # requests:
@@ -77,6 +79,7 @@ ingress:
 nebariapp:
   enabled: false
   # hostname: skillsctl.nebari.example.com  # required when enabled
+  serviceAccountName: ""  # Passed to NebariApp CRD, defaults to release fullname
   service:
     name: ""  # defaults to release fullname
     port: 80
@@ -85,6 +88,8 @@ nebariapp:
     enabled: true
     provider: keycloak
     provisionClient: true
+    deviceFlowClient:
+      enabled: false
     redirectURI: /
     scopes:
       - openid

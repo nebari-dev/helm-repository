@@ -1,5 +1,0 @@
-# Minimal values for chart-testing CI
-image:
-  tag: latest
-persistence:
-  enabled: false
