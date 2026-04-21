@@ -28,12 +28,16 @@ nebariapp:
   #     - pathPrefix: /
   #       pathType: PathPrefix
   auth:
-    # -- Enable gateway-level authentication enforcement
+    # -- Enable authentication
     enabled: false
     # -- Auth provider
     provider: keycloak
     # -- Auto-provision a Keycloak client via the nebari-operator
     provisionClient: true
+    # -- Superset handles OAuth itself, so gateway enforcement is disabled.
+    enforceAtGateway: false
+    # -- OAuth callback path. Superset's Flask-AppBuilder uses /oauth-authorized/keycloak.
+    redirectURI: "/oauth-authorized/keycloak"
     # -- OAuth scopes
     scopes:
       - openid
@@ -41,6 +45,13 @@ nebariapp:
       - email
     # -- Restrict access to specific groups (empty = all authenticated users)
     groups: []
+  # -- Landing page configuration for the Nebari landing page.
+  # landingPage:
+  #   enabled: false
+  #   displayName: "Apache Superset"
+  #   description: "Data exploration and visualization platform"
+  #   icon: "https://superset.apache.org/img/superset-logo-horiz.svg"
+  #   category: "Data Science"
   # -- Gateway type: "public" or "internal"
   gateway: public
 

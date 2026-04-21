@@ -17,17 +17,13 @@ spec:
   routing:
     {{- toYaml . | nindent 4 }}
   {{- end }}
-  {{- if .Values.nebariapp.auth.enabled }}
+  {{- with .Values.nebariapp.auth }}
   auth:
-    enabled: true
-    provider: {{ .Values.nebariapp.auth.provider }}
-    provisionClient: {{ .Values.nebariapp.auth.provisionClient }}
-    scopes:
-      {{- toYaml .Values.nebariapp.auth.scopes | nindent 6 }}
-    {{- if .Values.nebariapp.auth.groups }}
-    groups:
-      {{- toYaml .Values.nebariapp.auth.groups | nindent 6 }}
-    {{- end }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.nebariapp.landingPage }}
+  landingPage:
+    {{- toYaml . | nindent 4 }}
   {{- end }}
   {{- with .Values.nebariapp.landingPage }}
   landingPage:
