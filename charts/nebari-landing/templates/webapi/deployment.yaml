@@ -84,6 +84,11 @@ spec:
             # Set webapi.debugMode=true in values to activate. Never use in production.
             - name: DEBUG_MODE
               value: {{ .Values.webapi.debugMode | quote }}
+            # OpenAPI docs — exposes /api/v1/docs/openapi.json and the Scalar
+            # viewer at /api/v1/docs. Set webapi.docsEnabled=true to activate.
+            # Never use in production (the spec leaks endpoint shape).
+            - name: ENABLE_DOCS
+              value: {{ .Values.webapi.docsEnabled | quote }}
             # Automatic notifications
             - name: NOTIFICATIONS_STARTUP
               value: {{ .Values.webapi.notifications.startupNotification | quote }}

@@ -19,17 +19,18 @@ data:
       },
       "title":      {{ .Values.frontend.branding.title      | quote }},
       "logoUrl":   {{ .Values.frontend.branding.logoUrl   | quote }},
-      "faviconUrl": {{ .Values.frontend.branding.faviconUrl | quote }}
+      "faviconUrl": {{ .Values.frontend.branding.faviconUrl | quote }},
+      "theme":      {{ .Values.frontend.branding.theme | toJson }}
     }
 
   # nginx configuration for the frontend pod.
   #
   # Traffic flow (production):
-  #   Browser → Gateway → frontend Service (oauth2-proxy:4180)
-  #     → oauth2-proxy validates session cookie, injects Authorization: Bearer <token>
-  #       → nginx (127.0.0.1:{{ .Values.frontend.port }})
-  #         ├─ /api/*  → proxy_pass to webapi ClusterIP (cluster DNS, never public)
-  #         └─ /*      → serve SPA index.html
+  #   Browser → Gateway → frontend Service (nginx:{{ .Values.frontend.port }})
+  #     ├─ /api/*  → proxy_pass to webapi ClusterIP (cluster DNS, never public)
+  #     │             nginx forwards the Authorization: Bearer header as-is;
+  #     │             the webapi validates it against Keycloak JWKS.
+  #     └─ /*      → serve SPA assets; keycloak-js handles OIDC PKCE in the browser.
   #
   # The webapi is never exposed through the Gateway.
   nginx.conf: |
