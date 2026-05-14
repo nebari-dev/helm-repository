@@ -1,4 +1,14 @@
-{{- if .Values.persistence.enabled }}
+{{- if eq .Values.persistence.mode "http" }}
+{{- if not .Values.webUI.enabled }}
+{{- fail "persistence.mode=http requires webUI.enabled=true — the dashboard pod hosts the reports volume and the collector's upload endpoint." }}
+{{- end }}
+{{- end }}
+{{- if eq .Values.persistence.mode "pvc" }}
+{{- if not .Values.persistence.storageClass }}
+{{- fail "persistence.mode=pvc requires persistence.storageClass — pick a ReadWriteMany-capable class (Longhorn / NFS / EFS) unless your collector and dashboard pods are guaranteed to co-schedule on the same node. Hetzner's default csi.hetzner.cloud is ReadWriteOnce only and will cause Multi-Attach errors." }}
+{{- end }}
+{{- end }}
+{{- if has .Values.persistence.mode (list "http" "pvc") }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -11,7 +21,11 @@ spec:
   storageClassName: {{ . }}
   {{- end }}
   accessModes:
+    {{- if eq .Values.persistence.mode "pvc" }}
     {{- toYaml .Values.persistence.accessModes | nindent 4 }}
+    {{- else }}
+    - ReadWriteOnce
+    {{- end }}
   resources:
     requests:
       storage: {{ .Values.persistence.size }}

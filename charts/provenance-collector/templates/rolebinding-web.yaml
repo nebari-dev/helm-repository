@@ -1,0 +1,18 @@
+{{- if and .Values.webUI.enabled .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "provenance-collector.fullname" . }}-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provenance-collector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "provenance-collector.fullname" . }}-web
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "provenance-collector.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

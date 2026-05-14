@@ -16,10 +16,14 @@ data:
   PROVENANCE_UPDATE_LEVEL: {{ .Values.config.updateLevel | quote }}
   PROVENANCE_CHECK_SBOM: {{ .Values.config.checkSBOM | quote }}
   PROVENANCE_CHECK_PROVENANCE: {{ .Values.config.checkProvenance | quote }}
-  PROVENANCE_REPORT_OUTPUT: {{ .Values.config.reportOutput | quote }}
+  PROVENANCE_REPORT_OUTPUT: {{ .Values.persistence.mode | quote }}
   PROVENANCE_REPORT_PATH: {{ .Values.config.reportPath | quote }}
   PROVENANCE_REPORT_RETENTION: {{ .Values.config.reportRetention | quote }}
   PROVENANCE_REPORT_CONFIGMAP: {{ .Values.config.reportConfigMap | quote }}
   PROVENANCE_REPORT_CONFIGMAP_NAMESPACE: {{ .Release.Namespace | quote }}
   PROVENANCE_REGISTRY_TIMEOUT: {{ .Values.config.registryTimeout | quote }}
   PROVENANCE_CLUSTER_NAME: {{ .Values.config.clusterName | quote }}
+  {{- if eq .Values.persistence.mode "http" }}
+  PROVENANCE_REPORT_UPLOAD_URL: {{ printf "http://%s-web-internal.%s.svc:%d/internal/reports" (include "provenance-collector.fullname" .) .Release.Namespace (int .Values.webUI.internalPort) | quote }}
+  PROVENANCE_REPORT_UPLOAD_TIMEOUT: {{ .Values.config.reportUploadTimeout | quote }}
+  {{- end }}

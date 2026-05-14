@@ -1,0 +1,24 @@
+{{- if and .Values.webUI.enabled (eq .Values.persistence.mode "http") }}
+# Internal-only Service used by the collector Job to POST reports to the
+# dashboard's /internal/reports endpoint. Kept separate from the public
+# Service so an Ingress on `{fullname}-web` can never accidentally proxy
+# the internal port.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "provenance-collector.fullname" . }}-web-internal
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provenance-collector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web-internal
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.webUI.internalPort }}
+      targetPort: internal
+      protocol: TCP
+      name: internal
+  selector:
+    {{- include "provenance-collector.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+{{- end }}

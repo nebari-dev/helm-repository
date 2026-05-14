@@ -9,6 +9,12 @@ metadata:
     app.kubernetes.io/component: web
 spec:
   replicas: {{ .Values.webUI.replicas }}
+  {{- if has .Values.persistence.mode (list "http" "pvc") }}
+  # Recreate avoids a multi-attach error on rollout: the old pod must
+  # detach the reports PVC before the new pod attaches it.
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "provenance-collector.selectorLabels" . | nindent 6 }}
@@ -43,10 +49,41 @@ spec:
               value: {{ .Values.config.reportPath | quote }}
             - name: PROVENANCE_DASHBOARD_ADDR
               value: ":{{ .Values.webUI.port }}"
+            - name: PROVENANCE_DASHBOARD_INTERNAL_ADDR
+              value: ":{{ .Values.webUI.internalPort }}"
+            - name: PROVENANCE_REPORT_RETENTION
+              value: {{ .Values.config.reportRetention | quote }}
+            - name: PROVENANCE_UPLOAD_MAX_BYTES
+              value: {{ int .Values.webUI.uploadMaxBytes | quote }}
+            - name: PROVENANCE_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: PROVENANCE_CRONJOB_NAME
+              value: {{ include "provenance-collector.fullname" . | quote }}
+            {{- with .Values.webUI.oidcIssuer }}
+            - name: PROVENANCE_OIDC_ISSUER
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.webUI.adminGroups }}
+            - name: PROVENANCE_ADMIN_GROUPS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            # Always emitted: "0" disables the TTL (Job persists after
+            # completion) and `with` would treat the YAML zero-value as
+            # falsy and drop the env var, which the Go side reads as
+            # "unset → use default".
+            - name: PROVENANCE_MANUAL_JOB_TTL
+              value: {{ .Values.webUI.manualJobTTL | quote }}
           ports:
             - name: http
               containerPort: {{ .Values.webUI.port }}
               protocol: TCP
+            {{- if eq .Values.persistence.mode "http" }}
+            - name: internal
+              containerPort: {{ .Values.webUI.internalPort }}
+              protocol: TCP
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -59,14 +96,20 @@ spec:
               port: http
             initialDelaySeconds: 2
             periodSeconds: 10
+          {{- if has .Values.persistence.mode (list "http" "pvc") }}
           volumeMounts:
             - name: reports
               mountPath: {{ .Values.config.reportPath }}
+              {{- if eq .Values.persistence.mode "pvc" }}
               readOnly: true
+              {{- end }}
+          {{- end }}
           resources:
             {{- toYaml .Values.webUI.resources | nindent 12 }}
+      {{- if has .Values.persistence.mode (list "http" "pvc") }}
       volumes:
         - name: reports
           persistentVolumeClaim:
             claimName: {{ include "provenance-collector.fullname" . }}-reports
+      {{- end }}
 {{- end }}
