@@ -32,6 +32,9 @@ spec:
     groups:
       {{- toYaml . | nindent 6 }}
     {{- end }}
+    {{- if .forwardAccessToken }}
+    forwardAccessToken: true
+    {{- end }}
   {{- end }}
   {{- with .Values.nebariapp.landingPage }}
   landingPage:

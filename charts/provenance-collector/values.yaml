@@ -40,29 +40,35 @@ config:
   checkSBOM: true
   # Check for SLSA provenance attestations on discovered images.
   checkProvenance: true
-  # Report output type: "pvc" or "configmap".
-  reportOutput: "pvc"
-  # Filesystem path for PVC-based reports.
+  # Filesystem path used by the dashboard pod (and by the cron pod in pvc mode).
   reportPath: /reports
-  # How long to keep old reports. Use Go duration format (168h = 1 week).
-  # Set to "-1" to disable cleanup and keep all reports forever.
+  # How long the dashboard keeps old reports on disk. Use Go duration format
+  # (168h = 1 week). Set to "-1" to disable cleanup and keep all reports.
   reportRetention: "168h"
-  # ConfigMap name for configmap-based reports.
+  # ConfigMap name for configmap mode.
   reportConfigMap: provenance-report
   # Timeout for registry operations.
   registryTimeout: 30s
   # Cluster name included in report metadata (informational).
   clusterName: ""
+  # Timeout for uploading a report in http mode.
+  reportUploadTimeout: 30s
 
 # =============================================================================
 # Web Dashboard
 # =============================================================================
-# Optional web UI that shows provenance reports, timelines, and summaries.
-# Requires persistence.enabled=true (reads reports from the shared PVC).
+# Hosts the report UI and, in http mode, the internal upload endpoint that the
+# collector Job POSTs to. webUI.enabled must be true when persistence.mode=http.
 webUI:
-  enabled: false
+  enabled: true
   replicas: 1
+  # Public port (UI + read API: /, /api/reports, /api/reports/{filename}).
   port: 8080
+  # Internal port (POST /internal/reports, /healthz). Exposed only through
+  # the {fullname}-web-internal Service — never put this behind an Ingress.
+  internalPort: 8081
+  # Max body size (bytes) accepted on the internal upload endpoint.
+  uploadMaxBytes: 16777216  # 16 MiB
   resources:
     requests:
       cpu: 50m
@@ -70,14 +76,54 @@ webUI:
     limits:
       cpu: 200m
       memory: 128Mi
+  # Base URL the dashboard pod uses to call the issuer's /userinfo endpoint and
+  # resolve the caller's groups. Required for the "Run Scan" button to be
+  # visible; leave empty to disable.
+  #
+  # This is the URL the dashboard *calls* — it does not need to match the `iss`
+  # claim inside the user's token. The dashboard never validates `iss` itself;
+  # it forwards the bearer to userinfo and trusts the issuer to accept or
+  # reject it. So in split-horizon setups (external hostname for browsers,
+  # internal cluster DNS for backends) you point this at whichever URL the pod
+  # can actually reach.
+  #
+  # Example (Nebari in-cluster Keycloak):
+  #   http://keycloak-keycloakx-http.keycloak.svc.cluster.local:8080/realms/nebari
+  oidcIssuer: ""
+  # Keycloak groups whose members are allowed to trigger a manual scan from the
+  # web UI. Empty disables the "Run Scan" button entirely. Group matching is
+  # exact and case-sensitive; use the same form Keycloak returns in the token
+  # (typically with a leading "/").
+  adminGroups: []
+  # How long a finished manual scan Job lingers before the TTLAfterFinished
+  # controller deletes it. Manual Jobs aren't tracked by the CronJob's
+  # successfulJobsHistoryLimit, so without a TTL they would accumulate. Use
+  # any Go duration string ("1h", "30m", "24h"). Set to "0" to disable the
+  # TTL and keep manual Jobs around for debugging.
+  manualJobTTL: "1h"
 
 # =============================================================================
-# Persistence (PVC for report storage)
+# Persistence
 # =============================================================================
+# mode controls how reports flow from collector → dashboard:
+#   http      — Collector POSTs the report to the dashboard's internal
+#               endpoint (cluster-DNS only). Dashboard owns a single PVC.
+#               No shared volume between pods. Default. Works on ReadWriteOnce
+#               storage classes like Hetzner's csi.hetzner.cloud.
+#   pvc       — Collector and dashboard share one PVC. Requires a
+#               ReadWriteMany-capable storageClass (Longhorn, NFS, EFS, …)
+#               unless every collector pod is guaranteed to land on the same
+#               node as the dashboard.
+#   configmap — Collector writes the report to a ConfigMap; the dashboard is
+#               not used. Useful for headless / inspection-only installs.
 persistence:
-  enabled: true
+  mode: http
+  # storageClass: required when mode=pvc; recommended when mode=http.
+  # Helm template rendering fails for mode=pvc if this is empty.
   storageClass: ""
   size: 1Gi
+  # accessModes only apply in pvc mode. For mode=pvc on a multi-node cluster
+  # you almost certainly want ReadWriteMany.
   accessModes:
     - ReadWriteOnce
 
@@ -145,6 +191,10 @@ nebariapp:
       - email
       - groups
     groups: []
+    # Forward the user's access token to the dashboard as
+    # `Authorization: Bearer <token>`. Required when webUI.adminGroups is set
+    # so the dashboard can resolve group membership from the token's issuer.
+    forwardAccessToken: false
   landingPage:
     enabled: false
     displayName: "Provenance Collector"
