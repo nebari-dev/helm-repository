@@ -18,21 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main branch (source)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: src
           ref: main
           fetch-depth: 0
 
       - name: Checkout gh-pages branch (deploy target)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: dest
           ref: gh-pages
           fetch-depth: 0
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
 
       # Add any non-OCI dependency repositories referenced by charts.
       - name: Add Helm dependency repositories
