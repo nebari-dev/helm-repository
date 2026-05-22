@@ -3,7 +3,7 @@ entries:
   nebari-landing:
   - apiVersion: v2
     appVersion: v0.1.0-alpha.4
-    created: "2026-05-22T18:07:13.961895422Z"
+    created: "2026-05-22T18:09:03.696738279Z"
     dependencies:
     - condition: redis.enabled
       name: redis
@@ -12,7 +12,7 @@ entries:
     description: 'Nebari Landing Page — React frontend (OAuth2 Proxy sidecar) + Go
       webapi backend, backed by Redis for pins, notifications, access requests and
       WebSocket fan-out. '
-    digest: 315ecf1d6870765f594a7d3fbbded3e76fe52e604e5c848ef8513da9aecd9b44
+    digest: 3d64e4fa227da1922feeffb330628a64a16d50d33f898d4716f362a2877e130b
     maintainers:
     - name: OpenTeams
       url: https://github.com/nebari-dev
@@ -100,6 +100,21 @@ entries:
   - annotations:
       kubebuilder.io/generated-by: kubebuilder
     apiVersion: v2
+    appVersion: v0.1.0-alpha.19
+    created: "2026-05-22T18:09:03.697246159Z"
+    description: A Helm chart to distribute nebari-operator
+    digest: 502efc8c6d784953823ddc13dd406970e1758db6ec7aa6ddbe3225c4bd3ddba1
+    keywords:
+    - kubernetes
+    - operator
+    name: nebari-operator
+    type: application
+    urls:
+    - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/nebari-operator-0.1.0-alpha.19.tgz
+    version: 0.1.0-alpha.19
+  - annotations:
+      kubebuilder.io/generated-by: kubebuilder
+    apiVersion: v2
     appVersion: v0.1.0-alpha.18
     created: "2026-05-22T18:07:13.962565886Z"
     description: A Helm chart to distribute nebari-operator
@@ -175,13 +190,13 @@ entries:
   nebari-superset:
   - apiVersion: v2
     appVersion: v0.3.0
-    created: "2026-05-22T18:07:13.973801924Z"
+    created: "2026-05-22T18:09:03.705717223Z"
     dependencies:
     - name: superset
       repository: https://apache.github.io/superset
       version: 0.15.2
     description: A Nebari Software Pack for Apache Superset
-    digest: a0547e4008d23d93639476654b1540d6d2e9e305d0fc9a44478330d7273983b1
+    digest: f4d44667df4d3c6a3bb0538e63422c8916e8e4f7cc841d9b74327d1c0313538e
     name: nebari-superset
     type: application
     urls:
@@ -218,11 +233,11 @@ entries:
   provenance-collector:
   - apiVersion: v2
     appVersion: 0.1.0-alpha.4
-    created: "2026-05-22T18:07:13.974536Z"
+    created: "2026-05-22T18:09:03.706628398Z"
     description: Kubernetes provenance collector — discovers running container images,
       resolves digests, verifies signatures, checks for updates, and generates compliance-grade
       provenance reports.
-    digest: e920de97562f39f68abf5bd050e2b8fa3b95672f9fe043c01380c19265705d36
+    digest: f99239cbe1da9bf1593cad6547122cedffbfbd0d91494ca29c5891fc8b770224
     home: https://github.com/nebari-dev/nebari-provenance-collector-pack
     keywords:
     - provenance
@@ -294,10 +309,10 @@ entries:
   skillsctl:
   - apiVersion: v2
     appVersion: 0.2.0
-    created: "2026-05-22T18:07:13.974941081Z"
+    created: "2026-05-22T18:09:03.706952346Z"
     description: A registry for discovering, installing, and publishing Claude Code
       skills
-    digest: fe7be9e5a1cd1b016aa184cdbb311327061f067d43762002e20e548066839f32
+    digest: 6506b263e04bbbd8699105c44f4428670a889d5bce57712b8f1f19a19a8453bd
     name: skillsctl
     type: application
     urls:
@@ -391,4 +406,4 @@ entries:
     urls:
     - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/skillsctl-0.1.0.tgz
     version: 0.1.0
-generated: "2026-05-22T18:07:13.953528566Z"
+generated: "2026-05-22T18:09:03.690967812Z"
