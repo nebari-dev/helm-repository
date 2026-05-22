@@ -1,0 +1,114 @@
+name: Rebase chart-sync PR on /sync-rebase
+
+# Comment-triggered workflow: when a maintainer comments "/sync-rebase"
+# on a chart-sync PR, rebase the PR's branch onto the current main and
+# force-push. Conflicts on Chart.yaml (the recurring pain) are resolved
+# deterministically with --strategy-option theirs — the PR branch is
+# the side that should win for the version/appVersion lines.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  rebase:
+    if: >-
+      github.event.issue.pull_request != null
+      && startsWith(github.event.comment.body, '/sync-rebase')
+      && (
+        github.event.comment.author_association == 'OWNER'
+        || github.event.comment.author_association == 'MEMBER'
+        || github.event.comment.author_association == 'COLLABORATOR'
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: React to the trigger comment
+        uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket',
+            });
+
+      - name: Fetch PR metadata
+        id: pr
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number,
+            });
+            if (!pr.labels.some(l => l.name === 'helm-sync')) {
+              core.setFailed('PR is not labelled `helm-sync` — refusing to rebase.');
+              return;
+            }
+            if (pr.state !== 'open') {
+              core.setFailed(`PR is ${pr.state}, not open — refusing to rebase.`);
+              return;
+            }
+            core.setOutput('branch', pr.head.ref);
+            core.setOutput('repo', pr.head.repo.full_name);
+
+      - name: Check out PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.pr.outputs.branch }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Rebase onto main, preferring PR branch on conflicts
+        id: rebase
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          before=$(git rev-parse HEAD)
+          if ! git rebase --strategy-option=theirs origin/main; then
+            git rebase --abort || true
+            echo "rebase_failed=1" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          after=$(git rev-parse HEAD)
+          if [ "$before" = "$after" ]; then
+            echo "no_changes=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Force-push the rebased branch
+        if: steps.rebase.outputs.no_changes != '1'
+        run: git push --force-with-lease origin HEAD:${{ steps.pr.outputs.branch }}
+
+      - name: Comment on the PR with the outcome
+        if: always()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const status = '${{ job.status }}';
+            const noChanges = '${{ steps.rebase.outputs.no_changes }}' === '1';
+            const rebaseFailed = '${{ steps.rebase.outputs.rebase_failed }}' === '1';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            let body;
+            if (status === 'success' && noChanges) {
+              body = `Already up to date with \`main\` — nothing to rebase.`;
+            } else if (status === 'success') {
+              body = `Rebased onto \`main\` with \`--strategy-option=theirs\` (PR branch wins on conflicts) and force-pushed. If this PR has hand edits beyond the chart sync, verify the diff before merging.`;
+            } else if (rebaseFailed) {
+              body = `Rebase failed — there are conflicts that \`--strategy-option=theirs\` couldn't resolve automatically. See the [workflow logs](${runUrl}) for details. You'll need to rebase locally.`;
+            } else {
+              body = `Workflow failed before rebase completed. See the [logs](${runUrl}).`;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body,
+            });
