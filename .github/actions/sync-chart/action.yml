@@ -192,8 +192,14 @@ runs:
              [Nebari Helm Repository](https://nebari-dev.github.io/helm-repository/).
 
           > **Note:** This PR was opened automatically. Review the chart diff before merging.
-          > To update it, push a new release from the source repository — this branch will be
-          > force-updated automatically.
+          >
+          > To refresh it:
+          > - **New upstream release**: push the release in the source repository, and this
+          >   branch is force-updated automatically by the upstream sync workflow.
+          > - **Branch fell behind `main`** (e.g., `Chart.yaml` conflict because a sibling
+          >   sync PR merged first): comment `/sync-rebase` on this PR. A maintainer-gated
+          >   workflow rebases the branch onto current `main`, resolving the
+          >   `version` / `appVersion` clash automatically.
         labels: ${{ inputs.pr-labels }}
         reviewers: ${{ inputs.pr-reviewers }}
         delete-branch: true
