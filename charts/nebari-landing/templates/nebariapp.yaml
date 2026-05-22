@@ -1,9 +1,10 @@
 {{- if .Values.nebariApp.enabled }}
 {{- $host := required "httpRoute.hostname is required when nebariApp.enabled=true" .Values.httpRoute.hostname }}
 # ── NebariApp: frontend ────────────────────────────────────────────────────────
-# Routes /oauth2/* (OAuth2-Proxy callbacks) and /* (all SPA traffic) to the
-# oauth2-proxy sidecar in the frontend pod.  Auth is enforced by the sidecar,
-# not by the Gateway, so enforceAtGateway is false.
+# Routes all SPA traffic to the nginx frontend pod. Auth is performed client-side
+# by keycloak-js (PKCE/S256); enforceAtGateway stays false. The operator
+# provisions only the public SPA client — the oauth2-proxy confidential client
+# is no longer needed and is not provisioned.
 apiVersion: reconcilers.nebari.dev/v1
 kind: NebariApp
 metadata:
@@ -21,23 +22,19 @@ spec:
 
   routing:
     routes:
-      # OAuth2-Proxy sign-in / callback / sign-out must be matched before the
-      # catch-all so the operator keeps them ordering-stable in the HTTPRoute.
-      - pathPrefix: /oauth2/
-        pathType: PathPrefix
       - pathPrefix: /
         pathType: PathPrefix
     tls:
       enabled: {{ .Values.httpRoute.tls }}
 
-  # oauth2-proxy handles authentication at the sidecar level; no SecurityPolicy
-  # is needed at the gateway.  The operator must still provision the OIDC client
-  # in Keycloak (auth.enabled: true) so that the proxy Secret is written —
-  # oauth2-proxy blocks on that Secret at startup.
+  # Auth is enforced in-process by keycloak-js (PKCE) in the browser and by the
+  # webapi's JWT validator. No gateway SecurityPolicy is needed.
+  # The operator provisions only the public SPA client (PKCE, no secret).
+  # The groups mapper ensures access tokens carry group claims so the webapi can
+  # filter services by visibility and group membership.
   auth:
     enabled: true
     enforceAtGateway: false
-    redirectURI: /oauth2/callback
     # The landing page webapi filters services by group visibility. Without the
     # groups scope and mapper, tokens lack group claims and all group-restricted
     # services are silently hidden from the landing page.
@@ -56,10 +53,11 @@ spec:
             id.token.claim: "true"
             access.token.claim: "true"
             userinfo.token.claim: "true"
-    # A second public Keycloak client is provisioned for the React SPA (keycloak-js
-    # PKCE flow). Public clients carry no secret and use PKCE instead, which is
-    # required for browser-based apps. The client ID defaults to
-    # <namespace>-<name>-spa and is written to <name>-oidc-spa-client ConfigMap.
+    # Public Keycloak client for the React SPA (keycloak-js PKCE flow).
+    # Public clients carry no secret and use PKCE instead, which is the
+    # OAuth 2.0 BCP recommendation for browser-based apps.
+    # The client ID defaults to <namespace>-<name>-spa and is written
+    # to <name>-oidc-spa-client ConfigMap.
     spaClient:
       enabled: {{ .Values.nebariApp.spaClient.enabled }}
       {{- if .Values.nebariApp.spaClient.clientId }}

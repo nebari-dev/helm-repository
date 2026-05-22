@@ -5,7 +5,9 @@ global:
   imagePullPolicy: IfNotPresent
 
 # ---------------------------------------------------------------------------
-# Frontend pod  (static assets + OAuth2 Proxy sidecar)
+# Frontend pod  (static assets served by nginx + /api/* proxy to webapi)
+# Auth is handled client-side by keycloak-js (PKCE/S256). No oauth2-proxy
+# sidecar is required; Envoy Gateway routes directly to the nginx container.
 # ---------------------------------------------------------------------------
 frontend:
   # Set to false to skip deploying the frontend (e.g. webapi-only test environments
@@ -16,13 +18,11 @@ frontend:
 
   image:
     repository: quay.io/nebari/nebari-landing
-    tag: "v0.1.0-alpha.4"
+    tag: "v0.1.0-alpha.5"
     pullPolicy: IfNotPresent
 
-  # Port the static file server listens on *inside the pod* (reachable only
-  # via the OAuth2 Proxy sidecar; not exposed externally).
-  # Must be > 1024 — the nginx container runs as non-root (UID 101) with all
-  # capabilities dropped and cannot bind privileged ports.
+  # Port nginx listens on. Must be > 1024 — the container runs as non-root
+  # (UID 101) with all capabilities dropped and cannot bind privileged ports.
   port: 8080
 
   # Keycloak connection settings — rendered into /config.json at deploy time
@@ -51,6 +51,20 @@ frontend:
     # URL to a custom favicon.
     # Leave empty to use the built-in Nebari favicon.
     faviconUrl: ""
+    # CSS variable overrides injected at runtime — no image rebuild required.
+    # Supported tokens: primary, primaryForeground, background, foreground,
+    # secondary, secondaryForeground, muted, mutedForeground, accent,
+    # accentForeground, border, ring, radius.
+    # Example:
+    #   theme:
+    #     light:
+    #       primary: "#0066cc"
+    #       primaryForeground: "#ffffff"
+    #     dark:
+    #       primary: "#4da6ff"
+    theme:
+      light: {}
+      dark: {}
 
   resources:
     requests:
@@ -60,112 +74,10 @@ frontend:
       cpu: 200m
       memory: 128Mi
 
-  # OAuth2 Proxy runs as a sidecar in front of the static server.
-  oauth2Proxy:
-    image:
-      repository: quay.io/oauth2-proxy/oauth2-proxy
-      tag: "v7.14.3"
-      pullPolicy: IfNotPresent
-
-    # Port exposed by the Service / Envoy Gateway route.
-    port: 4180
-
-    # OIDC provider — Keycloak realm URL.
-    # e.g. https://keycloak.example.com/realms/nebari
-    oidcIssuerUrl: ""
-
-    # Name of the Secret containing the OIDC client-secret key.
-    # The nebari-operator creates this automatically when it reconciles the
-    # frontend NebariApp: it follows the pattern <nebariapp-name>-oidc-client.
-    # Leave empty to use the operator-created default derived from the chart
-    # fullname: "<fullname>-oidc-client".
-    # OIDC client ID passed to oauth2-proxy via --client-id.
-    # Leave empty to use the operator convention: <namespace>-<nebariapp-name>.
-    # Override only when the Keycloak client was provisioned with a different ID.
-    clientId: ""
-    existingClientSecret: ""
-
-    # Key inside existingClientSecret that holds the OIDC client secret value.
-    clientSecretKey: "client-secret"
-
-    # Name of a Secret containing a 'cookie-secret' key (32-byte random base64
-    # string used by oauth2-proxy to encrypt session cookies).
-    # Leave empty to let the chart generate and manage this secret automatically.
-    # The auto-generated secret is stable across upgrades (uses Helm lookup to
-    # preserve the existing value rather than re-rolling on each helm upgrade).
-    existingCookieSecret: ""
-
-    # If true the access token is forwarded to the upstream (webapi calls from
-    # the browser will arrive pre-authorised).
-    passAccessToken: true
-
-    # Email domain restriction ("*" allows any authenticated user).
-    emailDomain: "*"
-
-    # Extra args passed verbatim to the oauth2-proxy binary.
-    # Use --skip-auth-route to whitelist paths that must be accessible without auth
-    # (e.g. the public landing page). Regex is matched against the full path.
-    extraArgs:
-      - --skip-auth-route=^/public
-      # Static assets must bypass auth so the browser can load JS/CSS chunks
-      # for public routes without being redirected to Keycloak login.
-      - --skip-auth-route=^/assets/
-      - --skip-auth-route=^/favicon
-      - --skip-auth-route=^/config\.json$
-      # API and WebSocket calls are authenticated by the webapi's JWT validator.
-      # Bypassing oauth2-proxy auth checks here avoids 302 redirects to Keycloak
-      # on expired sessions, which otherwise surface as opaque CORS/network errors
-      # in the SPA fetch/WebSocket clients.
-      - --skip-auth-route=^/api/
-      # Token refresh: tell oauth2-proxy to proactively refresh the access token
-      # before it expires so the webapi never receives a stale Bearer token.
-      # --cookie-refresh instructs oauth2-proxy to exchange the refresh token for
-      # a new access token on the next request after this duration has elapsed.
-      # Set to 4m — just under Keycloak's 5m accessTokenLifespan — so the token
-      # is always live when forwarded to the webapi via Authorization: Bearer.
-      - --cookie-refresh=4m
-    # - --skip-provider-button
-
-    # Extra environment variables for the oauth2-proxy container.
-    # Useful for passing additional configuration (e.g., OAUTH2_PROXY_* vars).
-    # Example:
-    # extraEnv:
-    #   - name: OAUTH2_PROXY_SKIP_OIDC_DISCOVERY
-    #     value: "false"
-    #   - name: OAUTH2_PROXY_COOKIE_SECURE
-    #     value: "true"
-    extraEnv: []
-
-    # Init container that blocks oauth2-proxy from starting until Keycloak's
-    # OIDC discovery endpoint responds with HTTP 200. Prevents the crash-loop
-    # that occurs when oauth2-proxy tries to fetch the JWKS before Keycloak
-    # is ready.
-    waitForKeycloak:
-      enabled: true
-      # busybox is tiny and available on every node without a registry pull.
-      image:
-        repository: busybox
-        tag: "1.37"
-        pullPolicy: IfNotPresent
-      # How long to wait for Keycloak before giving up (seconds).
-      timeoutSeconds: 300
-      # Polling interval (seconds).
-      periodSeconds: 5
-      # Pass --no-check-certificate to wget — useful when Keycloak is behind
-      # a self-signed TLS terminator. Safe to leave true for HTTP endpoints.
-      insecure: false
-
-    resources:
-      requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        cpu: 200m
-        memory: 128Mi
-
   service:
     type: ClusterIP
-    port: 4180
+    # Must match frontend.port — nginx is now the direct external entry point.
+    port: 8080
 
 # ---------------------------------------------------------------------------
 # Webapi pod  (Go binary — REST API + WebSocket)
@@ -175,7 +87,7 @@ webapi:
 
   image:
     repository: quay.io/nebari/nebari-webapi
-    tag: "v0.1.0-alpha.4"
+    tag: "v0.1.0-alpha.5"
     pullPolicy: IfNotPresent
 
   port: 8080
@@ -205,6 +117,12 @@ webapi:
   # auth and proxy-forwarding problems in dev/staging.
   # NEVER enable in production (it exposes internal auth state).
   debugMode: false
+
+  # Expose the OpenAPI 3.1 spec at /api/v1/docs/openapi.json and a Scalar
+  # viewer at /api/v1/docs.  When false the routes are not registered and
+  # both paths return 404.  Useful in dev/CI for keeping MSW handlers in
+  # sync with the live API; never enable in production.
+  docsEnabled: false
 
   healthInterval: 30
 
@@ -239,23 +157,19 @@ webapi:
 # ---------------------------------------------------------------------------
 # NebariApp CRs  (recommended on a full Nebari / nebari-operator deployment)
 # ---------------------------------------------------------------------------
-# When nebariApp.enabled=true the chart creates two NebariApp custom resources
-# instead of managing the HTTPRoute directly:
-#   <release>        — routes /oauth2/* and /* to the oauth2-proxy frontend
-#   <release>-api    — routes /api/*     to the webapi (JWT auth in-process)
-# The nebari-operator reconciles each NebariApp into an HTTPRoute, keeping
-# routing lifecycle in sync with cluster state.
+# When nebariApp.enabled=true the chart creates a NebariApp custom resource
+# that routes /* to the nginx frontend pod. The nebari-operator reconciles
+# the NebariApp into an HTTPRoute and provisions the SPA PKCE Keycloak client.
 #
 # Set nebariApp.enabled=false (default) for standalone deployments (local dev,
-# CI) where the nebari-operator is not present.  The chart will create the
+# CI) where the nebari-operator is not present. The chart will create the
 # HTTPRoute directly via httpRoute.* values instead.
 nebariApp:
   enabled: false
 
-  # SPA client: the operator provisions a second *public* Keycloak client
-  # (publicClient: true, PKCE S256) for the React frontend (keycloak-js).
-  # The confidential oauth2-proxy client and this public SPA client are
-  # intentionally separate — they cannot share the same Keycloak client.
+  # The operator provisions a *public* Keycloak client (PKCE S256) for the
+  # React frontend (keycloak-js). Public clients carry no secret; PKCE is the
+  # OAuth 2.0 BCP recommendation for browser-based apps.
   # Default client ID: <namespace>-<nebariapp-name>-spa
   spaClient:
     enabled: true

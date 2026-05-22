@@ -10,9 +10,9 @@ metadata:
 spec:
   type: {{ .Values.frontend.service.type }}
   ports:
-    - name: proxy
+    - name: http
       port: {{ .Values.frontend.service.port }}
-      targetPort: proxy
+      targetPort: http
       protocol: TCP
   selector:
     {{- include "nebari-landing.frontend.selectorLabels" . | nindent 4 }}
