@@ -930,8 +930,8 @@
                 container.innerHTML = '';
 
                 for (const name of names) {
-                    // Show latest version first
-                    const versions = [...entries[name]].sort((a, b) => new Date(b.created) - new Date(a.created));
+                    // Show latest version first (semver-aware, with prerelease handling).
+                    const versions = [...entries[name]].sort((a, b) => semverCompare(b.version, a.version));
                     const latest = versions[0];
 
                     const card = document.createElement('div');
@@ -982,6 +982,54 @@
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
+        }
+
+        // SemVer 2.0.0 comparator. Returns negative if a < b, positive if a > b.
+        // Build metadata (after '+') is ignored. Prereleases compare per spec
+        // §11: no-prerelease > prerelease; identifier-by-identifier; numeric
+        // identifiers have lower precedence than non-numeric ones.
+        //
+        // We also split ill-formed identifiers shaped like "<digits>-<rest>"
+        // (e.g. "17-rc" inside "0.1.0-alpha.17-rc.1") into ["17", "rest"], so
+        // the numeric prefix participates in numeric comparison instead of
+        // dragging the whole identifier into the non-numeric branch.
+        function semverCompare(a, b) {
+            const splitCompound = id => {
+                const m = id.match(/^(\d+)-(.+)$/);
+                return m ? [m[1], m[2]] : [id];
+            };
+            const parse = v => {
+                const [head] = String(v).split('+');
+                const dash = head.indexOf('-');
+                const core = dash === -1 ? head : head.slice(0, dash);
+                const pre = dash === -1 ? '' : head.slice(dash + 1);
+                const nums = core.split('.').map(n => parseInt(n, 10) || 0);
+                return { nums, pre };
+            };
+            const A = parse(a), B = parse(b);
+            for (let i = 0; i < 3; i++) {
+                const diff = (A.nums[i] || 0) - (B.nums[i] || 0);
+                if (diff !== 0) return diff;
+            }
+            if (!A.pre && !B.pre) return 0;
+            if (!A.pre) return 1;
+            if (!B.pre) return -1;
+            const idsA = A.pre.split('.').flatMap(splitCompound);
+            const idsB = B.pre.split('.').flatMap(splitCompound);
+            const len = Math.min(idsA.length, idsB.length);
+            for (let i = 0; i < len; i++) {
+                const x = idsA[i], y = idsB[i];
+                const nx = /^\d+$/.test(x), ny = /^\d+$/.test(y);
+                if (nx && ny) {
+                    const d = parseInt(x, 10) - parseInt(y, 10);
+                    if (d !== 0) return d;
+                } else if (nx !== ny) {
+                    return nx ? -1 : 1;
+                } else if (x !== y) {
+                    return x < y ? -1 : 1;
+                }
+            }
+            return idsA.length - idsB.length;
         }
     </script>
 </body>
