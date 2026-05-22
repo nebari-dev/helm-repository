@@ -61,6 +61,45 @@ spec:
                       If not specified and ProvisionClient is enabled, the operator will create
                       a secret named "<nebariapp-name>-oidc-client".
                     type: string
+                  denyRedirect:
+                    description: |-
+                      DenyRedirect configures headers that, when matched, prevent the OIDC filter
+                      from redirecting to the identity provider. Instead, matching requests receive
+                      a 401 response. This prevents PKCE race conditions when SPAs fire multiple
+                      requests on page load (e.g., the main page and AJAX calls simultaneously),
+                      each of which would otherwise start a separate OAuth flow and overwrite
+                      each other's state cookies.
+                      Only applies when enforceAtGateway is true.
+                    items:
+                      description: |-
+                        DenyRedirectHeader defines a header match rule for preventing OIDC redirects.
+                        Requests matching any of these headers will receive a 401 instead of being
+                        redirected to the identity provider.
+                      properties:
+                        name:
+                          description: Name is the header name to match against.
+                          minLength: 1
+                          type: string
+                        type:
+                          default: Exact
+                          description: |-
+                            Type specifies how to match the header value.
+                            Valid values: Exact, Prefix, Suffix, RegularExpression
+                          enum:
+                          - Exact
+                          - Prefix
+                          - Suffix
+                          - RegularExpression
+                          type: string
+                        value:
+                          description: Value is the header value to match.
+                          minLength: 1
+                          type: string
+                      required:
+                      - name
+                      - value
+                      type: object
+                    type: array
                   deviceFlowClient:
                     description: |-
                       DeviceFlowClient configures a public OIDC client for CLI/native app authentication
@@ -96,6 +135,17 @@ spec:
                       When false, the operator provisions the OIDC client and stores credentials
                       in a Secret, but does NOT create a SecurityPolicy - the application is
                       expected to handle OAuth natively (e.g., Grafana's built-in generic_oauth).
+                    type: boolean
+                  forwardAccessToken:
+                    description: |-
+                      ForwardAccessToken instructs the gateway-enforced OIDC filter to forward
+                      the user's OAuth2 access token to the upstream service via the
+                      `Authorization: Bearer <token>` header. Use this when the application
+                      needs to read the JWT itself - for example to extract the user's groups
+                      claim and apply per-user authorization decisions on top of the gateway's
+                      authentication. By default the gateway only stores the token in an
+                      encrypted session cookie that backends cannot decode.
+                      Only applies when enforceAtGateway is true.
                     type: boolean
                   groups:
                     description: |-
@@ -259,6 +309,11 @@ spec:
                         type: boolean
                     type: object
                 type: object
+                x-kubernetes-validations:
+                - message: 'forwardAccessToken: true requires enforceAtGateway: true'
+                  rule: '!has(self.forwardAccessToken) || self.forwardAccessToken
+                    == false || (has(self.enforceAtGateway) && self.enforceAtGateway
+                    == true)'
               gateway:
                 default: public
                 description: |-
