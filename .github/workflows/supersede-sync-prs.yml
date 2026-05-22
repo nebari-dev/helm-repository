@@ -1,0 +1,121 @@
+name: Supersede stale chart-sync PRs
+
+# When a new chart-sync PR opens, close any older open sync PRs for the
+# same chart so the queue doesn't accumulate dead-on-arrival entries.
+#
+# Auto-closes only on "clean" supersedes: the older PR's version differs
+# from the new one only in a trailing numeric identifier of an otherwise
+# identical prerelease prefix, or it's a strictly older core (M.m.p)
+# bump with both sides finals. Mixed prerelease/final or rc/alpha
+# pairings (e.g. alpha.17-rc.1 vs alpha.18) stay open for human review.
+
+on:
+  pull_request:
+    types: [opened, labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  supersede:
+    if: contains(github.event.pull_request.labels.*.name, 'helm-sync')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close strictly-older sync PRs for the same chart
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const branchRe = /^sync\/(.+?)-(\d+\.\d+\.\d+(?:-.+)?)$/;
+
+            const splitCompound = id => {
+                const m = id.match(/^(\d+)-(.+)$/);
+                return m ? [m[1], m[2]] : [id];
+            };
+
+            const parse = v => {
+                const [head] = String(v).split('+');
+                const dash = head.indexOf('-');
+                const core = dash === -1 ? head : head.slice(0, dash);
+                const pre  = dash === -1 ? '' : head.slice(dash + 1);
+                return {
+                    nums: core.split('.').map(n => parseInt(n, 10) || 0),
+                    preTokens: pre ? pre.split('.').flatMap(splitCompound) : [],
+                };
+            };
+
+            const isCleanSupersede = (older, newer) => {
+                const O = parse(older), N = parse(newer);
+                const sameCore = O.nums[0] === N.nums[0]
+                              && O.nums[1] === N.nums[1]
+                              && O.nums[2] === N.nums[2];
+
+                // Pure core bump on either side (no prereleases).
+                if (!O.preTokens.length && !N.preTokens.length) {
+                    if (O.nums[0] !== N.nums[0]) return O.nums[0] < N.nums[0];
+                    if (O.nums[1] !== N.nums[1]) return O.nums[1] < N.nums[1];
+                    return O.nums[2] < N.nums[2];
+                }
+
+                // Mixed prerelease vs final on same core: ambiguous, skip.
+                if (sameCore && (!O.preTokens.length || !N.preTokens.length)) return false;
+
+                // Different core, both prereleases: safe if older core < newer core.
+                if (!sameCore) {
+                    if (O.nums[0] !== N.nums[0]) return O.nums[0] < N.nums[0];
+                    if (O.nums[1] !== N.nums[1]) return O.nums[1] < N.nums[1];
+                    return O.nums[2] < N.nums[2];
+                }
+
+                // Same core, both prereleases. Require identical prefix,
+                // last identifier numeric on both, and strictly smaller.
+                const prefixO = O.preTokens.slice(0, -1).join('.');
+                const prefixN = N.preTokens.slice(0, -1).join('.');
+                if (prefixO !== prefixN) return false;
+                const lastO = O.preTokens[O.preTokens.length - 1];
+                const lastN = N.preTokens[N.preTokens.length - 1];
+                if (!/^\d+$/.test(lastO) || !/^\d+$/.test(lastN)) return false;
+                return parseInt(lastO, 10) < parseInt(lastN, 10);
+            };
+
+            const current = context.payload.pull_request;
+            const currentMatch = current.head.ref.match(branchRe);
+            if (!currentMatch) {
+                core.info(`Branch "${current.head.ref}" does not match sync/<chart>-<version>; nothing to do.`);
+                return;
+            }
+            const [, currentChart, currentVersion] = currentMatch;
+            core.info(`Triggering PR #${current.number}: chart=${currentChart} version=${currentVersion}`);
+
+            const openPRs = await github.paginate(github.rest.pulls.list, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                per_page: 100,
+            });
+
+            for (const pr of openPRs) {
+                if (pr.number === current.number) continue;
+                if (!pr.labels.some(l => l.name === 'helm-sync')) continue;
+                const m = pr.head.ref.match(branchRe);
+                if (!m) continue;
+                const [, chart, version] = m;
+                if (chart !== currentChart) continue;
+                if (!isCleanSupersede(version, currentVersion)) {
+                    core.info(`PR #${pr.number} (v${version}) is NOT a clean supersede of v${currentVersion} — leaving open.`);
+                    continue;
+                }
+                core.info(`Closing #${pr.number} (v${version}) — superseded by #${current.number} (v${currentVersion}).`);
+                await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pr.number,
+                    body: `Superseded by #${current.number} (\`${currentChart}\` v${currentVersion}). Closing automatically — reopen if this was a mistake.`,
+                });
+                await github.rest.pulls.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: pr.number,
+                    state: 'closed',
+                });
+            }
