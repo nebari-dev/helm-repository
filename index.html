@@ -376,11 +376,10 @@
             background: var(--color-surface);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
-            padding: 20px 24px;
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 8px;
-            align-items: start;
+            padding: 22px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
 
@@ -389,23 +388,22 @@
             box-shadow: 0 0 0 1px rgba(186, 24, 218, 0.1);
         }
 
+        .chart-header {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
         .chart-name {
             font-weight: 600;
-            font-size: 1rem;
+            font-size: 1.05rem;
             color: var(--color-text);
-            margin-bottom: 4px;
         }
 
         .chart-description {
             font-size: 0.875rem;
             color: var(--color-text-muted);
-            margin-bottom: 10px;
-        }
-
-        .chart-meta {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+            line-height: 1.5;
         }
 
         .badge {
@@ -414,27 +412,66 @@
             gap: 4px;
             padding: 2px 10px;
             border-radius: 100px;
-            font-size: 0.75rem;
-            font-weight: 500;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
 
-        .badge-version {
-            background: rgba(32, 170, 161, 0.12);
-            color: var(--color-success);
-            border: 1px solid rgba(32, 170, 161, 0.2);
+        .badge-latest {
+            background: rgba(186, 24, 218, 0.15);
+            color: var(--color-primary);
+            border: 1px solid rgba(186, 24, 218, 0.35);
         }
 
-        .badge-app {
-            background: var(--color-accent-soft);
-            color: var(--color-accent);
-            border: 1px solid rgba(186, 24, 218, 0.2);
+        .chart-latest {
+            padding: 14px 16px;
+            background: var(--color-surface-2);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chart-latest-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .chart-version {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--color-text);
+        }
+
+        .chart-app-version {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            color: var(--color-text-faint);
+        }
+
+        .chart-date {
+            font-size: 0.78rem;
+            color: var(--color-text-faint);
+            margin-left: auto;
+        }
+
+        .chart-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .chart-download {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 6px 14px;
+            padding: 7px 14px;
             border-radius: var(--radius-sm);
             font-size: 0.8rem;
             font-weight: 600;
@@ -452,11 +489,138 @@
             text-decoration: none;
         }
 
-        .chart-date {
-            font-size: 0.75rem;
+        .oci-copy-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 12px;
+            border-radius: var(--radius-sm);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            font-family: var(--font-body);
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.18s;
+        }
+
+        .oci-copy-btn:hover {
+            border-color: var(--color-primary);
+            color: var(--color-text);
+        }
+
+        .oci-copy-btn.copied {
+            border-color: var(--color-success);
+            color: var(--color-success);
+        }
+
+        .oci-copy-btn code {
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+        }
+
+        .chart-history {
+            border-top: 1px solid var(--color-border);
+            padding-top: 14px;
+        }
+
+        .chart-history > summary {
+            cursor: pointer;
+            font-size: 0.83rem;
+            font-weight: 600;
+            color: var(--color-text-muted);
+            list-style: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 0.18s;
+            user-select: none;
+        }
+
+        .chart-history > summary:hover {
+            color: var(--color-text);
+        }
+
+        .chart-history > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .chart-history > summary::before {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 5px solid currentColor;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
+            transition: transform 0.18s;
+        }
+
+        .chart-history[open] > summary::before {
+            transform: rotate(90deg);
+        }
+
+        .chart-history-list {
+            margin: 12px 0 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .chart-history-row {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            align-items: center;
+            gap: 14px;
+            padding: 8px 12px;
+            background: var(--color-surface-2);
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            transition: border-color 0.15s;
+        }
+
+        .chart-history-row:hover {
+            border-color: var(--color-border);
+        }
+
+        .chart-history-version {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .chart-history-date {
+            font-size: 0.76rem;
             color: var(--color-text-faint);
-            align-self: end;
-            text-align: right;
+        }
+
+        .chart-history-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: var(--radius-sm);
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            color: var(--color-text-muted);
+            cursor: pointer;
+            transition: all 0.18s;
+            text-decoration: none;
+            padding: 0;
+        }
+
+        .chart-history-action:hover {
+            border-color: var(--color-primary);
+            color: var(--color-text);
+            text-decoration: none;
+        }
+
+        .chart-history-action.copied {
+            border-color: var(--color-success);
+            color: var(--color-success);
         }
 
         .charts-empty,
@@ -902,6 +1066,19 @@
             });
         }
 
+        /* ── Delegated copy handler for dynamically-rendered chart-card buttons ── */
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.oci-copy-btn');
+            if (!btn) return;
+            e.preventDefault();
+            const cmd = btn.dataset.installCmd;
+            if (!cmd) return;
+            navigator.clipboard.writeText(cmd).then(() => {
+                btn.classList.add('copied');
+                setTimeout(() => btn.classList.remove('copied'), 1600);
+            });
+        });
+
         /* ── Load & render charts from index.yaml ── */
         (async function loadCharts() {
             const container = document.getElementById('charts-container');
@@ -929,41 +1106,76 @@
 
                 container.innerHTML = '';
 
+                const formatDate = d => d
+                    ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : '';
+
+                const downloadIcon = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1v8M3.5 6l3.5 4 3.5-4M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+                const copyIcon = '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="3.5" y="2" width="7" height="9" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M2 4.5v7a1 1 0 001 1h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
+
                 for (const name of names) {
                     // Show latest version first (semver-aware, with prerelease handling).
                     const versions = [...entries[name]].sort((a, b) => semverCompare(b.version, a.version));
                     const latest = versions[0];
+                    const older = versions.slice(1);
+                    const ociBase = `oci://quay.io/nebari/charts/${name}`;
+                    const installCmd = v => `helm install my-release ${ociBase} --version ${v}`;
 
-                    const card = document.createElement('div');
+                    const card = document.createElement('article');
                     card.className = 'chart-card';
 
-                    const created = latest.created
-                        ? new Date(latest.created).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                    const latestApp = latest.appVersion
+                        ? `<span class="chart-app-version">app v${escapeHtml(String(latest.appVersion).replace(/^v/, ''))}</span>`
+                        : '';
+                    const latestDate = latest.created
+                        ? `<span class="chart-date">${escapeHtml(formatDate(latest.created))}</span>`
                         : '';
 
-                    const versionBadges = versions.slice(0, 5).map(v =>
-                        `<span class="badge badge-version">v${v.version}</span>`
-                    ).join('');
-
-                    const ociRef = `oci://quay.io/nebari/charts/${name}`;
+                    const historyHtml = older.length === 0 ? '' : `
+                        <details class="chart-history">
+                            <summary>${older.length === 1 ? '1 older version' : `${older.length} older versions`}</summary>
+                            <ul class="chart-history-list">
+                                ${older.map(v => `
+                                    <li class="chart-history-row">
+                                        <span class="chart-history-version">v${escapeHtml(v.version)}</span>
+                                        <span class="chart-history-date">${escapeHtml(formatDate(v.created))}</span>
+                                        <a class="chart-history-action" href="${escapeHtml(v.urls[0])}" download title="Download .tgz" aria-label="Download v${escapeHtml(v.version)} .tgz">
+                                            ${downloadIcon}
+                                        </a>
+                                        <button class="chart-history-action oci-copy-btn" type="button" data-install-cmd="${escapeHtml(installCmd(v.version))}" title="Copy helm install command" aria-label="Copy helm install command for v${escapeHtml(v.version)}">
+                                            ${copyIcon}
+                                        </button>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </details>
+                    `;
 
                     card.innerHTML = `
-          <div>
-            <div class="chart-name">${escapeHtml(name)}</div>
-            <div class="chart-description">${escapeHtml(latest.description || 'No description provided.')}</div>
-            <div class="chart-meta">${versionBadges}</div>
-            <div style="margin-top:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-              <span style="font-size:0.7rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--color-text-faint)">OCI</span>
-              <code style="font-family:var(--font-mono);font-size:0.78rem;color:var(--color-text-muted);background:var(--color-surface-2);padding:2px 8px;border-radius:4px;border:1px solid var(--color-border)">${escapeHtml(ociRef)}</code>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;min-width:120px">
-            <a class="chart-download" href="${escapeHtml(latest.urls[0])}" download>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M3.5 6l3.5 4 3.5-4M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Download
-            </a>
-            ${created ? `<span class="chart-date">${created}</span>` : ''}
-          </div>`;
+                        <div class="chart-header">
+                            <div class="chart-name">${escapeHtml(name)}</div>
+                            <div class="chart-description">${escapeHtml(latest.description || 'No description provided.')}</div>
+                        </div>
+                        <div class="chart-latest">
+                            <div class="chart-latest-row">
+                                <span class="badge badge-latest">Latest</span>
+                                <span class="chart-version">v${escapeHtml(latest.version)}</span>
+                                ${latestApp}
+                                ${latestDate}
+                            </div>
+                            <div class="chart-actions">
+                                <a class="chart-download" href="${escapeHtml(latest.urls[0])}" download>
+                                    ${downloadIcon}
+                                    Download .tgz
+                                </a>
+                                <button class="oci-copy-btn" type="button" data-install-cmd="${escapeHtml(installCmd(latest.version))}" title="Copy helm install command" aria-label="Copy helm install command for v${escapeHtml(latest.version)}">
+                                    <code>${escapeHtml(ociBase)} --version ${escapeHtml(latest.version)}</code>
+                                    ${copyIcon}
+                                </button>
+                            </div>
+                        </div>
+                        ${historyHtml}
+                    `;
 
                     container.appendChild(card);
                 }
