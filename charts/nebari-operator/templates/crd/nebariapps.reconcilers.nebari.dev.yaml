@@ -514,6 +514,23 @@ spec:
                           for the application's hostname and configure a per-app Gateway HTTPS listener.
                           When explicitly set to false, only HTTP listeners will be used.
                         type: boolean
+                      secretName:
+                        description: |-
+                          SecretName optionally references a pre-existing Kubernetes TLS secret
+                          (type kubernetes.io/tls) in the Gateway's namespace (envoy-gateway-system).
+                          When set, the operator will not create a cert-manager Certificate; instead
+                          it points the per-app HTTPS listener at this secret. Use this for
+                          pre-provisioned or externally managed certificates (for example, wildcard
+                          certs or air-gapped environments without ACME access). The secret must be
+                          created and maintained by the user in the envoy-gateway-system namespace.
+                          Mutually exclusive with cert-manager-managed certificates: when set, the
+                          operator will not create or update a Certificate for this NebariApp and
+                          will clean up any existing owned Certificate.
+                          Ignored when enabled is false.
+                        maxLength: 253
+                        minLength: 1
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                        type: string
                     type: object
                 type: object
               service:
