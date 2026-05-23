@@ -648,6 +648,164 @@
             }
         }
 
+        /* ─── Catalog toolbar (search) ───────────────────────────────── */
+        .catalog-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .catalog-toolbar[hidden],
+        .chart-search-count[hidden] {
+            display: none;
+        }
+
+        .chart-search {
+            flex: 1 1 240px;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            transition: border-color 0.18s;
+        }
+
+        .chart-search:focus-within {
+            border-color: var(--color-primary);
+        }
+
+        .chart-search svg {
+            flex-shrink: 0;
+            color: var(--color-text-faint);
+        }
+
+        .chart-search input {
+            flex: 1;
+            min-width: 0;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--color-text);
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+        }
+
+        .chart-search input::placeholder {
+            color: var(--color-text-faint);
+        }
+
+        .chart-search-count {
+            font-size: 0.8rem;
+            color: var(--color-text-muted);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .chart-card[hidden] {
+            display: none;
+        }
+
+        /* ─── Skeleton placeholder cards ─────────────────────────────── */
+        .skeleton-card {
+            pointer-events: none;
+        }
+
+        .skeleton-card .chart-header {
+            gap: 10px;
+        }
+
+        .skeleton-line {
+            background: linear-gradient(
+                90deg,
+                var(--color-surface-2) 0%,
+                var(--color-border) 50%,
+                var(--color-surface-2) 100%
+            );
+            background-size: 200% 100%;
+            animation: shimmer 1.4s ease-in-out infinite;
+            border-radius: 4px;
+            height: 12px;
+        }
+
+        .skeleton-line-name {
+            height: 16px;
+            width: 35%;
+        }
+
+        .skeleton-line-desc {
+            width: 80%;
+        }
+
+        .skeleton-line-desc-short {
+            width: 55%;
+        }
+
+        .skeleton-panel {
+            height: 96px;
+            background: var(--color-surface-2);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .skeleton-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                var(--color-border) 50%,
+                transparent 100%
+            );
+            background-size: 200% 100%;
+            animation: shimmer 1.4s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .skeleton-line,
+            .skeleton-panel::after,
+            .spinner {
+                animation: none;
+            }
+        }
+
+        /* ─── Narrow viewports: stack chart actions vertically ───────── */
+        @media (max-width: 540px) {
+            .chart-actions {
+                flex-direction: column;
+                align-items: stretch;
+                flex-wrap: nowrap;
+            }
+
+            .chart-actions .chart-download,
+            .chart-actions .oci-copy-btn {
+                justify-content: center;
+                width: 100%;
+                min-width: 0;
+            }
+
+            .chart-actions .oci-copy-btn code {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                flex: 1;
+                text-align: left;
+                min-width: 0;
+            }
+        }
+
         /* ─── Info grid ──────────────────────────────────────────────── */
         .info-grid {
             display: grid;
@@ -965,11 +1123,42 @@
                 <code style="font-family:var(--font-mono);font-size:0.92em">main</code>.
             </p>
 
-            <div class="charts-grid" id="charts-container">
-                <div class="charts-loading">
-                    <div class="spinner"></div>
-                    <div>Loading charts from index…</div>
-                </div>
+            <div class="catalog-toolbar" id="catalog-toolbar" hidden>
+                <label class="chart-search">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.4"/>
+                        <path d="M9.2 9.2l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                    </svg>
+                    <input type="search" id="chart-search-input" placeholder="Filter charts by name or description…" aria-label="Filter charts by name or description">
+                </label>
+                <span class="chart-search-count" id="chart-search-count" hidden></span>
+            </div>
+
+            <div class="charts-grid" id="charts-container" aria-busy="true">
+                <article class="chart-card skeleton-card" aria-hidden="true">
+                    <div class="chart-header">
+                        <div class="skeleton-line skeleton-line-name"></div>
+                        <div class="skeleton-line skeleton-line-desc"></div>
+                        <div class="skeleton-line skeleton-line-desc-short"></div>
+                    </div>
+                    <div class="skeleton-panel"></div>
+                </article>
+                <article class="chart-card skeleton-card" aria-hidden="true">
+                    <div class="chart-header">
+                        <div class="skeleton-line skeleton-line-name"></div>
+                        <div class="skeleton-line skeleton-line-desc"></div>
+                        <div class="skeleton-line skeleton-line-desc-short"></div>
+                    </div>
+                    <div class="skeleton-panel"></div>
+                </article>
+                <article class="chart-card skeleton-card" aria-hidden="true">
+                    <div class="chart-header">
+                        <div class="skeleton-line skeleton-line-name"></div>
+                        <div class="skeleton-line skeleton-line-desc"></div>
+                        <div class="skeleton-line skeleton-line-desc-short"></div>
+                    </div>
+                    <div class="skeleton-panel"></div>
+                </article>
             </div>
         </div>
     </section>
@@ -1123,6 +1312,8 @@
 
                     const card = document.createElement('article');
                     card.className = 'chart-card';
+                    card.dataset.chartName = name;
+                    card.dataset.chartDescription = latest.description || '';
 
                     const latestApp = latest.appVersion
                         ? `<span class="chart-app-version">app v${escapeHtml(String(latest.appVersion).replace(/^v/, ''))}</span>`
@@ -1179,7 +1370,10 @@
 
                     container.appendChild(card);
                 }
+                container.setAttribute('aria-busy', 'false');
+                setupChartSearch(container, names.length);
             } catch (err) {
+                container.setAttribute('aria-busy', 'false');
                 container.innerHTML = `<div class="charts-empty">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="margin-bottom:12px;opacity:0.4"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5M12 16v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         <div>Could not load <code>index.yaml</code>. The chart catalog will appear here once the first chart is published.</div>
@@ -1187,6 +1381,48 @@
       </div>`;
             }
         })();
+
+        /* ── Catalog search: case-insensitive substring filter on name + description ── */
+        function setupChartSearch(container, total) {
+            const toolbar = document.getElementById('catalog-toolbar');
+            const input = document.getElementById('chart-search-input');
+            const countEl = document.getElementById('chart-search-count');
+            if (!toolbar || !input || !countEl) return;
+            toolbar.hidden = false;
+
+            const cards = Array.from(container.querySelectorAll('.chart-card'));
+
+            const apply = () => {
+                const q = input.value.trim().toLowerCase();
+                let shown = 0;
+                for (const card of cards) {
+                    const name = (card.dataset.chartName || '').toLowerCase();
+                    const desc = (card.dataset.chartDescription || '').toLowerCase();
+                    const match = !q || name.includes(q) || desc.includes(q);
+                    card.hidden = !match;
+                    if (match) shown++;
+                }
+                if (q) {
+                    countEl.hidden = false;
+                    countEl.textContent = `${shown} of ${total} matching`;
+                } else {
+                    countEl.hidden = true;
+                }
+                let emptyEl = container.querySelector('.chart-search-empty');
+                if (shown === 0 && q) {
+                    if (!emptyEl) {
+                        emptyEl = document.createElement('div');
+                        emptyEl.className = 'charts-empty chart-search-empty';
+                        container.appendChild(emptyEl);
+                    }
+                    emptyEl.textContent = `No charts match "${q}".`;
+                } else if (emptyEl) {
+                    emptyEl.remove();
+                }
+            };
+
+            input.addEventListener('input', apply);
+        }
 
         function escapeHtml(str) {
             return String(str)
