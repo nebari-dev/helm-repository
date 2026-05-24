@@ -326,44 +326,60 @@
             border-color: var(--color-primary);
         }
 
-        /* ─── Steps ──────────────────────────────────────────────────── */
-        .steps {
+        /* ─── Quickstart method panel ────────────────────────────────── */
+        .method-panel {
             display: flex;
             flex-direction: column;
-            gap: 32px;
+            gap: 16px;
         }
 
-        .step {
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-        }
-
-        .step-num {
-            flex-shrink: 0;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--color-accent-soft);
-            border: 1px solid rgba(186, 24, 218, 0.4);
-            font-weight: 700;
-            font-size: 0.9rem;
-            color: var(--color-accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .step-content h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .step-content p {
-            font-size: 0.9rem;
+        .method-intro {
+            font-size: 0.93rem;
             color: var(--color-text-muted);
-            margin-bottom: 12px;
+            line-height: 1.6;
+            max-width: 680px;
+        }
+
+        .method-intro code {
+            font-family: var(--font-mono);
+            font-size: 0.88em;
+            color: var(--color-accent);
+        }
+
+        .method-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            line-height: 1.55;
+        }
+
+        .method-note svg {
+            flex-shrink: 0;
+            margin-top: 3px;
+        }
+
+        .method-note code {
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+        }
+
+        .subtitle-link {
+            color: var(--color-accent);
+            text-decoration: underline;
+            text-decoration-color: rgba(234, 181, 78, 0.4);
+            text-underline-offset: 3px;
+            margin-left: 6px;
+            font-size: 0.92em;
+        }
+
+        .subtitle-link:hover {
+            text-decoration-color: var(--color-accent);
         }
 
         /* ─── Charts table ───────────────────────────────────────────── */
@@ -918,10 +934,6 @@
                 padding: 64px 0 56px;
             }
 
-            .step {
-                flex-direction: column;
-            }
-
             .footer-inner {
                 flex-direction: column;
                 text-align: center;
@@ -986,11 +998,14 @@
             <p class="section-label">Quick Start</p>
             <h2 class="section-title">Install a Nebari Helm chart</h2>
             <p class="section-subtitle">
-                Choose your preferred installation method below.
+                Two ways to install. The Helm-index flow is the traditional path: add the
+                repository once, then install charts by name. The OCI flow skips the repo
+                step and installs a specific version directly from quay.io.
+                <a class="subtitle-link" href="https://helm.sh/docs/intro/quickstart/" target="_blank" rel="noopener">New to Helm?</a>
             </p>
 
             <!-- Method tabs -->
-            <div class="method-tabs" role="tablist">
+            <div class="method-tabs" role="tablist" aria-label="Installation method">
                 <button class="method-tab active" role="tab" aria-selected="true" onclick="switchMethod('index', this)">
                     <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                         <rect x="1" y="1" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.4" />
@@ -1009,106 +1024,50 @@
 
             <!-- ── Helm Index method ─────────────────────────────────── -->
             <div class="method-panel" id="method-index">
-                <div class="steps">
-                    <div class="step">
-                        <div class="step-num">1</div>
-                        <div class="step-content">
-                            <h3>Add the Helm repository</h3>
-                            <p>Register the Nebari Helm repository under the alias <code
-                                    style="font-family:var(--font-mono);font-size:0.92em;color:var(--color-accent)">nebari</code>.
-                            </p>
-                            <div class="code-block" id="cb-add">
-                                <pre><span class="cmd">helm</span> repo add nebari \
-  https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/</pre><button class="code-copy"
-                                    onclick="copyCode('cb-add')">Copy</button>
-                            </div>
-                        </div>
-                    </div>
+                <p class="method-intro">
+                    Register the Nebari repository under the alias <code>nebari</code>. After that,
+                    every chart in the <a href="#charts">catalog below</a> is installable by name.
+                    Run <code>helm repo update</code> when you want to pick up newly published versions.
+                </p>
+                <div class="code-block" id="cb-index">
+                    <pre><span class="comment"># 1. Add the Nebari Helm repository (one-time setup)</span>
+<span class="cmd">helm</span> repo add nebari https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/
 
-                    <div class="step">
-                        <div class="step-num">2</div>
-                        <div class="step-content">
-                            <h3>Update the local cache</h3>
-                            <p>Pull the latest chart index from the repository.</p>
-                            <div class="code-block" id="cb-update">
-                                <pre><span class="cmd">helm</span> repo update nebari</pre><button class="code-copy"
-                                    onclick="copyCode('cb-update')">Copy</button>
-                            </div>
-                        </div>
-                    </div>
+<span class="comment"># 2. Pull the latest chart index</span>
+<span class="cmd">helm</span> repo update nebari
 
-                    <div class="step">
-                        <div class="step-num">3</div>
-                        <div class="step-content">
-                            <h3>Install a chart</h3>
-                            <p>Browse the charts below, then install the one you need.</p>
-                            <div class="code-block" id="cb-install">
-                                <pre><span class="comment"># Replace &lt;chart-name&gt; with the desired chart</span>
-<span class="cmd">helm</span> install my-release nebari/<span class="flag">&lt;chart-name&gt;</span></pre><button
-                                    class="code-copy" onclick="copyCode('cb-install')">Copy</button>
-                            </div>
-                        </div>
-                    </div>
+<span class="comment"># 3. Install a chart (pick a name from the catalog below)</span>
+<span class="cmd">helm</span> install my-release nebari/<span class="flag">&lt;chart-name&gt;</span></pre>
+                    <button class="code-copy" onclick="copyCode('cb-index')">Copy</button>
                 </div>
             </div>
 
             <!-- ── OCI method ────────────────────────────────────────── -->
             <div class="method-panel" id="method-oci" style="display:none">
-                <div class="steps">
-                    <div class="step">
-                        <div class="step-num">1</div>
-                        <div class="step-content">
-                            <h3>Install directly — no <code
-                                    style="font-family:var(--font-mono);font-size:0.92em">helm repo add</code> needed
-                            </h3>
-                            <p>Charts are published to <code
-                                    style="font-family:var(--font-mono);font-size:0.92em;color:var(--color-accent)">quay.io/nebari/charts</code>
-                                as public OCI artifacts. Use the chart's version tag directly.</p>
-                            <div class="code-block" id="cb-oci-install">
-                                <pre><span class="comment"># --version is required for OCI refs</span>
-<span class="cmd">helm</span> install my-release \
-  oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> \
-  <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre><button class="code-copy"
-                                    onclick="copyCode('cb-oci-install')">Copy</button>
-                            </div>
-                        </div>
-                    </div>
+                <p class="method-intro">
+                    Install a specific chart version directly from <code>quay.io/nebari/charts</code>
+                    without registering the repo first. Each card in the
+                    <a href="#charts">catalog below</a> has a copy button that pre-fills the chart
+                    name and <code>--version</code>, so the snippets here are templates.
+                </p>
+                <div class="code-block" id="cb-oci">
+                    <pre><span class="comment"># Install a specific chart version (--version is required for OCI refs)</span>
+<span class="cmd">helm</span> install my-release oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
 
-                    <div class="step">
-                        <div class="step-num">2</div>
-                        <div class="step-content">
-                            <h3>Pull or inspect without installing</h3>
-                            <p>Download the chart archive locally or inspect its metadata without deploying anything.</p>
-                            <div class="code-block" id="cb-oci-pull">
-                                <pre><span class="comment"># Download the chart archive</span>
-<span class="cmd">helm</span> pull oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
+<span class="comment"># Inspect chart metadata before installing</span>
+<span class="cmd">helm</span> show chart oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
 
-<span class="comment"># Inspect chart metadata</span>
-<span class="cmd">helm</span> show chart oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre>
-                                <button class="code-copy" onclick="copyCode('cb-oci-pull')">Copy</button>
-                            </div>
-                        </div>
-                    </div>
+<span class="comment"># Pull the chart archive without installing</span>
+<span class="cmd">helm</span> pull oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre>
+                    <button class="code-copy" onclick="copyCode('cb-oci')">Copy</button>
                 </div>
-
-                <div
-                    style="margin-top:32px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:20px 24px;">
-                    <h3
-                        style="font-size:0.95rem;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <circle cx="8" cy="8" r="6" stroke="var(--color-success)" stroke-width="1.5" />
-                            <path d="M5.5 8l2 2 3-3" stroke="var(--color-success)" stroke-width="1.5"
-                                stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        <span style="color:var(--color-success)">No authentication required</span>
-                    </h3>
-                    <p style="font-size:0.875rem;color:var(--color-text-muted);">
-                        All Nebari OCI charts on quay.io are public. You do not need to run
-                        <code style="font-family:var(--font-mono);font-size:0.92em">helm registry login</code>
-                        to pull or install them. The version tag for each chart is shown in the
-                        <a href="#charts">chart catalog</a> below.
-                    </p>
-                </div>
+                <p class="method-note">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <circle cx="7" cy="7" r="5.5" stroke="var(--color-success)" stroke-width="1.4"/>
+                        <path d="M4.5 7l1.7 1.7L9.5 5.5" stroke="var(--color-success)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>All Nebari OCI charts on quay.io are public, so no <code>helm registry login</code> is required. For more on installing from OCI registries, see the <a href="https://helm.sh/docs/topics/registries/" target="_blank" rel="noopener">Helm OCI docs</a>.</span>
+                </p>
             </div>
         </div>
     </section>
