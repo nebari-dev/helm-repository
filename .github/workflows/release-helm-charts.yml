@@ -89,6 +89,7 @@ jobs:
         with:
           token: ${{ secrets.QUAY_API_TOKEN }}
           packaged-dir: src/packaged
+          push-user: ${{ secrets.QUAY_USERNAME }}
 
       - name: Push charts to quay.io OCI registry
         working-directory: src

@@ -9,6 +9,10 @@ description: |
   - Missing repos are created as public.
   - Private repos within the prefix are changed to public.
   - Public repos are left untouched.
+  - When push-user is set, that account is granted write permission on any
+    managed repo where it has no permission entry yet (API-created repos
+    grant the push robot nothing, so its first push would otherwise fail
+    with 401).
 
   Requires a Quay OAuth application token (not robot account credentials)
   because the Quay REST API enforces CSRF validation on mutating requests.
@@ -41,6 +45,14 @@ inputs:
       chart name.
     required: true
 
+  push-user:
+    description: |
+      Quay.io username that pushes charts (typically a robot account,
+      e.g. "nebari+helm_bot"). When set, it is granted write permission
+      on each managed repo that has no permission entry for it yet.
+    required: false
+    default: ""
+
 runs:
   using: composite
   steps:
@@ -50,4 +62,5 @@ runs:
         QUAY_API_TOKEN: ${{ inputs.token }}
         QUAY_NAMESPACE: ${{ inputs.namespace }}
         QUAY_REPO_PREFIX: ${{ inputs.repo-prefix }}
+        QUAY_PUSH_USER: ${{ inputs.push-user }}
       run: bash ${{ github.action_path }}/ensure.sh "${{ inputs.packaged-dir }}"

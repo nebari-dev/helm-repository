@@ -12,10 +12,19 @@
 #   - Private  → changed to public via POST .../changevisibility
 #   - Public   → skipped (no-op)
 #
+# If QUAY_PUSH_USER is set, the script also ensures that user (typically the
+# robot account that pushes charts) has at least write permission on each
+# managed repo. Repos created via the API get no permissions for the robot,
+# so the first push to a brand-new repo fails with 401 without this. An
+# existing permission of any role is left untouched.
+#
 # Environment variables (required):
 #   QUAY_API_TOKEN   — OAuth application token with repo:create + repo:admin scopes
 #   QUAY_NAMESPACE   — quay.io organisation (e.g. "nebari")
 #   QUAY_REPO_PREFIX — repository path prefix (e.g. "charts")
+#
+# Environment variables (optional):
+#   QUAY_PUSH_USER   — username granted write on managed repos (e.g. "nebari+helm_bot")
 #
 # Usage:
 #   ensure.sh <packaged-dir>
@@ -30,6 +39,29 @@ PACKAGED_DIR="${1:?Usage: ensure.sh <packaged-dir>}"
 
 API_BASE="https://quay.io/api/v1"
 AUTH_HEADER="Authorization: Bearer ${QUAY_API_TOKEN}"
+
+# Grant QUAY_PUSH_USER write on the repo at $1 (API repo URL) unless that
+# user already has a permission entry of any role.
+ensure_push_permission() {
+  local repo_api_url="$1"
+  [ -n "${QUAY_PUSH_USER:-}" ] || return 0
+
+  local perm_code
+  perm_code=$(curl -s -o /dev/null -w "%{http_code}" \
+    -H "${AUTH_HEADER}" "${repo_api_url}/permissions/user/${QUAY_PUSH_USER}")
+
+  if [ "$perm_code" = "200" ]; then
+    echo "  -> ${QUAY_PUSH_USER} already has permission."
+  else
+    echo "  -> granting ${QUAY_PUSH_USER} write permission..."
+    curl -sf -X PUT \
+      -H "${AUTH_HEADER}" \
+      -H "Content-Type: application/json" \
+      -d '{"role": "write"}' \
+      "${repo_api_url}/permissions/user/${QUAY_PUSH_USER}" > /dev/null
+    echo "  -> granted."
+  fi
+}
 
 for tgz in "${PACKAGED_DIR}"/*.tgz; do
   [ -f "$tgz" ] || continue
@@ -76,4 +108,6 @@ for tgz in "${PACKAGED_DIR}"/*.tgz; do
       "${API_BASE}/repository"
     echo "  -> created."
   fi
+
+  ensure_push_permission "${api_url}"
 done
