@@ -1,0 +1,27 @@
+Langfuse has been deployed by the nebari-langfuse pack.
+
+{{- if .Values.nebariapp.enabled }}
+
+NebariApp "{{ include "nebari-langfuse.appName" . }}" is ENABLED. The nebari-operator will configure:
+  - HTTPRoute + TLS for: {{ .Values.nebariapp.hostname }}
+  {{- if .Values.nebariapp.auth.enabled }}
+  - A Keycloak client and the secret "{{ include "nebari-langfuse.appName" . }}-oidc-client"
+    (Langfuse runs the OAuth flow itself; enforceAtGateway is false).
+  {{- end }}
+
+Check status:
+  kubectl get nebariapp {{ include "nebari-langfuse.appName" . }} -n {{ .Release.Namespace }}
+
+Open: https://{{ .Values.nebariapp.hostname }}
+
+REMINDER: in your values file set langfuse.langfuse.nextauth.url to
+https://{{ .Values.nebariapp.hostname }} and langfuse.langfuse.auth.providers.keycloak.issuer
+to your Keycloak realm URL (note the double "langfuse" nesting).
+
+{{- else }}
+
+Standalone mode (no Nebari). Access Langfuse via port-forward:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/langfuse-web 3000:3000
+Then open http://localhost:3000
+
+{{- end }}

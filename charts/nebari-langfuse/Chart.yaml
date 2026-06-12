@@ -1,0 +1,19 @@
+apiVersion: v2
+name: nebari-langfuse
+description: A Nebari Software Pack that deploys Langfuse (LLM observability) with NebariApp routing, TLS, and Keycloak SSO.
+type: application
+version: 0.1.0
+appVersion: "3.179.1"
+home: https://langfuse.com/
+sources:
+  - https://github.com/langfuse/langfuse
+  - https://github.com/langfuse/langfuse-k8s
+keywords:
+  - langfuse
+  - llm
+  - observability
+  - nebari
+dependencies:
+  - name: langfuse
+    version: "1.5.34"
+    repository: "https://langfuse.github.io/langfuse-k8s"
