@@ -1,0 +1,87 @@
+{{- if .Values.nebariapp.enabled }}
+apiVersion: reconcilers.nebari.dev/v1
+kind: NebariApp
+metadata:
+  name: {{ include "nebari-langfuse.appName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-langfuse.labels" . | nindent 4 }}
+spec:
+  hostname: {{ required "nebariapp.hostname is required when nebariapp.enabled is true" .Values.nebariapp.hostname }}
+  service:
+    name: {{ .Values.nebariapp.service.name | default "langfuse-web" }}
+    port: {{ .Values.nebariapp.service.port | default 3000 }}
+  {{- with .Values.nebariapp.routing }}
+  {{- if .enabled }}
+  routing:
+    {{- with .routes }}
+    routes:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .publicRoutes }}
+    publicRoutes:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    tls:
+      enabled: {{ .tls.enabled | default true }}
+  {{- end }}
+  {{- end }}
+  {{- with .Values.nebariapp.auth }}
+  {{- if .enabled }}
+  auth:
+    enabled: true
+    provider: {{ .provider | default "keycloak" }}
+    provisionClient: {{ .provisionClient | default true }}
+    enforceAtGateway: {{ .enforceAtGateway | default false }}
+    {{- with .redirectURI }}
+    redirectURI: {{ . }}
+    {{- end }}
+    {{- with .scopes }}
+    scopes:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .groups }}
+    groups:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- with .Values.nebariapp.landingPage }}
+  {{- if .enabled }}
+  landingPage:
+    enabled: true
+    displayName: {{ .displayName | quote }}
+    {{- with .description }}
+    description: {{ . | quote }}
+    {{- end }}
+    {{- with .icon }}
+    icon: {{ . }}
+    {{- end }}
+    {{- with .category }}
+    category: {{ . }}
+    {{- end }}
+    {{- with .priority }}
+    priority: {{ . }}
+    {{- end }}
+    {{- with .healthCheck }}
+    {{- if .enabled }}
+    healthCheck:
+      enabled: true
+      {{- with .path }}
+      path: {{ . }}
+      {{- end }}
+      {{- with .port }}
+      port: {{ . }}
+      {{- end }}
+      {{- with .intervalSeconds }}
+      intervalSeconds: {{ . }}
+      {{- end }}
+      {{- with .timeoutSeconds }}
+      timeoutSeconds: {{ . }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  gateway: {{ .Values.nebariapp.gateway | default "public" }}
+{{- end }}

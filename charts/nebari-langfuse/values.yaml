@@ -1,0 +1,184 @@
+# Default values for nebari-langfuse.
+
+# =============================================================================
+# Nebari integration
+# =============================================================================
+nebariapp:
+  enabled: false
+  # name: ""            # NebariApp name; defaults to "langfuse". Changing this
+  #                     # changes the OIDC secret name (<name>-oidc-client); update
+  #                     # the langfuse.langfuse.auth secret refs below to match.
+  # hostname: langfuse.nebari.example.com   # Required when enabled
+  service:
+    name: langfuse-web   # upstream web service (pinned via langfuse.fullnameOverride)
+    port: 3000
+  # Routing MUST be present for the operator to create the HTTPRoute + TLS cert.
+  # Omitting spec.routing makes the operator skip routing entirely (RoutingNotConfigured),
+  # so the hostname returns 404. Keep enabled for any reachable deployment.
+  routing:
+    enabled: true
+    routes:
+      - pathPrefix: /
+        pathType: PathPrefix
+    tls:
+      enabled: true
+  auth:
+    enabled: false       # set true on Nebari to provision a Keycloak client + secret
+    provider: keycloak
+    provisionClient: true
+    enforceAtGateway: false           # Langfuse runs OAuth itself; no Envoy SecurityPolicy
+    redirectURI: /api/auth/callback/keycloak
+    scopes:
+      - openid
+      - profile
+      - email
+  landingPage:
+    enabled: false
+    displayName: Langfuse
+    description: LLM observability, tracing, and prompt management.
+    # NebariApp icon accepts a built-in id (jupyter/grafana/prometheus/keycloak/argocd/
+    # kubernetes) OR a URL. Use the official Langfuse mark.
+    icon: https://langfuse.com/icon.svg
+    category: Monitoring
+    priority: 100
+    # Health status shown on the landing-page tile. Langfuse's health endpoint is
+    # /api/public/health (NOT the operator default /health). port defaults to
+    # nebariapp.service.port (3000).
+    healthCheck:
+      enabled: true
+      path: /api/public/health
+  gateway: public
+
+# =============================================================================
+# Wrapper-generated secrets
+# =============================================================================
+secrets:
+  generate: true   # set false in production; supply langfuse-secrets yourself
+
+# =============================================================================
+# Langfuse upstream passthrough
+# =============================================================================
+# CRITICAL NESTING: the dependency is named "langfuse" AND the upstream Langfuse
+# chart ALSO has a top-level "langfuse" app-config key. So from this wrapper:
+#   - app config is DOUBLE-nested:  langfuse.langfuse.*
+#   - datastores are single-nested: langfuse.postgresql.*, langfuse.redis.*, etc.
+#   - chart-level keys:             langfuse.fullnameOverride, langfuse.global
+langfuse:
+  # Pin the upstream fullname so the web service is always "langfuse-web".
+  fullnameOverride: langfuse
+
+  # ---- Langfuse application config (langfuse.langfuse.*) ----
+  langfuse:
+    nextauth:
+      # Must equal nebariapp.hostname (https). Sub-chart values can't be templated,
+      # so deployers set this in their values file (see examples/nebari-values.yaml).
+      url: http://localhost:3000
+      secret:
+        secretKeyRef:
+          name: langfuse-secrets
+          key: nextauth-secret
+    salt:
+      secretKeyRef:
+        name: langfuse-secrets
+        key: salt
+    encryptionKey:
+      secretKeyRef:
+        name: langfuse-secrets
+        key: encryptionKey
+    auth:
+      disableUsernamePassword: true
+      providers:
+        keycloak:
+          clientId:
+            secretKeyRef:
+              name: langfuse-oidc-client
+              key: client-id
+          clientSecret:
+            secretKeyRef:
+              name: langfuse-oidc-client
+              key: client-secret
+          # AUTH_KEYCLOAK_ISSUER is required by Langfuse. The operator only writes
+          # issuer-url into the OIDC secret when external consumers are configured,
+          # so set this to your Keycloak realm URL in your values file. Alternatively,
+          # if the operator emits issuer-url, replace with a secretKeyRef.
+          issuer: "https://REPLACE-ME/realms/nebari"
+          allowAccountLinking: "true"
+    # ---- Pod / container security hardening ----
+    # Applies to both the web and worker pods (upstream reads langfuse.podSecurityContext
+    # / langfuse.securityContext; in this wrapper those are langfuse.langfuse.*).
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 1000
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsNonRoot: true
+      capabilities:
+        drop: ["ALL"]
+
+  # ---- Bundled datastores (dev/demo). Passwords come from langfuse-secrets. ----
+  postgresql:
+    deploy: true
+    auth:
+      username: postgres
+      database: postgres_langfuse
+      existingSecret: langfuse-secrets
+      secretKeys:
+        userPasswordKey: postgres-password
+        adminPasswordKey: postgres-password
+
+  redis:
+    deploy: true
+    auth:
+      existingSecret: langfuse-secrets
+      existingSecretPasswordKey: redis-password
+
+  clickhouse:
+    deploy: true
+    # Single-node, non-clustered ClickHouse is the default. The upstream chart
+    # defaults to a 3-replica cluster (+ ZooKeeper), but Langfuse runs its schema
+    # migrations over the load-balanced ClickHouse Service and the golang-migrate
+    # bookkeeping (schema_migrations) is not consistently replicated across the 3
+    # nodes - migrations land on different replicas and get marked "dirty",
+    # crashlooping langfuse-web. Single-node avoids that entire class of failure and
+    # is far lighter. For HA, set clusterEnabled: true, replicaCount: 3,
+    # zookeeper.enabled: true and accept the migration caveat.
+    clusterEnabled: false
+    replicaCount: 1
+    zookeeper:
+      enabled: false
+    auth:
+      existingSecret: langfuse-secrets
+      existingSecretKey: clickhouse-password
+
+  s3:
+    deploy: true
+    bucket: langfuse
+    # MinIO sub-chart reads root creds from this secret (keys root-user/root-password).
+    auth:
+      existingSecret: langfuse-secrets
+    # Langfuse's own S3 client uses the same creds.
+    accessKeyId:
+      secretKeyRef:
+        name: langfuse-secrets
+        key: root-user
+    secretAccessKey:
+      secretKeyRef:
+        name: langfuse-secrets
+        key: root-password
+
+# =============================================================================
+# Metrics / observability
+# =============================================================================
+metrics:
+  podMonitor:
+    enabled: false        # opt-in; requires the Prometheus Operator CRDs
+    # interval: 30s       # scrape interval
+    # path: /metrics      # metrics endpoint path (Langfuse does not expose a
+    #                     # native Prometheus /metrics endpoint by default;
+    #                     # enable only if you have added a sidecar exporter)
+    # port: http          # named port on the langfuse-web pod
+
+# Wrapper's own name overrides (NOT the subchart's)
+nameOverride: ""
+fullnameOverride: ""
