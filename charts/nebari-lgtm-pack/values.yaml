@@ -1,0 +1,409 @@
+# Default values for nebari-lgtm-pack
+# This is a YAML-formatted file.
+
+# =============================================================================
+# Nebari Integration
+# =============================================================================
+# Creates a NebariApp CRD that configures routing and auth via nebari-operator.
+# Set to false when deploying outside of Nebari.
+nebariapp:
+  enabled: true
+  # hostname: grafana.nic.local  # Required when enabled
+  # keycloakHostname: ""         # Required when auth.enabled (e.g., keycloak.example.com)
+  keycloakBasePath: ""           # Set to "/auth" for legacy Keycloak (<v17)
+  keycloakRealm: nebari          # Keycloak realm name
+  service:
+    # Grafana service (created by grafana subchart)
+    name: ""  # Defaults to <release>-grafana
+    port: 80
+  routing:
+    routes:
+      - pathPrefix: /
+  auth:
+    enabled: true
+    provider: keycloak
+    provisionClient: true
+    enforceAtGateway: false
+    redirectURI: /login/generic_oauth
+    scopes:
+      - openid
+      - profile
+      - email
+      - groups
+    groups:
+      - admin
+      - viewer
+    keycloakConfig:
+      groups:
+        - name: admin
+          members:
+            - admin
+    # Override keycloakConfig.groups to customize group membership
+  # landingPage controls whether and how this service appears on the Nebari
+  # landing page (requires nebari-operator with LandingPageConfig support).
+  landingPage:
+    # enabled: when true the service card is shown on the Nebari landing page.
+    enabled: false
+    # displayName: human-readable label shown on the service card (max 64 chars).
+    displayName: "Grafana"
+    # description: supplementary text shown on the service card (max 256 chars).
+    description: "Metrics, logs, and traces observability platform"
+    # icon: built-in icon ID (e.g. jupyter, grafana) or a URL to a custom image.
+    icon: "https://grafana.com/static/img/menu/grafana2.svg"
+    # category: groups related services together on the landing page.
+    category: "Observability"
+    # priority: sort order within a category; lower numbers appear first (0–1000).
+    priority: 10
+    # externalUrl: overrides the URL derived from spec.hostname shown on the card.
+    # externalUrl: ""
+    # healthCheck: HTTP health probe used by the landing page to mark the service
+    # reachable/unreachable. path defaults to /health; interval 10–300 s; timeout 1–30 s.
+    healthCheck:
+      enabled: true
+      path: "/api/health"
+      intervalSeconds: 30
+      timeoutSeconds: 5
+  # Additional services exposed through the NebariApp for push endpoints
+  # additionalServices:
+  #   - name: loki-push
+  #     service:
+  #       name: <release>-loki
+  #       port: 3100
+  #     routing:
+  #       routes:
+  #         - pathPrefix: /loki
+  #           pathType: Prefix
+  #   - name: tempo-push
+  #     service:
+  #       name: <release>-tempo
+  #       port: 4318
+  #     routing:
+  #       routes:
+  #         - pathPrefix: /tempo
+  #           pathType: Prefix
+  #   - name: mimir-push
+  #     service:
+  #       name: <release>-mimir-distributed-nginx
+  #       port: 80
+  #     routing:
+  #       routes:
+  #         - pathPrefix: /mimir
+  #           pathType: Prefix
+
+# =============================================================================
+# Grafana
+# =============================================================================
+# All values under this key are passed to the grafana subchart.
+# Ref: https://github.com/grafana/helm-charts/tree/main/charts/grafana
+grafana:
+  # Admin credentials for local dev (override in production)
+  adminUser: admin
+  adminPassword: admin
+
+  # Datasources are provisioned via templates/grafana-datasources.yaml ConfigMap
+  # which uses Helm templating to resolve in-cluster service URLs.
+  # The sidecar watches for ConfigMaps with the grafana_datasource label.
+  sidecar:
+    datasources:
+      enabled: true
+    dashboards:
+      enabled: true
+      # Dashboard extension point. The sidecar watches every namespace for
+      # ConfigMaps (or Secrets) labeled `grafana_dashboard` and live-loads the
+      # JSON into Grafana — so any Nebari software pack can ship a dashboard
+      # from its own namespace and have it auto-provisioned alongside this
+      # pack's, without touching this chart. This is the dashboard analog of
+      # the OpenTelemetry collector override ConfigMap.
+      #
+      # Contract for a contributing pack:
+      #   kind: ConfigMap
+      #   metadata:
+      #     labels: { grafana_dashboard: "1" }      # discovery key
+      #     annotations: { grafana_folder: "<Folder>" }  # optional grouping
+      #   data: { my-dashboard.json: "<grafana dashboard model>" }
+      #
+      # ALL is required for cross-namespace contribution; the grafana subchart
+      # grants the sidecar cluster-wide ConfigMap list/watch via a ClusterRole.
+      # Set back to the release namespace if you only want this pack's own
+      # dashboards.
+      searchNamespace: ALL
+      # Honor the `grafana_folder` ConfigMap annotation so dashboards land in a
+      # named Grafana folder instead of General. Without folderAnnotation +
+      # foldersFromFilesStructure the sidecar ignores the annotation and every
+      # dashboard falls into the General folder. This is what places this
+      # pack's dashboards under "Nebari" (and lets contributing packs choose
+      # their own folder via the annotation).
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: kubernetes
+          orgId: 1
+          folder: Kubernetes
+          type: file
+          disableDeletion: true
+          editable: false
+          options:
+            path: /var/lib/grafana/dashboards/kubernetes
+        - name: nebari
+          orgId: 1
+          folder: Nebari
+          type: file
+          disableDeletion: true
+          editable: false
+          options:
+            path: /var/lib/grafana/dashboards/nebari
+
+  dashboards:
+    kubernetes:
+      k8s-views-global:
+        gnetId: 15757
+        revision: 43
+        datasource:
+          - name: DS_PROMETHEUS
+            value: Mimir
+      k8s-views-namespaces:
+        gnetId: 15758
+        revision: 44
+        datasource:
+          - name: DS_PROMETHEUS
+            value: Mimir
+      k8s-views-nodes:
+        gnetId: 15759
+        revision: 40
+        datasource:
+          - name: DS_PROMETHEUS
+            value: Mimir
+      k8s-views-pods:
+        gnetId: 15760
+        revision: 37
+        datasource:
+          - name: DS_PROMETHEUS
+            value: Mimir
+
+  service:
+    type: ClusterIP
+
+  # OAuth config is auto-generated by templates/grafana-oauth-env.yaml when
+  # nebariapp.auth.enabled is true. The ConfigMap + envFromConfigMaps below inject
+  # all GF_* env vars automatically — no per-environment OAuth config needed.
+  envFromConfigMaps:
+    - name: grafana-oauth-config
+      optional: true
+  envValueFrom:
+    GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET:
+      secretKeyRef:
+        name: '{{ include "nebari-lgtm-pack.oidc-secret-name" . }}'
+        key: client-secret
+
+# =============================================================================
+# Loki — Log Aggregation
+# =============================================================================
+# All values under this key are passed to the loki subchart.
+# Ref: https://github.com/grafana/helm-charts/tree/main/charts/loki
+loki:
+  # Lightweight single-binary mode for local development
+  deploymentMode: SingleBinary
+  loki:
+    auth_enabled: false
+    commonConfig:
+      replication_factor: 1
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+    storage:
+      type: filesystem
+  singleBinary:
+    replicas: 1
+    persistence:
+      size: 10Gi
+  # Disable components not needed in single-binary mode
+  read:
+    replicas: 0
+  write:
+    replicas: 0
+  backend:
+    replicas: 0
+  gateway:
+    enabled: false
+  chunksCache:
+    enabled: false
+  resultsCache:
+    enabled: false
+
+# =============================================================================
+# Tempo — Distributed Tracing
+# =============================================================================
+# All values under this key are passed to the tempo subchart.
+# Ref: https://github.com/grafana/helm-charts/tree/main/charts/tempo
+tempo:
+  tempo:
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /var/tempo/traces
+        wal:
+          path: /var/tempo/wal
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: "0.0.0.0:4317"
+          http:
+            endpoint: "0.0.0.0:4318"
+  persistence:
+    enabled: true
+    size: 10Gi
+
+# =============================================================================
+# Mimir — Metrics (Prometheus-compatible)
+# =============================================================================
+# All values under this key are passed to the mimir-distributed subchart.
+# Ref: https://github.com/grafana/helm-charts/tree/main/charts/mimir-distributed
+mimir-distributed:
+  # Lightweight config for local development — single replicas, no Kafka, filesystem storage
+  mimir:
+    structuredConfig:
+      multitenancy_enabled: false
+      common:
+        storage:
+          backend: filesystem
+      ingest_storage:
+        enabled: false
+      ingester:
+        push_grpc_method_enabled: true
+        ring:
+          replication_factor: 1
+      store_gateway:
+        sharding_ring:
+          replication_factor: 1
+      blocks_storage:
+        backend: filesystem
+        filesystem:
+          dir: /data/mimir-blocks
+      compactor:
+        data_dir: /data/mimir-compactor
+      ruler_storage:
+        backend: filesystem
+        filesystem:
+          dir: /data/mimir-rules
+  # Single replicas for local dev
+  ingester:
+    replicas: 1
+    zoneAwareReplication:
+      enabled: false
+    persistence:
+      size: 10Gi
+  distributor:
+    replicas: 1
+  querier:
+    replicas: 1
+  query_frontend:
+    replicas: 1
+  store_gateway:
+    replicas: 1
+    zoneAwareReplication:
+      enabled: false
+    persistence:
+      size: 10Gi
+  compactor:
+    replicas: 1
+    persistence:
+      size: 10Gi
+  # Gateway for unified Mimir API access
+  gateway:
+    replicas: 1
+  # Disable components not needed for local dev
+  kafka:
+    enabled: false
+  minio:
+    enabled: false
+  rollout_operator:
+    enabled: false
+  overrides_exporter:
+    replicas: 0
+  ruler:
+    replicas: 0
+  alertmanager:
+    replicas: 0
+  query_scheduler:
+    replicas: 1
+
+# =============================================================================
+# Promtail — Log Collection
+# =============================================================================
+# Promtail DaemonSet scrapes container logs from /var/log/containers/ on each
+# node and ships them to Loki. Default config handles CRI log format and
+# enriches with pod/namespace/container labels.
+promtail:
+  config:
+    clients:
+      - url: http://{{ .Release.Name }}-loki:3100/loki/api/v1/push
+
+# =============================================================================
+# kube-state-metrics — Kubernetes Object Metrics
+# =============================================================================
+# Exposes pod status, resource requests/limits, and other object-level metrics.
+# prometheusScrape adds prometheus.io/scrape annotation so OTel collector
+# auto-discovers it via the kubernetes-pods scrape job.
+kube-state-metrics:
+  prometheusScrape: true
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+
+# =============================================================================
+# prometheus-node-exporter — Node-level Metrics
+# =============================================================================
+# DaemonSet that exposes node CPU, memory, disk, and network metrics.
+# Required by the Kubernetes / Views / Global and Nodes dashboards.
+# Pod annotations are needed because the OTel collector discovers via role: pod.
+prometheus-node-exporter:
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9100"
+
+# =============================================================================
+# OpenTelemetry Collector overrides
+# =============================================================================
+# When enabled (default), this chart renders a ConfigMap named
+# "opentelemetry-collector-overrides" that NIC's OTel collector picks up via
+# an optional volume mount and an extra --config flag. The collector
+# deep-merges this override config with NIC's base config at startup, routing
+# logs/traces/metrics to this chart's Loki/Tempo/Mimir backends.
+#
+# The hook also rolls NIC's collector DaemonSet so the init container
+# re-resolves the override file. NIC and this chart never write to the same
+# Kubernetes resource — earlier attempts to in-place patch NIC's ConfigMap
+# hit upstream ArgoCD bug argoproj/argo-cd#7478 (apply step writes the full
+# rendered resource on every sync regardless of ignoreDifferences).
+#
+# Set enabled=false in environments where NIC is not deploying the collector
+# (e.g. standalone LGTM installs against a user-managed collector).
+otelCollectorOverrides:
+  enabled: true
+  # Namespace where NIC's collector DaemonSet lives. The override ConfigMap
+  # is rendered here too so it's in the same namespace as the volume mount.
+  namespace: monitoring
+  # DaemonSet name rolled after install/upgrade. Default matches what NIC's
+  # OTel collector chart renders with release name "opentelemetry-collector"
+  # in daemonset mode (the chart's fullname helper collapses when release
+  # name contains the chart name, giving just "<release>-agent").
+  daemonSetName: opentelemetry-collector-agent
+  # Image for the rollout Job — needs kubectl. alpine/k8s bundles it (along
+  # with yq + jq, kept for symmetry with NIC's tooling). It's an unofficial
+  # community image, so override here if your org requires a vetted registry.
+  rolloutImage: alpine/k8s:1.30.4
+  # Optional pull policy override.
+  imagePullPolicy: IfNotPresent

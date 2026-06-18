@@ -1,0 +1,42 @@
+{{/*
+Grafana datasource provisioning ConfigMap.
+Picked up by Grafana's sidecar via the grafana_datasource label.
+Uses Helm templating to resolve in-cluster service URLs.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nebari-lgtm-pack.fullname" . }}-datasources
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+    grafana_datasource: "1"
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://{{ .Release.Name }}-loki:3100
+        isDefault: true
+        jsonData:
+          maxLines: 1000
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://{{ .Release.Name }}-tempo:3200
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: loki
+            filterByTraceID: true
+          nodeGraph:
+            enabled: true
+      - name: Mimir
+        uid: mimir
+        type: prometheus
+        access: proxy
+        url: http://{{ .Release.Name }}-mimir-gateway/prometheus
+        jsonData:
+          httpMethod: POST

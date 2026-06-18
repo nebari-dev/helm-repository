@@ -1,0 +1,22 @@
+{{- if and .Values.nebariapp.enabled .Values.nebariapp.auth.enabled .Values.nebariapp.keycloakHostname }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-oauth-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+data:
+  GF_SERVER_ROOT_URL: "https://{{ .Values.nebariapp.hostname }}/"
+  GF_AUTH_GENERIC_OAUTH_ENABLED: "true"
+  GF_AUTH_GENERIC_OAUTH_NAME: "Keycloak"
+  GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: "true"
+  GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN: "true"
+  GF_AUTH_GENERIC_OAUTH_CLIENT_ID: "{{ .Release.Namespace }}-{{ include "nebari-lgtm-pack.fullname" . }}"
+  GF_AUTH_GENERIC_OAUTH_SCOPES: "openid profile email groups"
+  GF_AUTH_GENERIC_OAUTH_AUTH_URL: "{{ include "nebari-lgtm-pack.keycloak-oidc-url" . }}/auth"
+  GF_AUTH_GENERIC_OAUTH_TOKEN_URL: "{{ include "nebari-lgtm-pack.keycloak-oidc-url" . }}/token"
+  GF_AUTH_GENERIC_OAUTH_API_URL: "{{ include "nebari-lgtm-pack.keycloak-oidc-url" . }}/userinfo"
+  GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: "contains(groups[*], 'admin') && 'Admin' || 'Viewer'"
+  GF_AUTH_SIGNOUT_REDIRECT_URL: "{{ include "nebari-lgtm-pack.keycloak-oidc-url" . }}/logout?post_logout_redirect_uri=https%3A%2F%2F{{ .Values.nebariapp.hostname }}%2Flogin%2Fgeneric_oauth&client_id={{ .Release.Namespace }}-{{ include "nebari-lgtm-pack.fullname" . }}"
+{{- end }}
