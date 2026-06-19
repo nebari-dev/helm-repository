@@ -1,0 +1,175 @@
+# Default values for nebari-nebi-pack
+# This is a YAML-formatted file.
+
+# =============================================================================
+# Nebari Integration
+# =============================================================================
+# Creates a NebariApp CRD that configures routing and auth via nebari-operator.
+# Set to false when deploying outside of Nebari.
+nebariapp:
+  enabled: true
+  # hostname: nebi.example.com  # Required when enabled
+  service:
+    name: ""  # Defaults to {{ fullname }}
+    port: 80
+  routing:
+    routes:
+      - pathPrefix: /
+    # /api and /docs bypass the gateway OIDC filter so bearer-token API calls
+    # (e.g. the jhub-apps environment selector) reach nebi directly; nebi
+    # validates the token itself.
+    publicRoutes:
+      - pathPrefix: /api/
+        pathType: PathPrefix
+      - pathPrefix: /docs/
+        pathType: PathPrefix
+  auth:
+    enabled: true
+    provider: keycloak
+    provisionClient: true
+    # redirectURI must match the Envoy Gateway SecurityPolicy callback path.
+    # Nebi itself does NOT run an SSO proxy – auth is handled at the gateway
+    # (enforceAtGateway: true, the operator default), so oauth2-proxy's
+    # /oauth2/callback endpoint is what the IdP redirects back to.
+    redirectURI: /oauth2/callback
+    scopes:
+      - openid
+      - profile
+      - email
+      - groups
+    tokenExchange:
+      # Allow other NebariApp clients (e.g. JupyterHub) to exchange a user
+      # token for a Nebi-audience token in Keycloak. Required by the jhub-apps
+      # environment selector and Nebi auto-auth.
+      enabled: true
+  # landingPage controls whether and how this service appears on the Nebari landing page
+  # portal (served by nebari-landing / nebari-webapi).
+  landingPage:
+    enabled: true
+    displayName: "Nebi"
+    description: "Manage and share Conda/Pip environments for your Nebari cluster"
+    icon: "https://raw.githubusercontent.com/nebari-dev/nebi/main/docs/static/img/nebi-icon.png"
+    category: "Platform"
+    priority: 10
+    # externalUrl: ""  # Override the URL shown on the card (defaults to hostname)
+    healthCheck:
+      enabled: true
+      path: /api/v1/health
+      intervalSeconds: 30
+      timeoutSeconds: 5
+
+# =============================================================================
+# Nebi Application
+# =============================================================================
+image:
+  repository: quay.io/nebari/nebi
+  tag: sha-be3187c
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# Deployment strategy – Recreate avoids Multi-Attach errors on RWO volumes
+strategy:
+  type: Recreate
+
+# Auth configuration (env vars on the Deployment)
+auth:
+  # Keycloak/OIDC groups that grant Nebi admin role
+  proxyAdminGroups: "admin,nebi-admin"
+  # OIDC integration. Enabled by default so a stock Nebari install authenticates
+  # against Keycloak with no extra values: issuerURL, clientID and
+  # clientSecretName are all derived to match the client the nebari-operator
+  # provisions for this NebariApp. Override any field to opt out of the
+  # convention. nebi still runs NEBI_AUTH_TYPE=basic and validates the
+  # gateway-forwarded OIDC token via the verifier wired in here.
+  oidc:
+    enabled: true
+    # Derived from keycloak.hostname (which defaults to keycloak.<base domain of
+    # nebariapp.hostname>) as https://<keycloak.hostname>/realms/nebari.
+    issuerURL: ""
+    # Optional: separate discovery URL for split-horizon deployments where the
+    # public issuerURL is not reachable from in-cluster pods. Nebi fetches
+    # .well-known/openid-configuration from this URL while still validating the
+    # token "iss" against issuerURL. Defaults to issuerURL when empty.
+    # Example: http://keycloak-http.keycloak.svc.cluster.local/realms/nebari
+    discoveryURL: ""
+    # Derived to match the operator-provisioned client when empty:
+    #   clientID         = <release namespace>-<fullname>
+    #   clientSecretName = <fullname>-oidc-client
+    clientID: ""
+    clientSecretName: ""
+
+# Keycloak hostname, used only to derive the OIDC issuer URL when
+# auth.oidc.issuerURL is not set. Defaults to keycloak.<base domain of
+# nebariapp.hostname> (the nebari-operator convention).
+keycloak:
+  hostname: ""
+
+# Server configuration
+server:
+  port: 8460
+  mode: production
+
+# Logging
+log:
+  format: json
+  level: info
+
+# Queue configuration (single pod = in-memory)
+queue:
+  type: memory
+
+# Storage for workspace environments
+persistence:
+  enabled: true
+  size: 20Gi
+  accessMode: ReadWriteOnce
+  storageClassName: ""  # Leave empty to use cluster default
+  mountPath: /app/data/environments
+
+# =============================================================================
+# Embedded PostgreSQL
+# =============================================================================
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16"
+    pullPolicy: IfNotPresent
+  storage:
+    size: 10Gi
+    storageClassName: ""  # Leave empty to use cluster default
+  resources: {}
+
+# =============================================================================
+# Service
+# =============================================================================
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8460
+
+# =============================================================================
+# Resources
+# =============================================================================
+resources: {}
+  # limits:
+  #   cpu: 1000m
+  #   memory: 1Gi
+  # requests:
+  #   cpu: 250m
+  #   memory: 256Mi
+
+# =============================================================================
+# Service Account
+# =============================================================================
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# =============================================================================
+# Overrides
+# =============================================================================
+nameOverride: ""
+fullnameOverride: ""

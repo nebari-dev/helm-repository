@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nebari-nebi-pack.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-nebi-pack.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "nebari-nebi-pack.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "nebari-nebi-pack.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "nebari-nebi-pack.serviceAccountName" . }}
+      {{- end }}
+      containers:
+        - name: nebi
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve", "--mode=both"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.server.port }}
+              protocol: TCP
+          env:
+            # Server
+            - name: NEBI_SERVER_PORT
+              value: {{ .Values.server.port | quote }}
+            - name: NEBI_SERVER_MODE
+              value: {{ .Values.server.mode | quote }}
+            # Auth
+            - name: NEBI_AUTH_TYPE
+              value: "basic"
+            - name: NEBI_AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nebari-nebi-pack.fullname" . }}
+                  key: jwt-secret
+            - name: NEBI_AUTH_PROXY_ADMIN_GROUPS
+              value: {{ .Values.auth.proxyAdminGroups | quote }}
+            {{- if and .Values.auth.oidc.enabled .Values.nebariapp.enabled }}
+            - name: NEBI_AUTH_OIDC_ISSUER_URL
+              value: {{ include "nebari-nebi-pack.oidcIssuerURL" . | quote }}
+            {{- with .Values.auth.oidc.discoveryURL }}
+            - name: NEBI_AUTH_OIDC_DISCOVERY_URL
+              value: {{ . | quote }}
+            {{- end }}
+            - name: NEBI_AUTH_OIDC_CLIENT_ID
+              value: {{ include "nebari-nebi-pack.oidcClientID" . | quote }}
+            - name: NEBI_AUTH_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nebari-nebi-pack.oidcClientSecretName" . }}
+                  key: client-secret
+            - name: NEBI_AUTH_OIDC_REDIRECT_URL
+              value: {{ printf "https://%s/api/v1/auth/oidc/callback" .Values.nebariapp.hostname | quote }}
+            {{- end }}
+            # Database
+            - name: NEBI_DATABASE_DRIVER
+              value: "postgres"
+            {{- if .Values.postgres.enabled }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nebari-nebi-pack.fullname" . }}
+                  key: postgres-password
+            - name: NEBI_DATABASE_DSN
+              value: {{ include "nebari-nebi-pack.postgresDSN" . | quote }}
+            {{- end }}
+            # Queue
+            - name: NEBI_QUEUE_TYPE
+              value: {{ .Values.queue.type | quote }}
+            # Logging
+            - name: NEBI_LOG_FORMAT
+              value: {{ .Values.log.format | quote }}
+            - name: NEBI_LOG_LEVEL
+              value: {{ .Values.log.level | quote }}
+            # Storage
+            - name: NEBI_STORAGE_WORKSPACES_DIR
+              value: {{ .Values.persistence.mountPath | quote }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: environments
+              mountPath: {{ .Values.persistence.mountPath }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: environments
+          persistentVolumeClaim:
+            claimName: {{ include "nebari-nebi-pack.fullname" . }}-environments
+      {{- end }}
