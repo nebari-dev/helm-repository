@@ -1,0 +1,24 @@
+dependencies:
+- name: grafana
+  repository: https://grafana.github.io/helm-charts
+  version: 10.5.15
+- name: loki
+  repository: https://grafana.github.io/helm-charts
+  version: 6.53.0
+- name: tempo
+  repository: https://grafana.github.io/helm-charts
+  version: 1.24.4
+- name: mimir-distributed
+  repository: https://grafana.github.io/helm-charts
+  version: 6.0.5
+- name: promtail
+  repository: https://grafana.github.io/helm-charts
+  version: 6.17.1
+- name: kube-state-metrics
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 7.1.0
+- name: prometheus-node-exporter
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 4.51.1
+digest: sha256:b21aa35b81dca7f60b7ba5cbb906c4633fb548be84ef31151daeeb99a20f2bce
+generated: "2026-02-18T14:52:08.892128-06:00"

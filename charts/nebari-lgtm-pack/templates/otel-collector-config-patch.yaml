@@ -1,0 +1,165 @@
+{{- if .Values.otelCollectorOverrides.enabled }}
+# Override ConfigMap that NIC's OTel collector reads as an additional --config
+# file. NIC's chart values mount `opentelemetry-collector-overrides` (optional)
+# at /conf/overrides, and an init container copies relay.yaml into an emptyDir
+# the collector reads at startup. The collector deep-merges this with its base
+# config — adding our exporters and replacing the pipelines' exporter lists so
+# logs/traces/metrics route to Loki/Tempo/Mimir instead of the debug exporter.
+#
+# This approach replaces a previous design that tried to in-place patch NIC's
+# chart-rendered ConfigMap with ArgoCD ignoreDifferences. That approach hit
+# upstream bug argoproj/argo-cd#7478 — ArgoCD's apply step writes the full
+# rendered resource on every sync regardless of ignoreDifferences, clobbering
+# the patch. Keeping the override in a separate ConfigMap means NIC and this
+# chart never write to the same Kubernetes resource.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # Hardcoded name — matches the volume reference in NIC's OTel chart values.
+  name: opentelemetry-collector-overrides
+  namespace: {{ .Values.otelCollectorOverrides.namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+data:
+  # File name matches NIC's init container expectation (cp /src/relay.yaml ...).
+  # Endpoints use .Release.Name so the chart survives custom release names.
+  relay.yaml: |
+    exporters:
+      otlphttp/loki:
+        endpoint: http://{{ .Release.Name }}-loki:3100/otlp
+        tls:
+          insecure: true
+      otlp/tempo:
+        endpoint: http://{{ .Release.Name }}-tempo:4317
+        tls:
+          insecure: true
+      otlphttp/mimir:
+        endpoint: http://{{ .Release.Name }}-mimir-gateway/otlp
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        logs:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp/loki]
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp/tempo]
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: [memory_limiter, batch]
+          exporters: [otlphttp/mimir]
+---
+# Restart the OTel collector DaemonSet so the init container re-resolves the
+# override file and the collector reloads with the merged config. The
+# DaemonSet's checksum/config annotation is computed from chart values, not
+# from this external ConfigMap, so without an explicit rollout the new config
+# would not be picked up until the next unrelated pod restart.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "nebari-lgtm-pack.fullname" . }}-otel-rollout
+  namespace: {{ .Values.otelCollectorOverrides.namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "nebari-lgtm-pack.fullname" . }}-otel-rollout
+  namespace: {{ .Values.otelCollectorOverrides.namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+rules:
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    resourceNames: ["{{ .Values.otelCollectorOverrides.daemonSetName }}"]
+    verbs: ["get", "patch"]
+  # `kubectl rollout status` uses an informer that requires list+watch on the
+  # collection. resourceNames does not apply to list/watch verbs in RBAC, so
+  # this rule is namespace-scoped only.
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "nebari-lgtm-pack.fullname" . }}-otel-rollout
+  namespace: {{ .Values.otelCollectorOverrides.namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "nebari-lgtm-pack.fullname" . }}-otel-rollout
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nebari-lgtm-pack.fullname" . }}-otel-rollout
+    namespace: {{ .Values.otelCollectorOverrides.namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "nebari-lgtm-pack.fullname" . }}-otel-rollout
+  namespace: {{ .Values.otelCollectorOverrides.namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "2"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "nebari-lgtm-pack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: otel-rollout
+    spec:
+      serviceAccountName: {{ include "nebari-lgtm-pack.fullname" . }}-otel-rollout
+      restartPolicy: OnFailure
+      containers:
+        - name: rollout
+          image: {{ .Values.otelCollectorOverrides.rolloutImage | quote }}
+          imagePullPolicy: {{ .Values.otelCollectorOverrides.imagePullPolicy | default "IfNotPresent" }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              NS={{ .Values.otelCollectorOverrides.namespace | quote }}
+              DS={{ .Values.otelCollectorOverrides.daemonSetName | quote }}
+
+              # If the DaemonSet doesn't exist yet (LGTM installed before NIC
+              # has reconciled OTel), wait up to 5m for it. Avoids racing with
+              # NIC bootstrap.
+              echo "Waiting up to 5m for DaemonSet $DS in $NS..."
+              for i in $(seq 1 60); do
+                if kubectl -n "$NS" get daemonset "$DS" >/dev/null 2>&1; then
+                  break
+                fi
+                sleep 5
+              done
+              kubectl -n "$NS" get daemonset "$DS" >/dev/null
+
+              echo "Rolling DaemonSet $DS to pick up the new override ConfigMap..."
+              kubectl -n "$NS" rollout restart daemonset/"$DS"
+              kubectl -n "$NS" rollout status daemonset/"$DS" --timeout=3m
+              echo "Done."
+{{- end }}
