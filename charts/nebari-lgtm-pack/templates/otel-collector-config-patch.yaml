@@ -23,19 +23,20 @@ metadata:
     {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
 data:
   # File name matches NIC's init container expectation (cp /src/relay.yaml ...).
-  # Endpoints use .Release.Name so the chart survives custom release names.
+  # Endpoints use .Release.Name and .Release.Namespace so DNS resolves
+  # correctly even when NIC's collector runs in a different namespace.
   relay.yaml: |
     exporters:
       otlphttp/loki:
-        endpoint: http://{{ .Release.Name }}-loki:3100/otlp
+        endpoint: http://{{ .Release.Name }}-loki.{{ .Release.Namespace }}.svc.cluster.local:3100/otlp
         tls:
           insecure: true
       otlp/tempo:
-        endpoint: http://{{ .Release.Name }}-tempo:4317
+        endpoint: http://{{ .Release.Name }}-tempo.{{ .Release.Namespace }}.svc.cluster.local:4317
         tls:
           insecure: true
       otlphttp/mimir:
-        endpoint: http://{{ .Release.Name }}-mimir-gateway/otlp
+        endpoint: http://{{ .Release.Name }}-mimir-gateway.{{ .Release.Namespace }}.svc.cluster.local/otlp
         tls:
           insecure: true
     service:
