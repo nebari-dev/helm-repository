@@ -128,6 +128,26 @@ persistence:
   mountPath: /app/data/environments
 
 # =============================================================================
+# TLS Trust
+# =============================================================================
+# Mount a ConfigMap containing additional CA certificates into the nebi pod,
+# and set SSL_CERT_FILE to point at it. Required on clusters with a
+# TLS-intercepting egress proxy whose CA is not in the container's default
+# trust store — otherwise pixi/rattler outbound HTTPS to conda-forge / pypi /
+# github fails with "unknown CA".
+#
+# Rust's rustls-native-certs (used by pixi/rattler) honors SSL_CERT_FILE but
+# does NOT iterate /etc/ssl/certs/, so both the bind mount AND the env var
+# are required — the env var is set automatically when this value is set.
+#
+# The named ConfigMap must already exist in the release namespace and must
+# have a key `ca-bundle.crt` containing one or more PEM-encoded CA certs.
+# When empty (default), no mount is added and `helm template` output is
+# byte-identical to prior versions of the chart.
+orgCABundle:
+  configMapName: ""
+
+# =============================================================================
 # Embedded PostgreSQL
 # =============================================================================
 postgres:
