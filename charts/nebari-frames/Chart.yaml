@@ -2,5 +2,5 @@ apiVersion: v2
 name: nebari-frames
 description: Nebari Frames - single-binary Frames server (SPA + API) for Nebari
 type: application
-version: 0.1.0-alpha.5
-appVersion: "v0.1.0-alpha.5"
+version: 0.1.5
+appVersion: "v0.1.5"
