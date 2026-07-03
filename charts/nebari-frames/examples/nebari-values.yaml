@@ -1,0 +1,15 @@
+# Deploy on a Nebari cluster. Change only `nebariapp.hostname` (and optionally
+# the seed values). The operator provisions routing, TLS, and OIDC clients.
+nebariapp:
+  enabled: true
+  hostname: REPLACE_ME.example.nebari.dev   # the ONLY required edit
+  gateway: public
+  auth:
+    enabled: true
+    scopes: [openid, profile, email]
+seed:
+  orgSlug: openteams
+  orgDisplayName: OpenTeams
+  adminEmail: admin@example.com
+mcp:
+  enabled: true
