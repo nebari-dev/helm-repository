@@ -4,4 +4,4 @@ description: A Helm chart for deploying Nebi (environment management platform) o
   Nebari
 name: nebari-nebi-pack
 type: application
-version: 0.1.0
+version: 0.1.2
