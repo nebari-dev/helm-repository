@@ -90,8 +90,11 @@ auth:
     # Optional: separate discovery URL for split-horizon deployments where the
     # public issuerURL is not reachable from in-cluster pods. Nebi fetches
     # .well-known/openid-configuration from this URL while still validating the
-    # token "iss" against issuerURL. Defaults to issuerURL when empty.
-    # Example: http://keycloak-http.keycloak.svc.cluster.local/realms/nebari
+    # token "iss" against issuerURL. When empty, auto-derived from
+    # keycloak.releaseName/namespace/realm to reach the in-cluster Keycloak
+    # service (the codecentric/keycloakx convention used by nebari):
+    #   http://<releaseName>-keycloakx-http.<namespace>.svc.cluster.local:8080/realms/<realm>
+    # e.g.: http://keycloak-keycloakx-http.keycloak.svc.cluster.local:8080/realms/nebari
     discoveryURL: ""
     # Derived to match the operator-provisioned client when empty:
     #   clientID         = <release namespace>-<fullname>
@@ -99,11 +102,18 @@ auth:
     clientID: ""
     clientSecretName: ""
 
-# Keycloak hostname, used only to derive the OIDC issuer URL when
-# auth.oidc.issuerURL is not set. Defaults to keycloak.<base domain of
-# nebariapp.hostname> (the nebari-operator convention).
+# Keycloak configuration used to derive OIDC URLs when not explicitly set.
+# hostname derives issuerURL; serviceHost/realm derive discoveryURL.
 keycloak:
+  # Public hostname — derives issuerURL as https://<hostname>/realms/<realm>.
+  # Defaults to keycloak.<base domain of nebariapp.hostname>.
   hostname: ""
+  # In-cluster Keycloak service host (host:port) used to derive discoveryURL.
+  # The codecentric/keycloakx chart names its Service <release>-keycloakx-http;
+  # defaults to the canonical nebari deploy (release=keycloak, namespace=keycloak).
+  serviceHost: "keycloak-keycloakx-http.keycloak.svc.cluster.local:8080"
+  # Realm name; matches the standard Nebari operator setup.
+  realm: "nebari"
 
 # Server configuration
 server:
@@ -126,6 +136,26 @@ persistence:
   accessMode: ReadWriteOnce
   storageClassName: ""  # Leave empty to use cluster default
   mountPath: /app/data/environments
+
+# =============================================================================
+# TLS Trust
+# =============================================================================
+# Mount a ConfigMap containing additional CA certificates into the nebi pod,
+# and set SSL_CERT_FILE to point at it. Required on clusters with a
+# TLS-intercepting egress proxy whose CA is not in the container's default
+# trust store — otherwise pixi/rattler outbound HTTPS to conda-forge / pypi /
+# github fails with "unknown CA".
+#
+# Rust's rustls-native-certs (used by pixi/rattler) honors SSL_CERT_FILE but
+# does NOT iterate /etc/ssl/certs/, so both the bind mount AND the env var
+# are required — the env var is set automatically when this value is set.
+#
+# The named ConfigMap must already exist in the release namespace and must
+# have a key `ca-bundle.crt` containing one or more PEM-encoded CA certs.
+# When empty (default), no mount is added and `helm template` output is
+# byte-identical to prior versions of the chart.
+orgCABundle:
+  configMapName: ""
 
 # =============================================================================
 # Embedded PostgreSQL
