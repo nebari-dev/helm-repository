@@ -32,7 +32,7 @@ spec:
         # client-side by keycloak-js (PKCE/S256) — no sidecar required.
         # ---------------------------------------------------------------
         - name: frontend
-          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           ports:
             - name: http
