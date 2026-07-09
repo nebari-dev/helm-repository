@@ -48,7 +48,7 @@ spec:
 
       containers:
         - name: webapi
-          image: "{{ .Values.webapi.image.repository }}:{{ .Values.webapi.image.tag }}"
+          image: "{{ .Values.webapi.image.repository }}:{{ .Values.webapi.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.webapi.image.pullPolicy }}
           ports:
             - name: http
@@ -94,6 +94,8 @@ spec:
               value: {{ .Values.webapi.notifications.startupNotification | quote }}
             - name: NOTIFICATIONS_LIFECYCLE
               value: {{ .Values.webapi.notifications.lifecycleNotifications | quote }}
+            - name: NOTIFICATIONS_RETENTION
+              value: {{ .Values.webapi.notifications.retention | quote }}
             # Health
             - name: HEALTH_INTERVAL
               value: {{ .Values.webapi.healthInterval | quote }}

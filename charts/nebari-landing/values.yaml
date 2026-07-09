@@ -18,7 +18,12 @@ frontend:
 
   image:
     repository: quay.io/nebari/nebari-landing
-    tag: "v0.1.0-alpha.5"
+    # Defaults to .Chart.AppVersion when empty. On main that is "latest"
+    # (the floating tag that always points at main's most recent build); on
+    # a release tag it is bumped to the release version (e.g. "0.1.0-alpha.6")
+    # so the chart at that tag pins to a matching image. Override explicitly
+    # to pull a specific PR build or short-SHA tag from Quay.
+    tag: ""
     pullPolicy: IfNotPresent
 
   # Port nginx listens on. Must be > 1024 — the container runs as non-root
@@ -48,6 +53,9 @@ frontend:
     # URL to a custom logo image displayed in the header.
     # Leave empty to use the built-in Nebari logo.
     logoUrl: ""
+    # URL to a custom dark-mode logo image. Leave empty to fall back to
+    # logoUrl / the built-in Nebari logo.
+    logoUrlDark: ""
     # URL to a custom favicon.
     # Leave empty to use the built-in Nebari favicon.
     faviconUrl: ""
@@ -87,7 +95,10 @@ webapi:
 
   image:
     repository: quay.io/nebari/nebari-webapi
-    tag: "v0.1.0-alpha.5"
+    # Same convention as frontend.image.tag — empty falls back to
+    # .Chart.AppVersion. See the frontend.image.tag comment above for the
+    # full rationale.
+    tag: ""
     pullPolicy: IfNotPresent
 
   port: 8080
@@ -136,6 +147,8 @@ webapi:
     #   - Service removed from the landing page
     #   - Service recovers from unhealthy → healthy ("back online")
     lifecycleNotifications: true
+    # How long notifications remain in Redis before expiring.
+    retention: "72h"
 
   resources:
     requests:
@@ -183,6 +196,12 @@ nebariApp:
     displayName: "Nebari"
     description: "Nebari platform landing page"
     icon: "kubernetes"
+    # Optional dark/light theme icon overrides. Must be defined (empty string)
+    # so the nebariapp.yaml template renders "" rather than YAML null — the
+    # NebariApp CRD types these as string and rejects null. The operator falls
+    # back to `icon` when both are empty.
+    iconDark: ""
+    iconLight: ""
     category: "Platform"
     priority: 0
     visibility: "public"
@@ -205,6 +224,13 @@ httpRoute:
   # TLS is terminated by the Gateway; set to true when the Gateway listener
   # uses HTTPS so the route is only matched on the TLS listener.
   tls: true
+  # Name of a pre-provisioned TLS Secret in the gateway namespace to terminate
+  # TLS with. When set, the operator uses this Secret instead of issuing a
+  # cert through cert-manager — point this at an enterprise-CA-signed wildcard
+  # cert on clusters where the cert-manager selfsigned-issuer flow yields a
+  # browser-untrusted cert. Leave empty to keep the cert-manager behaviour.
+  # Requires nebari-operator >= v0.1.0-alpha.20 (routing.tls.secretName support).
+  tlsSecretName: ""
 
 # ---------------------------------------------------------------------------
 # Redis subchart (bitnami/redis 23.1.1)
