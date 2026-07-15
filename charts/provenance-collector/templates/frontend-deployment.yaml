@@ -1,0 +1,100 @@
+{{- if and .Values.frontend.enabled .Values.webUI.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "provenance-collector.fullname" . }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provenance-collector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app: {{ include "provenance-collector.fullname" . }}-frontend
+  template:
+    metadata:
+      annotations:
+        # Roll the pod when the rendered nginx.conf / config.json changes: a
+        # ConfigMap update alone does not restart its consumers, so without this a
+        # config-only `helm upgrade` would leave the old config live in the pod.
+        checksum/config: {{ include (print $.Template.BasePath "/frontend-configmap.yaml") . | sha256sum }}
+      labels:
+        app: {{ include "provenance-collector.fullname" . }}-frontend
+        {{- include "provenance-collector.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: frontend
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101 # nginx default non-root uid
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        # nginx serves the React SPA and proxies /api/* to the dashboard
+        # ClusterIP. This is the service the NebariApp targets; auth is handled
+        # client-side by keycloak-js (PKCE/S256) and validated by the dashboard.
+        - name: frontend
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.frontend.port }}
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          volumeMounts:
+            # nginx needs writable /tmp, /var/cache/nginx, and /var/run.
+            - name: nginx-tmp
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            # Helm-rendered nginx.conf (adds the /api/ proxy to the dashboard).
+            - name: frontend-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            # Helm-rendered config.json, overriding the placeholder baked into
+            # the image at build time.
+            - name: frontend-config
+              mountPath: /usr/share/nginx/html/config.json
+              subPath: config.json
+              readOnly: true
+      volumes:
+        - name: nginx-tmp
+          emptyDir: {}
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: frontend-config
+          configMap:
+            name: {{ include "provenance-collector.fullname" . }}-frontend-config
+      terminationGracePeriodSeconds: 10
+{{- end }}
