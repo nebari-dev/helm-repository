@@ -1,0 +1,70 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "nebari-llm-serving.fullname" . }}-operator
+  labels:
+    {{- include "nebari-llm-serving.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["llm.nebari.dev"]
+    resources: ["llmmodels"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["llm.nebari.dev"]
+    resources: ["llmmodels/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["llm.nebari.dev"]
+    resources: ["llmmodels/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["llm.nebari.dev"]
+    resources: ["passthroughmodels"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["llm.nebari.dev"]
+    resources: ["passthroughmodels/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["llm.nebari.dev"]
+    resources: ["passthroughmodels/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "serviceaccounts", "persistentvolumeclaims", "secrets", "configmaps", "namespaces", "endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["inference.networking.k8s.io"]
+    resources: ["inferencepools"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["aigateway.envoyproxy.io"]
+    resources: ["aigatewayroutes", "aiservicebackends", "backendsecuritypolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["gateway.envoyproxy.io"]
+    resources: ["securitypolicies", "backends"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # PassthroughModel provider TLS validation toward the external provider.
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["backendtlspolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["referencegrants"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["podmonitors"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Shared-TLS reconciler: the operator creates a cert-manager Certificate
+  # in its own namespace covering the shared llm/llm-internal hostnames and
+  # patches HTTPS listeners onto the shared Gateways (platform.gateway.*).
+  # The Gateway CRs themselves are owned out-of-band by the platform; the
+  # operator only mutates the listeners slice in place.
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["gateways"]
+    verbs: ["get", "list", "watch", "update", "patch"]

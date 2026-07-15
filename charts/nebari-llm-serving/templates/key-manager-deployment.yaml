@@ -1,0 +1,108 @@
+{{- if .Values.keyManager.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nebari-llm-serving.fullname" . }}-key-manager
+  namespace: {{ include "nebari-llm-serving.operatorNamespace" . }}
+  labels:
+    {{- include "nebari-llm-serving.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "nebari-llm-serving.fullname" . }}-key-manager
+  template:
+    metadata:
+      labels:
+        app: {{ include "nebari-llm-serving.fullname" . }}-key-manager
+        {{- include "nebari-llm-serving.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "nebari-llm-serving.fullname" . }}-key-manager
+      containers:
+        - name: key-manager
+          image: {{ .Values.keyManager.image.repository }}:{{ .Values.keyManager.image.tag }}
+          imagePullPolicy: {{ .Values.keyManager.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            # Per #59 the API-key Secrets live in the operator's own
+            # namespace alongside the LLMModels and SecurityPolicies that
+            # reference them. Use the downward API to pick that up rather
+            # than hardcoding it.
+            - name: LLM_API_KEYS_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LLM_OIDC_GROUPS_CLAIM
+              value: {{ .Values.auth.oidc.groupsClaim | quote }}
+            - name: LLM_LISTEN_ADDR
+              value: ":8080"
+            {{- if not .Values.keyManager.devMode.enabled }}
+            # Model B: the key-manager validates the SPA's bearer token against
+            # Keycloak's JWKS. LLM_KEYCLOAK_URL is the URL used to fetch JWKS
+            # (defaults to the SPA's external Keycloak URL; override with an
+            # in-cluster URL to skip the round-trip through the gateway).
+            # LLM_KEYCLOAK_ISSUER_URL is the URL embedded in tokens as `iss`.
+            - name: LLM_KEYCLOAK_URL
+              value: {{ .Values.keyManager.keycloak.url | default .Values.frontend.keycloak.url | quote }}
+            - name: LLM_KEYCLOAK_REALM
+              value: {{ .Values.keyManager.keycloak.realm | default .Values.frontend.keycloak.realm | quote }}
+            - name: LLM_KEYCLOAK_ISSUER_URL
+              value: {{ .Values.keyManager.keycloak.issuerURL | default .Values.frontend.keycloak.url | quote }}
+            {{- if .Values.keyManager.keycloak.pinClientAudience }}
+            # Opt-in hardening: pin the token's `azp` to the SPA client ID so a
+            # token minted for another client in the (shared) nebari realm is
+            # rejected. Derived from the same client ID the SPA logs in with, so
+            # the two always agree.
+            - name: LLM_KEYCLOAK_SPA_CLIENT_ID
+              value: {{ .Values.frontend.keycloak.clientId | default (printf "%s-%s-key-manager-spa" (include "nebari-llm-serving.operatorNamespace" .) (include "nebari-llm-serving.fullname" .)) | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.keyManager.auditInterval }}
+            - name: LLM_AUDIT_INTERVAL
+              value: {{ .Values.keyManager.auditInterval | quote }}
+            {{- end }}
+            {{- if .Values.keyManager.oidcUserinfoURL }}
+            - name: LLM_OIDC_USERINFO_URL
+              value: {{ .Values.keyManager.oidcUserinfoURL | quote }}
+            {{- end }}
+            {{- if .Values.keyManager.devMode.enabled }}
+            # Dev mode: bypasses auth and injects a fixed identity so the UI
+            # works on a local cluster with no Keycloak. Never enable in a real
+            # deployment. See nebari-dev/llm-serving-pack#114.
+            - name: LLM_DEV_MODE
+              value: "true"
+            - name: LLM_DEV_USER
+              value: {{ .Values.keyManager.devMode.user | quote }}
+            - name: LLM_DEV_GROUPS
+              value: {{ .Values.keyManager.devMode.groups | join "," | quote }}
+            {{- end }}
+          # Probes hit the unauthenticated /healthz, which reports only that the
+          # process is serving HTTP - it does not gate on the JWKS validator being
+          # ready, so a slow/unreachable Keycloak at startup does not CrashLoop the
+          # pod (per-request not-ready is surfaced to clients as 503 instead).
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+{{- end }}

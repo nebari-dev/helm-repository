@@ -1,0 +1,232 @@
+# createNamespace controls whether the chart provisions the operator's own
+# namespace and labels it `nebari.dev/managed=true` (required by the
+# validating webhook). Set to false when something else owns the namespace
+# - e.g. ArgoCD's managedNamespaceMetadata, a Terraform module, or
+# `helm install --create-namespace` followed by your own labelling.
+createNamespace: true
+
+platform:
+  # baseDomain is REQUIRED - the base domain for the Nebari deployment
+  baseDomain: ""
+  gateway:
+    external:
+      name: nebari-gateway
+      namespace: envoy-gateway-system
+    internal:
+      name: nebari-internal-gateway
+      namespace: envoy-gateway-system
+    # manageSharedListeners controls whether the operator patches HTTPS
+    # listeners for llm.<baseDomain> and llm-internal.<baseDomain> onto
+    # the shared Gateways above. Default true; the operator adds and
+    # updates its listeners by name and leaves every other listener on
+    # the Gateway untouched. Set to false if a cluster admin owns the
+    # listeners out-of-band; the operator will still create the shared
+    # TLS Certificate but skip the Gateway patch.
+    manageSharedListeners: true
+  tls:
+    # clusterIssuer - the cert-manager ClusterIssuer used to issue the
+    # shared TLS certificate covering llm.<baseDomain> and
+    # llm-internal.<baseDomain>. HTTP-01 is the assumed challenge type;
+    # wildcard SANs are not supported. Override when running against a
+    # staging issuer or a different production issuer.
+    clusterIssuer: letsencrypt-production
+    # secretName - when set, bring-your-own-certificate mode: the operator
+    # does NOT create a cert-manager Certificate (and deletes one it
+    # previously managed). The shared Gateway listeners terminate TLS with
+    # this pre-provisioned kubernetes.io/tls Secret instead. The Secret
+    # must live in the operator's namespace and its certificate must cover
+    # llm.<baseDomain> and llm-internal.<baseDomain> (two SANs or a
+    # wildcard). Intended for air-gapped / private-CA environments where
+    # ACME issuance is impossible; cert-manager is not required at all in
+    # this mode. clusterIssuer is ignored while this is set.
+    secretName: ""
+
+auth:
+  oidc:
+    # issuerURL - the OIDC issuer URL. When set, this static value is used
+    # directly. When empty (default), the issuer URL is read from a Kubernetes
+    # Secret via secretKeyRef instead - this is the expected integration path
+    # when the nebari-operator provisions the OIDC client with auth enabled.
+    issuerURL: ""
+    # existingSecret - name of the Secret containing the "issuer-url" key.
+    # Defaults to "<release-fullname>-oidc-client", which matches the secret
+    # the nebari-operator creates when a NebariApp has auth.enabled: true.
+    existingSecret: ""
+    groupsClaim: groups
+    audience: ""
+
+envoyAIGateway:
+  # install: if true, installs the Envoy AI Gateway (not yet implemented)
+  install: false
+
+keyManager:
+  enabled: true
+  # devMode bypasses the key-manager's auth and injects a fixed identity so the
+  # UI can run on a local cluster with no Keycloak / gateway OIDC layer. Off by
+  # default; never enable it in a real deployment. See
+  # nebari-dev/llm-serving-pack#114. Pair it with a direct port-forward to the
+  # key-manager Service so the gateway OIDC enforcement is bypassed too.
+  devMode:
+    enabled: false
+    user: dev
+    groups:
+    - llm
+  image:
+    repository: ghcr.io/nebari-dev/llm-serving-pack/key-manager
+    # Floating on main; pinned to a build sha at release time (see cicd-and-releasing).
+    tag: "sha-9fb01eb"
+    pullPolicy: Always
+  auditInterval: 5m
+  oidcUserinfoURL: ""
+  # keycloak - how the key-manager validates the SPA's bearer token (Model B).
+  # All three default to frontend.keycloak.* when left empty, so a typical
+  # install only sets frontend.keycloak.{url,realm}. Override here only to point
+  # JWKS fetching at an in-cluster Keycloak URL (faster, avoids the gateway
+  # round-trip) while still validating the external issuer.
+  keycloak:
+    # url - base URL used to fetch JWKS (<url>/realms/<realm>/protocol/openid-connect/certs).
+    url: ""
+    # realm - Keycloak realm the tokens are issued from.
+    realm: ""
+    # issuerURL - the URL embedded in tokens as `iss`; validated exactly.
+    # Defaults to frontend.keycloak.url (the URL the browser talks to).
+    issuerURL: ""
+    # pinClientAudience - when true, the key-manager additionally checks the
+    # token's `azp` (authorized party) claim against the SPA client ID, rejecting
+    # tokens minted for other clients in the realm. The nebari realm is shared
+    # across all Nebari apps, so leaving this false accepts any valid token in the
+    # realm (issuer-only validation). The client ID is derived from
+    # frontend.keycloak.clientId (or the operator convention), so it always
+    # matches the token the SPA actually presents.
+    #
+    # Only meaningful with frontend.enabled=true: the pinned client is the SPA
+    # client the NebariApp provisions, so enabling this on an API-only install
+    # (frontend.enabled=false) pins an `azp` that no token in the realm carries
+    # and every request 401s.
+    pinClientAudience: false
+  # nebariApp - the NebariApp CR that exposes the key-manager UI via the
+  # nebari-operator (HTTPRoute, TLS cert, Keycloak client, landing-page tile).
+  # Set enabled=false when installing standalone without a Nebari cluster.
+  nebariApp:
+    enabled: true
+    # hostname - fully qualified hostname for the UI. Required when enabled.
+    # Example: llm-keys.your-cluster.example.com
+    hostname: ""
+    # gateway - which Nebari shared gateway to attach the HTTPRoute to.
+    # Valid values: "public" or "internal".
+    gateway: public
+    # routing is passed through verbatim to NebariApp.spec.routing. Without
+    # this block the nebari-operator sets RoutingReady=False and skips both
+    # the HTTPRoute and the cert-manager Certificate, leaving the gateway
+    # to fall back to its default (bare-domain) cert for this hostname,
+    # which browsers see as a cert mismatch. The default below mounts the
+    # UI at the path root with a single PathPrefix route. Override here to
+    # add publicRoutes, tls overrides, custom annotations, etc.
+    routing:
+      routes:
+      - pathPrefix: /
+        pathType: PathPrefix
+    auth:
+      # Model B (SPA-managed Keycloak). The operator provisions a public PKCE
+      # SPA client and (because enforceAtGateway is false in the template) emits
+      # no gateway SecurityPolicy - keycloak-js logs in from the browser and the
+      # key-manager validates the bearer token against Keycloak's JWKS.
+      scopes:
+      - openid
+      - profile
+      - email
+      - groups
+      # spaClientId - explicit override for the provisioned SPA client ID. Leave
+      # empty (the default) to derive it from frontend.keycloak.clientId so the
+      # provisioned client, the client the SPA presents, and the key-manager's azp
+      # pin can't be set apart; if that is also empty, the operator convention
+      # <namespace>-<nebariapp-name>-spa is used, which config.json and the azp
+      # default also fall back to. Only set this to decouple the provisioned client
+      # from frontend.keycloak.clientId (unusual).
+      spaClientId: ""
+    # landingPage controls how the UI appears on the Nebari landing page.
+    landingPage:
+      enabled: true
+      displayName: "LLM API Keys"
+      description: "Manage your personal API keys for LLM inference."
+      category: "Platform"
+      # icon - one of the built-in keys (jupyter, grafana, prometheus,
+      # keycloak, argocd, kubernetes) or a URL to a custom image.
+      icon: "keycloak"
+      priority: 100
+      # healthCheck - lets the Nebari landing page actively probe the UI so its
+      # tile shows Healthy/Unhealthy instead of "Unknown". The landing webapi
+      # probes http://<service>.<namespace>:<port><path>; the NebariApp now
+      # targets the frontend nginx Service, which serves the SPA at "/" (HTTP
+      # 200, unauthenticated), so "/" is the correct probe path. port defaults
+      # to the service port (frontend.service.port) when omitted.
+      healthCheck:
+        enabled: true
+        path: /
+        intervalSeconds: 30
+        timeoutSeconds: 5
+
+# frontend - the React SPA served by its own nginx image. nginx serves the
+# static assets, renders /config.json (Keycloak settings) from the values below,
+# and reverse-proxies /api/* to the key-manager Service. This is the Service the
+# NebariApp targets; the key-manager Service is never exposed publicly.
+frontend:
+  # Set enabled=false to skip the frontend (e.g. an API-only test install).
+  enabled: true
+  image:
+    repository: ghcr.io/nebari-dev/llm-serving-pack/frontend
+    # Floating on main; pinned to a build sha at release time (see cicd-and-releasing).
+    tag: "sha-9fb01eb"
+    pullPolicy: Always
+  # port nginx listens on. Must be > 1024 - the container runs as non-root
+  # (UID 101) with all capabilities dropped and cannot bind privileged ports.
+  port: 8080
+  service:
+    port: 8080
+  # title - optional browser-tab title override rendered into config.json.
+  title: ""
+  # keycloak - connection settings rendered into /config.json at deploy time and
+  # fetched by the SPA at startup, so the image needs no build-time config.
+  keycloak:
+    # url - full external Keycloak base URL the browser talks to (Keycloak 17+
+    # does not use /auth as a context root). Required when frontend.enabled=true.
+    # e.g. https://keycloak.your-cluster.example.com
+    url: ""
+    realm: nebari
+    # clientId - the public PKCE SPA client ID. Leave empty to use the operator
+    # convention <namespace>-<nebariapp-name>-spa (matches the provisioned client).
+    clientId: ""
+
+operator:
+  image:
+    repository: ghcr.io/nebari-dev/llm-serving-pack/operator
+    # Floating on main; pinned to a build sha at release time (see cicd-and-releasing).
+    tag: "sha-9fb01eb"
+    pullPolicy: Always
+
+# modelDownloader - the init/job image the operator uses to fetch model
+# weights before a serving Deployment starts. Rendered into the operator's
+# LLM_MODEL_DOWNLOADER_IMAGE env var (operator-deployment.yaml) rather than
+# hardcoded, so it can be re-pinned without rebuilding the operator image.
+modelDownloader:
+  image:
+    repository: ghcr.io/nebari-dev/llm-serving-pack/model-downloader
+    # Floating on main; pinned to a build sha at release time (see cicd-and-releasing).
+    tag: "sha-9fb01eb"
+
+defaults:
+  serving:
+    # llm-d v0.7.0 image. Ships the CUDA 13.0.2 runtime, which requires
+    # NVIDIA driver branch 580+ on GPU nodes (see README infrastructure
+    # requirements).
+    image: ghcr.io/llm-d/llm-d-cuda:v0.7.0
+  epp:
+    # llm-d-inference-scheduler (Endpoint Picker) image, used for every
+    # model's EPP Deployment. Pinned to the same llm-d v0.7.0 release as the
+    # serving image. Override to re-pin without rebuilding the operator, e.g.
+    # to point at a mirrored/air-gapped registry.
+    image: ghcr.io/llm-d/llm-d-inference-scheduler:v0.8.0
+  storage:
+    storageClassName: ""
+  monitoring:
+    enabled: true
