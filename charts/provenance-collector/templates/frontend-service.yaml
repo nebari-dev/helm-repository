@@ -1,0 +1,19 @@
+{{- if and .Values.frontend.enabled .Values.webUI.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "provenance-collector.fullname" . }}-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "provenance-collector.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.frontend.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "provenance-collector.fullname" . }}-frontend
+{{- end }}
