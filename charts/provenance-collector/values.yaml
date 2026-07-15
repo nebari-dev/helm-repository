@@ -69,6 +69,12 @@ webUI:
   internalPort: 8081
   # Max body size (bytes) accepted on the internal upload endpoint.
   uploadMaxBytes: 16777216  # 16 MiB
+  # Opt-in dashboard features. All default off; flip individually.
+  features:
+    # Renders a +N / -N unique-image delta badge on each timeline card,
+    # showing how the report changed vs the previous (older) scan. Useful
+    # once you have enough scan history to notice drift at a glance.
+    timelineDeltas: false
   resources:
     requests:
       cpu: 50m
@@ -101,6 +107,49 @@ webUI:
   # any Go duration string ("1h", "30m", "24h"). Set to "0" to disable the
   # TTL and keep manual Jobs around for debugging.
   manualJobTTL: "1h"
+
+# =============================================================================
+# Frontend (React SPA)
+# =============================================================================
+# The dashboard UI is a standalone React app served by its own nginx image and
+# Deployment. nginx serves the SPA and reverse-proxies /api/* to the dashboard
+# (-web) Service over cluster DNS. Requires webUI.enabled=true (the proxy
+# target). The NebariApp routes gateway traffic here, not at the dashboard.
+frontend:
+  # Set enabled=false to skip the frontend (e.g. an API-only / headless install).
+  enabled: true
+  replicas: 1
+  image:
+    repository: ghcr.io/nebari-dev/provenance-collector-pack/frontend
+    # tag defaults to .Chart.AppVersion when empty so the chart and image
+    # versions move together. Override to pull a specific build.
+    tag: ""
+    pullPolicy: IfNotPresent
+  # Port nginx listens on. Must be > 1024 - the container runs as non-root
+  # (UID 101) with all capabilities dropped and cannot bind privileged ports.
+  port: 8080
+  service:
+    port: 8080
+  # Optional browser-tab title override rendered into config.json.
+  title: ""
+  # Keycloak connection settings rendered into /config.json at deploy time and
+  # fetched by the SPA at startup, so the image needs no build-time config.
+  keycloak:
+    # Full external Keycloak base URL the browser talks to (Keycloak 17+ does
+    # not use /auth as a context root). Required when frontend.enabled=true.
+    # e.g. https://keycloak.your-cluster.example.com
+    url: ""
+    realm: nebari
+    # Public PKCE SPA client id. Leave empty to use the operator convention
+    # <namespace>-<nebariapp-name>-spa (matches the provisioned client).
+    clientId: ""
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
 
 # =============================================================================
 # Persistence
@@ -169,32 +218,35 @@ rbac:
 # Nebari Integration
 # =============================================================================
 # Creates a NebariApp CRD that registers this pack with the nebari-operator.
-# When webUI.enabled is true, the NebariApp routes traffic to the dashboard.
+# The NebariApp routes gateway traffic to the frontend nginx Service (which
+# proxies /api/* to the dashboard); it requires frontend.enabled=true.
 nebariapp:
   enabled: false
   # hostname: provenance.nebari.example.com  # Required when enabled
   service:
-    name: ""   # Defaults to <fullname>-web
-    port: 8080
+    name: ""   # Defaults to <fullname>-frontend
+    port: ""   # Defaults to frontend.service.port
   routing:
     tls:
       enabled: true
   auth:
     enabled: true
     provider: keycloak
-    provisionClient: true
-    enforceAtGateway: true
-    redirectURI: /oauth2/callback
+    # Model B: the SPA performs the OIDC login in-browser via keycloak-js, so the
+    # gateway must NOT enforce auth (that would trigger its own oauth2 redirect
+    # ahead of the SPA). The operator still provisions the public SPA client.
+    enforceAtGateway: false
     scopes:
       - openid
       - profile
       - email
       - groups
     groups: []
-    # Forward the user's access token to the dashboard as
-    # `Authorization: Bearer <token>`. Required when webUI.adminGroups is set
-    # so the dashboard can resolve group membership from the token's issuer.
-    forwardAccessToken: false
+    # Explicit override for the provisioned public SPA client id. Leave empty to
+    # inherit frontend.keycloak.clientId (which itself defaults to the operator
+    # convention <namespace>-<nebariapp-name>-spa), keeping the provisioned
+    # client and the one the SPA presents in config.json in sync.
+    spaClientId: ""
   landingPage:
     enabled: false
     displayName: "Provenance Collector"
