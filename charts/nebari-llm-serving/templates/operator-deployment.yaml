@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nebari-llm-serving.fullname" . }}-operator
+  namespace: {{ include "nebari-llm-serving.operatorNamespace" . }}
+  labels:
+    {{- include "nebari-llm-serving.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "nebari-llm-serving.fullname" . }}-operator
+  template:
+    metadata:
+      labels:
+        app: {{ include "nebari-llm-serving.fullname" . }}-operator
+        {{- include "nebari-llm-serving.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "nebari-llm-serving.fullname" . }}-operator
+      containers:
+        - name: manager
+          image: {{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy | default "IfNotPresent" }}
+          env:
+            - name: LLM_BASE_DOMAIN
+              value: {{ .Values.platform.baseDomain | quote }}
+            - name: LLM_EXTERNAL_GATEWAY_NAME
+              value: {{ .Values.platform.gateway.external.name | quote }}
+            - name: LLM_EXTERNAL_GATEWAY_NAMESPACE
+              value: {{ .Values.platform.gateway.external.namespace | quote }}
+            - name: LLM_INTERNAL_GATEWAY_NAME
+              value: {{ .Values.platform.gateway.internal.name | quote }}
+            - name: LLM_INTERNAL_GATEWAY_NAMESPACE
+              value: {{ .Values.platform.gateway.internal.namespace | quote }}
+            {{- if .Values.auth.oidc.issuerURL }}
+            - name: LLM_OIDC_ISSUER_URL
+              value: {{ .Values.auth.oidc.issuerURL | quote }}
+            {{- else }}
+            - name: LLM_OIDC_ISSUER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.oidc.existingSecret | default (printf "%s-oidc-client" (include "nebari-llm-serving.fullname" .)) }}
+                  key: issuer-url
+            {{- end }}
+            - name: LLM_OIDC_GROUPS_CLAIM
+              value: {{ .Values.auth.oidc.groupsClaim | quote }}
+            - name: LLM_DEFAULT_SERVING_IMAGE
+              value: {{ .Values.defaults.serving.image | quote }}
+            - name: LLM_DEFAULT_EPP_IMAGE
+              value: {{ .Values.defaults.epp.image | quote }}
+            - name: LLM_MODEL_DOWNLOADER_IMAGE
+              value: "{{ .Values.modelDownloader.image.repository }}:{{ .Values.modelDownloader.image.tag }}"
+            - name: LLM_DEFAULT_STORAGE_CLASS_NAME
+              value: {{ .Values.defaults.storage.storageClassName | quote }}
+            - name: LLM_CLUSTER_ISSUER_NAME
+              value: {{ .Values.platform.tls.clusterIssuer | quote }}
+            - name: LLM_TLS_SECRET_NAME
+              value: {{ .Values.platform.tls.secretName | default "" | quote }}
+            - name: LLM_MANAGE_SHARED_LISTENERS
+              value: {{ .Values.platform.gateway.manageSharedListeners | quote }}
+            - name: ENABLE_WEBHOOKS
+              value: "true"
+            # POD_NAMESPACE feeds the validating webhook's same-namespace
+            # check on LLMModel CRs (#59).
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - containerPort: 9443
+              name: webhook-server
+              protocol: TCP
+          volumeMounts:
+            - name: cert
+              mountPath: /tmp/k8s-webhook-server/serving-certs
+              readOnly: true
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: cert
+          secret:
+            secretName: {{ include "nebari-llm-serving.fullname" . }}-webhook-cert
