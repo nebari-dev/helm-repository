@@ -10,12 +10,13 @@ on:
     paths:
       - 'charts/**'
 
-permissions:
-  contents: write
-
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      charts: ${{ steps.push.outputs.charts }}
     steps:
       - name: Checkout main branch (source)
         uses: actions/checkout@v6
@@ -92,13 +93,26 @@ jobs:
           push-user: ${{ secrets.QUAY_USERNAME }}
 
       - name: Push charts to quay.io OCI registry
+        id: push
         working-directory: src
         run: |
+          set -euo pipefail
+          entries=""
+          shopt -s nullglob
           for tgz in packaged/*.tgz; do
-            [ -f "$tgz" ] || continue
-            echo "Pushing ${tgz} → oci://quay.io/nebari/charts ..."
-            helm push "$tgz" oci://quay.io/nebari/charts
+            echo "Pushing ${tgz} -> oci://quay.io/nebari/charts ..."
+            out="$(helm push "$tgz" oci://quay.io/nebari/charts 2>&1)"
+            printf '%s\n' "$out"
+            ref="$(printf '%s\n' "$out" | awk '/Pushed:/{print $2}')"
+            digest="$(printf '%s\n' "$out" | awk '/Digest:/{print $2}')"
+            repo="${ref%:*}"
+            if [ -z "$repo" ] || [ -z "$digest" ]; then
+              echo "::error::could not parse ref/digest from helm push output"; exit 1
+            fi
+            entry="{\"repo\":\"${repo}\",\"digest\":\"${digest}\"}"
+            entries="${entries:+$entries,}$entry"
           done
+          echo "charts=[${entries}]" >> "$GITHUB_OUTPUT"
 
       - name: Log out of quay.io
         if: always()
@@ -130,3 +144,29 @@ jobs:
           git diff --cached --quiet && echo "Nothing to commit." && exit 0
           git commit -m "chore: release charts from main@$GITHUB_SHA"
           git push
+
+  sign:
+    needs: release
+    if: ${{ needs.release.outputs.charts != '' && needs.release.outputs.charts != '[]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        chart: ${{ fromJSON(needs.release.outputs.charts) }}
+    steps:
+      - name: Log in to quay.io (for cosign)
+        env:
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+        run: echo "${QUAY_PASSWORD}" | docker login quay.io -u "${QUAY_USERNAME}" --password-stdin
+
+      - name: Sign + attest the OCI chart
+        uses: nebari-dev/.github/.github/actions/sign-oci@f116e6f4a10c4858b11adbdc2b679a374725b042 # feat/reusable-signing-actions (pre-v1); -> @v1 after phase 1 merges
+        with:
+          image: ${{ matrix.chart.repo }}
+          digest: ${{ matrix.chart.digest }}
+          sbom: "false"
