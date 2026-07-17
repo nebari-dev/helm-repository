@@ -165,7 +165,7 @@ jobs:
         run: echo "${QUAY_PASSWORD}" | docker login quay.io -u "${QUAY_USERNAME}" --password-stdin
 
       - name: Sign + attest the OCI chart
-        uses: nebari-dev/.github/.github/actions/sign-oci@f116e6f # feat/reusable-signing-actions (pre-v1); -> @v1 after phase 1 merges
+        uses: nebari-dev/.github/.github/actions/sign-oci@f116e6f4a10c4858b11adbdc2b679a374725b042 # feat/reusable-signing-actions (pre-v1); -> @v1 after phase 1 merges
         with:
           image: ${{ matrix.chart.repo }}
           digest: ${{ matrix.chart.digest }}
