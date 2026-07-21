@@ -75,6 +75,12 @@ spec:
             # "unset → use default".
             - name: PROVENANCE_MANUAL_JOB_TTL
               value: {{ .Values.webUI.manualJobTTL | quote }}
+            # Opt-in feature flags. The Go side reads "true" / "1" / "yes" / "on"
+            # case-insensitively; everything else is off.
+            {{- if .Values.webUI.features.timelineDeltas }}
+            - name: PROVENANCE_FEATURE_TIMELINE_DELTAS
+              value: "true"
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.webUI.port }}
