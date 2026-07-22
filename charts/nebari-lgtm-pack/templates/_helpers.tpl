@@ -74,3 +74,101 @@ Set nebariapp.keycloakBasePath to "/auth" for legacy Keycloak installations.
 {{- define "nebari-lgtm-pack.keycloak-oidc-url" -}}
 https://{{ .Values.nebariapp.keycloakHostname }}{{ .Values.nebariapp.keycloakBasePath }}/realms/{{ .Values.nebariapp.keycloakRealm | default "nebari" }}/protocol/openid-connect
 {{- end }}
+
+{{/*
+Monolithic Mimir base configuration. mimir.extraConfig is deep-merged over
+this in templates/mimir/configmap.yaml. Filesystem storage is valid here
+because a single process owns the single /data volume — unlike distributed
+mode, where a filesystem "bucket" is invisible to every other component
+(issue #22).
+*/}}
+{{- define "nebari-lgtm-pack.mimir-monolithic-config" -}}
+multitenancy_enabled: false
+
+server:
+  http_listen_port: 8080
+  grpc_listen_port: 9095
+
+# Classic architecture (no Kafka-backed ingest), matching the distributed
+# mode's settings.
+ingest_storage:
+  enabled: false
+
+# Single-process rings: every component talks to itself.
+ingester:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: memberlist
+    replication_factor: 1
+
+distributor:
+  ring:
+    instance_addr: 127.0.0.1
+    kvstore:
+      store: memberlist
+
+store_gateway:
+  sharding_ring:
+    replication_factor: 1
+
+blocks_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/blocks
+  bucket_store:
+    sync_dir: /data/tsdb-sync
+  tsdb:
+    dir: /data/tsdb
+
+compactor:
+  data_dir: /data/compactor
+  sharding_ring:
+    kvstore:
+      store: memberlist
+
+ruler_storage:
+  backend: filesystem
+  filesystem:
+    dir: /data/rules
+
+# The ruler is part of -target=all. Its working directory defaults to
+# ./data-ruler/, which is unwritable for the non-root user on a read-only
+# root filesystem — Mimir 3.0.1 hard-fails at startup without this.
+ruler:
+  rule_path: /data/ruler
+
+# Default filepath (./metrics-activity.log) is not writable by the non-root
+# container user; keep it on the data volume.
+activity_tracker:
+  filepath: /data/metrics-activity.log
+
+limits:
+  # Bound disk usage — unset means keep blocks forever (issue #22).
+  compactor_blocks_retention_period: {{ .Values.mimir.retention }}
+{{- end }}
+
+{{/*
+Mimir service host and port — switch between the chart's monolithic Service
+and the mimir-distributed gateway based on which mode is enabled. Consumers
+build URLs as http://<host>:<port>/... (Grafana datasource, OTel exporter).
+*/}}
+{{- define "nebari-lgtm-pack.mimir-host" -}}
+{{- if index .Values "mimir-distributed" "enabled" -}}
+{{- .Release.Name }}-mimir-gateway
+{{- else -}}
+{{- .Release.Name }}-mimir
+{{- end -}}
+{{- end }}
+
+{{- define "nebari-lgtm-pack.mimir-port" -}}
+{{- if index .Values "mimir-distributed" "enabled" -}}80{{- else -}}8080{{- end -}}
+{{- end }}
+
+{{/*
+Truthy when any Mimir (monolithic or distributed) is part of this install;
+empty string otherwise, so it can be used directly in `if` conditions.
+*/}}
+{{- define "nebari-lgtm-pack.mimir-enabled" -}}
+{{- if or .Values.mimir.enabled (index .Values "mimir-distributed" "enabled") -}}true{{- end -}}
+{{- end }}
