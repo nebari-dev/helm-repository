@@ -83,8 +83,10 @@ nebariapp:
   #           pathType: Prefix
   #   - name: mimir-push
   #     service:
-  #       name: <release>-mimir-distributed-nginx
-  #       port: 80
+  #       # monolithic: <release>-mimir port 8080
+  #       # distributed: <release>-mimir-gateway port 80
+  #       name: <release>-mimir
+  #       port: 8080
   #     routing:
   #       routes:
   #         - pathPrefix: /mimir
@@ -267,18 +269,91 @@ tempo:
     size: 10Gi
 
 # =============================================================================
-# Mimir — Metrics (Prometheus-compatible)
+# Mimir — Metrics (monolithic single-binary, the default)
+# =============================================================================
+# Rendered by this chart's own templates (templates/mimir/) using the upstream
+# grafana/mimir image — the mimir-distributed subchart has no monolithic mode.
+# All Mimir components run in one process sharing one PVC, which is the only
+# topology where Mimir's filesystem storage backend is valid. For horizontal
+# scale, enable the mimir-distributed subchart below instead (this block is
+# then ignored).
+mimir:
+  # Disabling BOTH this and mimir-distributed removes the Grafana Mimir
+  # datasource, but the OTel collector override still routes its metrics
+  # pipeline to the (now nonexistent) Mimir service — disable
+  # otelCollectorOverrides or bring your own metrics backend in that case.
+  enabled: true
+  image:
+    repository: grafana/mimir
+    # Kept in lockstep with the mimir-distributed subchart's appVersion so
+    # both modes run the same Mimir release.
+    tag: "3.0.1"
+  # How long the compactor keeps blocks before deleting them. Unset would mean
+  # keep-forever and unbounded disk growth (issue #22).
+  retention: 30d
+  persistence:
+    size: 20Gi
+  resources: {}
+  # Deep-merged over the rendered Mimir config (templates/mimir/configmap.yaml)
+  # for advanced tuning, e.g.:
+  # extraConfig:
+  #   limits:
+  #     ingestion_rate: 100000
+  extraConfig: {}
+
+# =============================================================================
+# Mimir — Metrics (distributed, opt-in)
 # =============================================================================
 # All values under this key are passed to the mimir-distributed subchart.
 # Ref: https://github.com/grafana/helm-charts/tree/main/charts/mimir-distributed
 mimir-distributed:
-  # Lightweight config for local development — single replicas, no Kafka, filesystem storage
+  # Opt-in distributed Mimir. Default is OFF: the chart deploys monolithic
+  # single-binary Mimir instead (see the `mimir` block above). Flip to true
+  # for a horizontally scalable topology backed by a shared object store.
+  enabled: false
+  # Shared object store. The upstream chart auto-wires blocks, ruler, and
+  # alertmanager storage of every component to this bundled MinIO. Filesystem
+  # storage is NOT valid in distributed mode: each component would see only
+  # its own PVC, so compaction/retention never run and the ingester disk
+  # grows until ingestion halts (issue #22).
+  #
+  # The bundled MinIO uses the upstream chart's dev-grade defaults (static
+  # credentials rendered into the Mimir config ConfigMap, 5Gi PVC). For
+  # production, use the cloud-bucket example below, or at minimum override
+  # minio.rootUser, minio.rootPassword, and minio.persistence.size.
+  #
+  # To use a real cloud bucket instead, disable minio and supply the s3
+  # config. The ${...} placeholders are expanded from the container
+  # environment (the subchart runs Mimir with -config.expand-env), so the
+  # credentials must be injected via global.extraEnvFrom, e.g.:
+  # minio:
+  #   enabled: false
+  # global:
+  #   extraEnvFrom:
+  #     - secretRef:
+  #         name: mimir-s3-credentials  # AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+  # mimir:
+  #   structuredConfig:
+  #     common:
+  #       storage:
+  #         backend: s3
+  #         s3:
+  #           endpoint: s3.us-east-1.amazonaws.com
+  #           region: us-east-1
+  #           access_key_id: ${AWS_ACCESS_KEY_ID}
+  #           secret_access_key: ${AWS_SECRET_ACCESS_KEY}
+  #     blocks_storage:
+  #       s3:
+  #         bucket_name: my-mimir-blocks
+  #     ruler_storage:
+  #       s3:
+  #         bucket_name: my-mimir-ruler
+  minio:
+    enabled: true
+  # Lightweight config for local development — single replicas, no Kafka
   mimir:
     structuredConfig:
       multitenancy_enabled: false
-      common:
-        storage:
-          backend: filesystem
       ingest_storage:
         enabled: false
       ingester:
@@ -288,16 +363,9 @@ mimir-distributed:
       store_gateway:
         sharding_ring:
           replication_factor: 1
-      blocks_storage:
-        backend: filesystem
-        filesystem:
-          dir: /data/mimir-blocks
-      compactor:
-        data_dir: /data/mimir-compactor
-      ruler_storage:
-        backend: filesystem
-        filesystem:
-          dir: /data/mimir-rules
+      limits:
+        # Bound bucket usage — unset means keep blocks forever (issue #22).
+        compactor_blocks_retention_period: 30d
   # Single replicas for local dev
   ingester:
     replicas: 1
@@ -326,8 +394,6 @@ mimir-distributed:
     replicas: 1
   # Disable components not needed for local dev
   kafka:
-    enabled: false
-  minio:
     enabled: false
   rollout_operator:
     enabled: false

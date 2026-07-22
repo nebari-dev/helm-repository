@@ -1,0 +1,74 @@
+{{- if and .Values.mimir.enabled (not (index .Values "mimir-distributed" "enabled")) }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-mimir
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mimir
+spec:
+  replicas: 1
+  serviceName: {{ .Release.Name }}-mimir
+  selector:
+    matchLabels:
+      {{- include "nebari-lgtm-pack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mimir
+  template:
+    metadata:
+      labels:
+        {{- include "nebari-lgtm-pack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mimir
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/mimir/configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        fsGroup: 10001
+        runAsGroup: 10001
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mimir
+          image: "{{ .Values.mimir.image.repository }}:{{ .Values.mimir.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          args:
+            - -target=all
+            - -config.file=/etc/mimir/mimir.yaml
+          ports:
+            - name: http-metrics
+              containerPort: 8080
+            - name: grpc
+              containerPort: 9095
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http-metrics
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.mimir.resources | nindent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/mimir
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-mimir-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.mimir.persistence.size }}
+{{- end }}
