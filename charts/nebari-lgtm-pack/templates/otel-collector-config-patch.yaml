@@ -36,7 +36,7 @@ data:
         tls:
           insecure: true
       otlphttp/mimir:
-        endpoint: http://{{ .Release.Name }}-mimir-gateway.{{ .Release.Namespace }}.svc.cluster.local/otlp
+        endpoint: http://{{ include "nebari-lgtm-pack.mimir-host" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ include "nebari-lgtm-pack.mimir-port" . }}/otlp
         tls:
           insecure: true
     service:

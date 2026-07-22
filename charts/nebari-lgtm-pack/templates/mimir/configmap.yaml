@@ -1,0 +1,18 @@
+{{- if and .Values.mimir.enabled (not (index .Values "mimir-distributed" "enabled")) }}
+{{- $config := include "nebari-lgtm-pack.mimir-monolithic-config" . | fromYaml }}
+{{- $merged := mustMergeOverwrite $config (deepCopy .Values.mimir.extraConfig) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # Same name the mimir-distributed subchart uses for its rendered config, so
+  # tooling (and the CI test) can read <release>-mimir-config in either mode.
+  # No collision: the two modes are mutually exclusive.
+  name: {{ .Release.Name }}-mimir-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mimir
+data:
+  mimir.yaml: |
+    {{- toYaml $merged | nindent 4 }}
+{{- end }}

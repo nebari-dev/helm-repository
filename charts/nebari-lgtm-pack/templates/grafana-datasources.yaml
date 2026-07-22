@@ -33,10 +33,12 @@ data:
             filterByTraceID: true
           nodeGraph:
             enabled: true
+      {{- if include "nebari-lgtm-pack.mimir-enabled" . }}
       - name: Mimir
         uid: mimir
         type: prometheus
         access: proxy
-        url: http://{{ .Release.Name }}-mimir-gateway/prometheus
+        url: http://{{ include "nebari-lgtm-pack.mimir-host" . }}:{{ include "nebari-lgtm-pack.mimir-port" . }}/prometheus
         jsonData:
           httpMethod: POST
+      {{- end }}
