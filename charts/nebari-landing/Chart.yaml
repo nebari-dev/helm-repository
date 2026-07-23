@@ -1,12 +1,21 @@
 apiVersion: v2
 name: nebari-landing
 description: >
-  Nebari Landing Page — React frontend (OAuth2 Proxy sidecar) +
+  Nebari Landing Page — React/keycloak-js SPA served by nginx +
   Go webapi backend, backed by Redis for pins, notifications,
-  access requests and WebSocket fan-out.
+  access requests, WebSocket fan-out, and WebSocket auth tickets.
 type: application
-version: 0.1.0-alpha.5
-appVersion: "v0.1.0-alpha.5"
+version: 0.1.4
+# On main, appVersion is "latest" so source consumers (e.g. ArgoCD pointing
+# at a non-release commit) resolve to the floating :latest image tag, which
+# always points at main's most recent webapi/frontend build on Quay.
+#
+# At release time, release-prep (.github/workflows/release-prep.yaml) bumps
+# this to the real version (e.g. "0.1.0-alpha.6") in the commit the release
+# tag points at, so consumers checking out the tag see appVersion pinned to
+# a matching image tag. Image tags themselves are left empty in values.yaml
+# so the deployment templates fall back to .Chart.AppVersion — see values.yaml.
+appVersion: "v0.1.4"
 maintainers:
   - name: OpenTeams
     url: https://github.com/nebari-dev
