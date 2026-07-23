@@ -1,0 +1,26 @@
+{{ include "my-pack.fullname" . }} has been deployed.
+
+{{- if .Values.nebariapp.enabled }}
+
+NebariApp is ENABLED. The nebari-operator will configure:
+  - HTTPRoute for hostname: {{ .Values.nebariapp.hostname }}
+  {{- if .Values.nebariapp.auth.enabled }}
+  - OIDC authentication via {{ .Values.nebariapp.auth.provider }}
+  {{- end }}
+
+After authentication, the app displays user info extracted from the IdToken cookie.
+
+Check the NebariApp status:
+  kubectl get nebariapp {{ include "my-pack.fullname" . }} -n {{ .Release.Namespace }}
+
+{{- else }}
+
+NebariApp is DISABLED. To access the service locally:
+
+  kubectl port-forward svc/{{ include "my-pack.fullname" . }} 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+
+Then open http://localhost:8080 in your browser.
+Note: Without Nebari, there will be no IdToken cookie and the app will show
+the "Not Authenticated" page.
+
+{{- end }}
