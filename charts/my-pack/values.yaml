@@ -1,0 +1,62 @@
+# Default values for my-pack (auth-aware FastAPI)
+# This is a YAML-formatted file.
+
+# =============================================================================
+# Application
+# =============================================================================
+image:
+  repository: ghcr.io/nebari-dev/software-pack-template/auth-fastapi-example
+  tag: "sha-b1a8138"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+resources: {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# =============================================================================
+# Nebari Integration
+# =============================================================================
+# Creates a NebariApp CRD that configures routing, TLS, and auth via nebari-operator.
+# This example enables auth by default since the app is designed to read IdToken cookies.
+nebariapp:
+  enabled: false
+  # hostname: my-pack.nebari.example.com  # Required when enabled
+  service:
+    name: ""   # Defaults to release fullname
+    port: 80
+  routing:
+    routes:
+    - pathPrefix: /
+      pathType: PathPrefix
+    publicRoutes:
+    - pathPrefix: /health
+      pathType: Exact
+    tls:
+      enabled: true
+  auth:
+    enabled: true
+    provider: keycloak
+    provisionClient: true
+    # redirectURI: /oauth2/callback   # Default (operator-supplied); set only to override
+    scopes:
+    - openid
+    - profile
+    - email
+  gateway: public
+
+# =============================================================================
+# Overrides
+# =============================================================================
+nameOverride: ""
+fullnameOverride: ""
