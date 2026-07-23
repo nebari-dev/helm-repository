@@ -1,0 +1,117 @@
+apiVersion: ray.io/v1
+kind: RayService
+metadata:
+  name: {{ include "nebari-rayserve.fullname" . }}
+  labels:
+    {{- include "nebari-rayserve.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+spec:
+  # Serve config — declares applications to deploy.
+  # Empty by default; users add applications via values or deploy at runtime
+  # via the Ray Dashboard REST API.
+  serveConfigV2: |
+    proxy_location: {{ .Values.serve.proxyLocation }}
+    http_options:
+      host: "0.0.0.0"
+      port: 8000
+    applications: {{ .Values.serveApplications | default list | toJson }}
+
+  rayClusterConfig:
+    rayVersion: {{ .Values.image.tag | quote }}
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          {{- with .Values.head.runtimeClassName }}
+          runtimeClassName: {{ . }}
+          {{- end }}
+          {{- with (include "nebari-rayserve.orgCABundle.initContainers" .) }}
+          initContainers:
+            {{- . | nindent 12 }}
+          {{- end }}
+          {{- with (include "nebari-rayserve.orgCABundle.volumes" .) }}
+          volumes:
+            {{- . | nindent 12 }}
+          {{- end }}
+          {{- with (include "nebari-rayserve.tolerations" .Values.head) }}
+          tolerations:
+            {{- . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: ray-head
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              {{- $headEnv := concat (.Values.head.containerEnv | default list) (fromYamlArray (include "nebari-rayserve.orgCABundle.env" .)) }}
+              {{- with $headEnv }}
+              env:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with (include "nebari-rayserve.orgCABundle.volumeMounts" .) }}
+              volumeMounts:
+                {{- . | nindent 16 }}
+              {{- end }}
+              resources:
+                {{- toYaml .Values.head.resources | nindent 16 }}
+              ports:
+                - containerPort: 6379
+                  name: gcs-server
+                - containerPort: 8265
+                  name: dashboard
+                - containerPort: 10001
+                  name: client
+                - containerPort: 8000
+                  name: serve
+              {{- with .Values.head.readinessProbe }}
+              readinessProbe:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with .Values.head.livenessProbe }}
+              livenessProbe:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+    workerGroupSpecs:
+      - replicas: {{ .Values.worker.replicas }}
+        minReplicas: {{ .Values.worker.minReplicas | default .Values.worker.replicas }}
+        maxReplicas: {{ .Values.worker.maxReplicas | default .Values.worker.replicas }}
+        groupName: workers
+        rayStartParams: {}
+        template:
+          spec:
+            {{- with .Values.worker.runtimeClassName }}
+            runtimeClassName: {{ . }}
+            {{- end }}
+            {{- with (include "nebari-rayserve.orgCABundle.initContainers" .) }}
+            initContainers:
+              {{- . | nindent 14 }}
+            {{- end }}
+            {{- with (include "nebari-rayserve.orgCABundle.volumes" .) }}
+            volumes:
+              {{- . | nindent 14 }}
+            {{- end }}
+            {{- with (include "nebari-rayserve.tolerations" .Values.worker) }}
+            tolerations:
+              {{- . | nindent 14 }}
+            {{- end }}
+            containers:
+              - name: ray-worker
+                image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+                {{- $workerEnv := concat (.Values.worker.containerEnv | default list) (fromYamlArray (include "nebari-rayserve.orgCABundle.env" .)) }}
+                {{- with $workerEnv }}
+                env:
+                  {{- toYaml . | nindent 18 }}
+                {{- end }}
+                {{- with (include "nebari-rayserve.orgCABundle.volumeMounts" .) }}
+                volumeMounts:
+                  {{- . | nindent 18 }}
+                {{- end }}
+                resources:
+                  {{- toYaml .Values.worker.resources | nindent 18 }}
+                {{- with .Values.worker.readinessProbe }}
+                readinessProbe:
+                  {{- toYaml . | nindent 18 }}
+                {{- end }}
+                {{- with .Values.worker.livenessProbe }}
+                livenessProbe:
+                  {{- toYaml . | nindent 18 }}
+                {{- end }}

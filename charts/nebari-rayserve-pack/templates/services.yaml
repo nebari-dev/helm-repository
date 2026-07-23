@@ -1,0 +1,44 @@
+# Stable services for the Ray head — accessible immediately, regardless of
+# whether RayService has promoted the cluster to "active" status.
+# RayService only creates its stable services after all Serve applications
+# are healthy, but we need the dashboard and serve endpoint reachable
+# before any applications are deployed.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nebari-rayserve.head-service-name" . }}
+  labels:
+    {{- include "nebari-rayserve.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+spec:
+  selector:
+    ray.io/node-type: head
+    app.kubernetes.io/name: kuberay
+  ports:
+    - name: dashboard
+      port: 8265
+      targetPort: 8265
+    - name: client
+      port: 10001
+      targetPort: 10001
+    - name: gcs
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nebari-rayserve.serve-service-name" . }}
+  labels:
+    {{- include "nebari-rayserve.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+spec:
+  selector:
+    ray.io/node-type: head
+    app.kubernetes.io/name: kuberay
+  ports:
+    - name: serve
+      port: 8000
+      targetPort: 8000
