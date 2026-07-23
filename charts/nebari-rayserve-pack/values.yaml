@@ -1,0 +1,229 @@
+# =============================================================================
+# Nebari Integration
+# =============================================================================
+# Creates a NebariApp CRD that configures routing, TLS, and auth via nebari-operator.
+# Set enabled: true when deploying on a Nebari cluster.
+nebariapp:
+  enabled: false
+  # hostname: rayserve.nebari.example.com  # Required when serve.enabled is true
+  serve:
+    enabled: false  # Set to true and provide nebariapp.hostname to expose the serve endpoint externally
+  dashboard:
+    enabled: true
+    # hostname: ray-dashboard.nebari.example.com  # Separate hostname for dashboard
+    landingPage:
+      enabled: false
+      displayName: "Ray Dashboard"
+      description: "Monitor and manage Ray clusters and Serve deployments"
+      icon: "https://raw.githubusercontent.com/ray-project/ray/master/doc/source/images/serve.svg"
+      category: "Data Science"
+      priority: 20
+      healthCheck:
+        enabled: true
+        path: /api/component_activities
+        intervalSeconds: 30
+        timeoutSeconds: 5
+  service:
+    name: ""   # Defaults to <release>-<chart>-serve-svc (serve) or -head-svc (dashboard)
+    servePort: 8000
+    dashboardPort: 8265
+  auth:
+    enabled: false
+    provider: keycloak
+    provisionClient: true
+    redirectURI: /oauth2/callback
+    scopes:
+      - openid
+      - profile
+      - email
+
+  gateway: public
+
+# =============================================================================
+# KubeRay Operator
+# =============================================================================
+kuberay-operator:
+  enabled: true
+
+# =============================================================================
+# Ray Serve
+# =============================================================================
+serve:
+  # proxy_location for Ray Serve (https://docs.ray.io/en/latest/serve/architecture.html#http-proxies).
+  # EveryNode places an HTTP proxy on every Ray pod, which is typically what
+  # you want with KubeRay (each pod is its own scheduling unit, can ingress
+  # traffic, and pod-local probes can hit localhost:8000). HeadOnly runs a
+  # single proxy on the head pod — saves resources at the cost of a single
+  # ingress point, useful for very large clusters. Disabled turns HTTP off
+  # entirely (programmatic Serve handles only).
+  proxyLocation: EveryNode
+
+# Declarative Serve applications deployed via RayService serveConfigV2.
+# Each application must specify an import_path to a module:app baked into
+# the Ray image. For production, build a custom image with your model code.
+#
+# Example:
+#   serveApplications:
+#     - name: my-model
+#       route_prefix: /predict
+#       import_path: myapp.model:app
+#       deployments:
+#         - name: MyModel
+#           num_replicas: 2
+serveApplications: []
+
+# =============================================================================
+# Organization CA Bundle Injection
+# =============================================================================
+# Mount an organization-managed CA bundle into the Ray head and worker pods
+# so outbound HTTPS calls (model registries, dataset URLs, Hugging Face hub,
+# S3, etc.) succeed in environments running a TLS-inspecting proxy
+# (Netskope, Zscaler, BlueCoat, internal corporate CAs, etc.).
+#
+# When `configMapName` is set, the chart adds:
+#   - An initContainer that concatenates the base image's system trust store
+#     (/etc/ssl/certs/ca-certificates.crt) with the deployer-supplied CA
+#     (mounted from the ConfigMap at the key `ca.crt`) into
+#     /shared/combined-ca.crt
+#   - A shared emptyDir volume that the main container mounts read-only
+#   - SSL_CERT_FILE / REQUESTS_CA_BUNDLE / CURL_CA_BUNDLE env vars on both
+#     head and worker pointing at /shared/combined-ca.crt
+#
+# When `configMapName` is empty (default), nothing is rendered — the
+# resulting RayService is byte-identical to the no-CA-injection case.
+#
+# Why ConfigMap rather than Secret: a CA certificate is public material
+# by design (the entire PKI trust model relies on root CAs being widely
+# distributed — Mozilla's bundle ships in every browser/OS, corporate
+# inspecting proxy roots are pushed to every device that traverses them).
+# Kubernetes itself uses a ConfigMap for the cluster's own CA distribution
+# (`kube-root-ca.crt`, auto-projected into every namespace). cert-manager's
+# trust-manager subproject distributes CA bundles as ConfigMaps via its
+# Bundle CR. We follow that precedent here.
+#
+# Known coverage gap: httpx clients constructed with the default
+# `verify=True` hardcode `cafile=certifi.where()` and ignore SSL_CERT_FILE.
+# Application code that needs its httpx calls covered must pass
+# `verify=ssl.create_default_context()` (or equivalent) explicitly.
+#
+# ConfigMap shape (created out-of-band, e.g. by your gitops layer):
+#   apiVersion: v1
+#   kind: ConfigMap
+#   metadata:
+#     name: org-ca-bundle
+#   data:
+#     ca.crt: |
+#       -----BEGIN CERTIFICATE-----
+#       ...your org CA...
+#       -----END CERTIFICATE-----
+orgCABundle:
+  configMapName: ""
+  # Image used by the initContainer that builds the combined CA bundle.
+  # Only needs `sh` and `cat` — defaults to a tiny Alpine image.
+  initImage: "alpine:3.20"
+
+# =============================================================================
+# Ray Image
+# =============================================================================
+# Used for both head and worker nodes. For production, build a custom image
+# with your model code and dependencies pre-installed.
+image:
+  repository: rayproject/ray
+  tag: 2.43.0
+
+# =============================================================================
+# Ray Head
+# =============================================================================
+head:
+  # runtimeClassName: nvidia  # Set for GPU-enabled head nodes
+  containerEnv: []
+  resources:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+
+  # Extra tolerations for the head pod. The nvidia.com/gpu toleration is
+  # injected automatically when resources above request nvidia.com/gpu, so
+  # GPU pods schedule onto nodes tainted nvidia.com/gpu=...:NoSchedule. Add
+  # any additional tolerations here.
+  tolerations: []
+
+  # Head pod readiness/liveness probes. Defaults to {} which lets KubeRay
+  # apply its built-in probes. Override here to set explicit probes; see
+  # the worker.readinessProbe / worker.livenessProbe block below for the
+  # rationale and a concrete example.
+  readinessProbe: {}
+  livenessProbe: {}
+
+# =============================================================================
+# Ray Workers
+# =============================================================================
+worker:
+  replicas: 1
+  minReplicas: 1
+  maxReplicas: 1
+  # runtimeClassName: nvidia  # Set for GPU-enabled worker nodes
+  containerEnv: []
+  resources:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+
+  # Extra tolerations for worker pods. The nvidia.com/gpu toleration is
+  # injected automatically when resources above request nvidia.com/gpu, so
+  # GPU workers schedule onto nodes tainted nvidia.com/gpu=...:NoSchedule.
+  # Add any additional tolerations here.
+  tolerations: []
+
+  # Worker pod readiness/liveness probes.
+  #
+  # KubeRay's default worker probes chain a raylet healthz check with
+  # `wget http://localhost:8000/-/healthz | grep success`. The Serve check
+  # requires both a deployed Serve application and a local Serve HTTP proxy,
+  # neither of which holds on a fresh cluster (default serveApplications is
+  # empty, default Ray Serve proxy_location varies by Ray version). When the
+  # Serve check fails the worker pod stays 0/1 Ready forever.
+  #
+  # The defaults below check raylet healthz alone — the Ray node is Ready
+  # when its raylet is healthy. Serve application health is tracked by the
+  # Serve controller and need not gate K8s pod readiness; the chart's
+  # serve-svc Service targets only the head pod, so worker readiness has no
+  # effect on user-visible HTTP routing.
+  #
+  # Set either probe to null (~ in YAML) to suppress it and let KubeRay's
+  # default apply. Setting to {} won't suppress — Helm's deep merge keeps
+  # existing keys when overlaying with an empty map.
+  # See https://github.com/nebari-dev/nebari-rayserve-pack/issues/7 for the
+  # full diagnosis.
+  readinessProbe:
+    exec:
+      command:
+        - bash
+        - -c
+        - "wget -T 2 -q -O- http://localhost:52365/api/local_raylet_healthz | grep success"
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 1
+  livenessProbe:
+    exec:
+      command:
+        - bash
+        - -c
+        - "wget -T 2 -q -O- http://localhost:52365/api/local_raylet_healthz | grep success"
+    initialDelaySeconds: 30
+    periodSeconds: 5
+    timeoutSeconds: 2
+    failureThreshold: 120
+
+# =============================================================================
+# Overrides
+# =============================================================================
+nameOverride: ""
+fullnameOverride: ""

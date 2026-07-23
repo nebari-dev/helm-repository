@@ -1,0 +1,58 @@
+{{ include "nebari-rayserve.fullname" . }} has been deployed using RayService.
+
+The RayService controller manages the Ray cluster and Serve proxy.
+Serve is pre-initialized with host 0.0.0.0 on port 8000.
+
+{{- if .Values.nebariapp.enabled }}
+
+NebariApp is ENABLED. The nebari-operator will configure:
+  {{- if ne (toString (dig "serve" "enabled" true .Values.nebariapp)) "false" }}
+  - HTTPRoute for Ray Serve: {{ .Values.nebariapp.hostname }}
+  {{- end }}
+  {{- if .Values.nebariapp.dashboard.enabled }}
+  - HTTPRoute for Ray Dashboard: {{ .Values.nebariapp.dashboard.hostname }}
+  {{- end }}
+  {{- if .Values.nebariapp.auth.enabled }}
+  - OIDC authentication via {{ .Values.nebariapp.auth.provider }}
+  {{- end }}
+
+{{- else }}
+
+To access locally:
+
+  kubectl port-forward svc/{{ include "nebari-rayserve.serve-service-name" . }} 8000:8000 -n {{ .Release.Namespace }}
+  kubectl port-forward svc/{{ include "nebari-rayserve.head-service-name" . }} 8265:8265 -n {{ .Release.Namespace }}
+
+{{- end }}
+
+=== Deploying Models ===
+
+Option 1: Declarative (recommended for production)
+  Bake model code into a custom image, then set in values:
+    image:
+      repository: your-registry/your-ray-image
+      tag: latest
+    serveApplications:
+      - name: my-model
+        route_prefix: /predict
+        import_path: myapp.model:app
+
+Option 2: From a Jupyter notebook
+  import ray
+  from ray import serve
+  import requests
+
+  ray.init("ray://{{ include "nebari-rayserve.head-service-name" . }}.{{ .Release.Namespace }}.svc.cluster.local:10001")
+
+  @serve.deployment
+  class Hello:
+      async def __call__(self, request):
+          return "Hello from Ray Serve!"
+
+  serve.run(Hello.bind(), name="hello", route_prefix="/hello")
+
+  resp = requests.get("http://{{ include "nebari-rayserve.serve-service-name" . }}.{{ .Release.Namespace }}.svc.cluster.local:8000/hello")
+  print(resp.text)
+
+NOTE: Python and Ray versions in your notebook must match the cluster.
+This chart uses Ray {{ .Chart.AppVersion }} with Python 3.9.

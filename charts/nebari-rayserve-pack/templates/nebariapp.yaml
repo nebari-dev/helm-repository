@@ -1,0 +1,96 @@
+{{- if and .Values.nebariapp.enabled (ne (toString (dig "serve" "enabled" true .Values.nebariapp)) "false") }}
+{{- if .Values.nebariapp.hostname }}
+# NebariApp for Ray Serve endpoint
+apiVersion: reconcilers.nebari.dev/v1
+kind: NebariApp
+metadata:
+  name: {{ include "nebari-rayserve.fullname" . }}
+  labels:
+    {{- include "nebari-rayserve.labels" . | nindent 4 }}
+spec:
+  hostname: {{ .Values.nebariapp.hostname }}
+  service:
+    name: {{ .Values.nebariapp.service.name | default (include "nebari-rayserve.serve-service-name" .) }}
+    port: {{ .Values.nebariapp.service.servePort }}
+  routing:
+    routes:
+      - pathPrefix: /
+        pathType: PathPrefix
+  {{- if .Values.nebariapp.auth.enabled }}
+  auth:
+    enabled: true
+    provider: {{ .Values.nebariapp.auth.provider }}
+    provisionClient: {{ .Values.nebariapp.auth.provisionClient }}
+    redirectURI: {{ .Values.nebariapp.auth.redirectURI }}
+    scopes:
+      {{- toYaml .Values.nebariapp.auth.scopes | nindent 6 }}
+
+  {{- end }}
+  gateway: {{ .Values.nebariapp.gateway }}
+{{- end }}
+{{- end }}
+---
+{{- if and .Values.nebariapp.enabled .Values.nebariapp.dashboard.enabled }}
+# NebariApp for Ray Dashboard
+apiVersion: reconcilers.nebari.dev/v1
+kind: NebariApp
+metadata:
+  name: {{ include "nebari-rayserve.fullname" . }}-dashboard
+  labels:
+    {{- include "nebari-rayserve.labels" . | nindent 4 }}
+spec:
+  hostname: {{ required "nebariapp.dashboard.hostname is required when dashboard is enabled" .Values.nebariapp.dashboard.hostname }}
+  service:
+    name: {{ .Values.nebariapp.service.name | default (include "nebari-rayserve.head-service-name" .) }}
+    port: {{ .Values.nebariapp.service.dashboardPort }}
+  routing:
+    routes:
+      - pathPrefix: /
+        pathType: PathPrefix
+  {{- if .Values.nebariapp.auth.enabled }}
+  auth:
+    enabled: true
+    provider: {{ .Values.nebariapp.auth.provider }}
+    provisionClient: {{ .Values.nebariapp.auth.provisionClient }}
+    redirectURI: {{ .Values.nebariapp.auth.redirectURI }}
+    scopes:
+      {{- toYaml .Values.nebariapp.auth.scopes | nindent 6 }}
+
+  {{- end }}
+  {{- with .Values.nebariapp.dashboard.landingPage }}
+  landingPage:
+    enabled: {{ .enabled | default false }}
+    {{- with .displayName }}
+    displayName: {{ . | quote }}
+    {{- end }}
+    {{- with .description }}
+    description: {{ . | quote }}
+    {{- end }}
+    {{- with .icon }}
+    icon: {{ . | quote }}
+    {{- end }}
+    {{- with .category }}
+    category: {{ . | quote }}
+    {{- end }}
+    {{- if kindIs "float64" .priority }}
+    priority: {{ .priority }}
+    {{- end }}
+    {{- with .externalUrl }}
+    externalUrl: {{ . | quote }}
+    {{- end }}
+    {{- with .healthCheck }}
+    healthCheck:
+      enabled: {{ .enabled | default false }}
+      {{- with .path }}
+      path: {{ . | quote }}
+      {{- end }}
+      {{- if .intervalSeconds }}
+      intervalSeconds: {{ .intervalSeconds }}
+      {{- end }}
+      {{- if .timeoutSeconds }}
+      timeoutSeconds: {{ .timeoutSeconds }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  gateway: {{ .Values.nebariapp.gateway }}
+{{- end }}
