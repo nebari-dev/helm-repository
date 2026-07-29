@@ -1,0 +1,263 @@
+name: Validate chart-sync PR
+
+# Safety net for automated chart-sync PRs (label `helm-sync`, branch `sync/*`)
+# opened by the sync-chart action. It attests — before anyone merges and the
+# release workflow publishes to gh-pages + public quay.io — that the chart is
+# well-formed and the version is sane. Findings are posted as a single sticky
+# comment on the PR. Hard failures fail the job so the check reads red.
+#
+# The PR branch lives in THIS repository (peter-evans/create-pull-request pushes
+# it here, not from a fork), so `pull_request` is safe and has full context —
+# no `pull_request_target` needed.
+#
+# This is intentionally a plain PR check today. Once it is made a required
+# status check on `main`, it becomes the gate a future auto-merge rule waits on.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: validate-sync-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    # Only run for the automated sync PRs.
+    if: contains(github.event.pull_request.labels.*.name, 'helm-sync')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Checkout gh-pages index (published state)
+        uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          path: _published
+          fetch-depth: 1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v5
+
+      - name: Validate chart and version
+        id: checks
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # No `set -e`: we record each check's outcome and decide pass/fail at
+          # the end, so one failing check never hides the others in the report.
+          set -uo pipefail
+
+          BODY="$RUNNER_TEMP/comment.md"
+          HARD_FAILS=0
+          WARNS=0
+
+          row() { printf '| %s | %s | %s |\n' "$1" "$2" "$3" >> "$BODY"; }
+          hard() { HARD_FAILS=$((HARD_FAILS + 1)); row "❌" "$1" "$2"; }
+          warn() { WARNS=$((WARNS + 1));           row "⚠️" "$1" "$2"; }
+          ok()   {                                 row "✅" "$1" "$2"; }
+
+          {
+            echo "<!-- helm-sync-validation -->"
+            echo "## 🤖 Chart-sync validation"
+            echo
+            echo "| | Check | Detail |"
+            echo "|---|---|---|"
+          } > "$BODY"
+
+          # ── 1. Confined diff ────────────────────────────────────────────
+          # Every changed file must live under charts/. This is the load-bearing
+          # security check: it stops a mislabeled/tampered PR from smuggling in a
+          # workflow or action edit and riding the sync flow into a public publish.
+          mapfile -t CHANGED < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          OUTSIDE=()
+          CHART_DIRS=()
+          for f in "${CHANGED[@]}"; do
+            case "$f" in
+              charts/*/*) CHART_DIRS+=("$(echo "$f" | cut -d/ -f1-2)") ;;
+              charts/*)   : ;;  # top-level file directly under charts/ (rare)
+              *)          OUTSIDE+=("$f") ;;
+            esac
+          done
+          if [ "${#OUTSIDE[@]}" -gt 0 ]; then
+            hard "Diff confined to charts/" "PR changes files outside \`charts/\`: $(printf '\`%s\` ' "${OUTSIDE[@]}")"
+          else
+            ok "Diff confined to charts/" "${#CHANGED[@]} file(s), all under \`charts/\`"
+          fi
+
+          # Unique chart directories touched.
+          mapfile -t UNIQUE_DIRS < <(printf '%s\n' "${CHART_DIRS[@]}" | sort -u)
+          if [ "${#UNIQUE_DIRS[@]}" -eq 0 ]; then
+            hard "Single chart touched" "No \`charts/<name>/\` directory found in the diff"
+            echo "hard_fails=$HARD_FAILS" >> "$GITHUB_OUTPUT"
+            echo "warns=$WARNS" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ "${#UNIQUE_DIRS[@]}" -gt 1 ]; then
+            warn "Single chart touched" "PR touches multiple charts: $(printf '\`%s\` ' "${UNIQUE_DIRS[@]}")"
+          fi
+
+          CHART_DIR="${UNIQUE_DIRS[0]}"
+          CHART_YAML="$CHART_DIR/Chart.yaml"
+
+          if [ ! -f "$CHART_YAML" ]; then
+            hard "Chart.yaml present" "\`$CHART_YAML\` not found on the PR branch"
+            echo "hard_fails=$HARD_FAILS" >> "$GITHUB_OUTPUT"
+            echo "warns=$WARNS" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          NAME=$(yq -r '.name' "$CHART_YAML")
+          VERSION=$(yq -r '.version' "$CHART_YAML")
+          APPVERSION=$(yq -r '.appVersion // ""' "$CHART_YAML")
+          ok "Chart.yaml parses" "\`$NAME\` version \`$VERSION\`"
+
+          # ── 2. appVersion present ───────────────────────────────────────
+          if [ -z "$APPVERSION" ] || [ "$APPVERSION" = "null" ]; then
+            warn "appVersion set" "Chart.yaml has no \`appVersion\`"
+          else
+            ok "appVersion set" "\`$APPVERSION\`"
+          fi
+
+          # ── 3. helm lint ────────────────────────────────────────────────
+          if LINT=$(helm lint "$CHART_DIR" 2>&1); then
+            ok "helm lint" "passed"
+          else
+            hard "helm lint" "failed — see log; last line: \`$(echo "$LINT" | tail -1)\`"
+          fi
+
+          # ── 4. Branch / title version consistency ───────────────────────
+          # sync-chart names the branch sync/<name>-<version> and titles the PR
+          # "... sync <name> v<version> ...". Both must agree with Chart.yaml.
+          EXPECTED_BRANCH="sync/${NAME}-${VERSION}"
+          if [ "$PR_BRANCH" = "$EXPECTED_BRANCH" ]; then
+            ok "Branch matches version" "\`$PR_BRANCH\`"
+          else
+            warn "Branch matches version" "branch \`$PR_BRANCH\` ≠ expected \`$EXPECTED_BRANCH\`"
+          fi
+          if echo "$PR_TITLE" | grep -qF "$VERSION"; then
+            ok "Title matches version" "version \`$VERSION\` present in title"
+          else
+            warn "Title matches version" "title does not mention version \`$VERSION\`"
+          fi
+
+          # ── 5. Version integrity vs published index ─────────────────────
+          # Gather every already-published version for this chart, then check:
+          #   - no clobber: this version is not already published (publishing is
+          #     immutable — a re-push silently no-ops and misleads reviewers).
+          #   - no regression/gap: this version is the highest for the chart.
+          INDEX="_published/index.yaml"
+          PUBLISHED=""
+          if [ -f "$INDEX" ]; then
+            PUBLISHED=$(yq -r ".entries.\"$NAME\"[].version" "$INDEX" 2>/dev/null | grep -v '^null$' || true)
+          fi
+
+          if [ -z "$PUBLISHED" ]; then
+            ok "Version integrity" "first published version of \`$NAME\` — no prior releases to compare"
+          else
+            # Semver-aware comparison (handles X.Y.Z and X.Y.Z-alpha.N per semver
+            # precedence: a pre-release is lower than its release).
+            RESULT=$(NEW="$VERSION" ALL="$PUBLISHED" python3 - <<'PY'
+          import os
+
+          def key(v):
+              v = v.strip().lstrip("v")
+              core, _, pre = v.partition("-")
+              nums = [int(x) if x.isdigit() else 0 for x in core.split(".")]
+              nums = (nums + [0, 0, 0])[:3]
+              if pre == "":
+                  # No pre-release sorts ABOVE any pre-release of the same core.
+                  pre_key = (1,)
+              else:
+                  ids = []
+                  for part in pre.split("."):
+                      ids.append((0, int(part)) if part.isdigit() else (1, part))
+                  pre_key = (0, tuple(ids))
+              return (tuple(nums), pre_key)
+
+          new = os.environ["NEW"].strip()
+          published = [x for x in os.environ["ALL"].split("\n") if x.strip()]
+          if new in published:
+              print("CLOBBER")
+          else:
+              kn = key(new)
+              higher = [p for p in published if key(p) > kn]
+              if higher:
+                  higher.sort(key=key, reverse=True)
+                  print("REGRESSION " + higher[0])
+              else:
+                  print("OK")
+          PY
+          )
+            case "$RESULT" in
+              CLOBBER)
+                hard "Version integrity" "version \`$VERSION\` is **already published** — merging would silently no-op (publishing is immutable)" ;;
+              REGRESSION*)
+                warn "Version integrity" "version \`$VERSION\` is lower than an already-published \`${RESULT#REGRESSION }\` — possible downgrade/gap" ;;
+              OK)
+                ok "Version integrity" "\`$VERSION\` is new and the highest published for \`$NAME\`" ;;
+              *)
+                warn "Version integrity" "could not compare versions (\`$RESULT\`)" ;;
+            esac
+          fi
+
+          # ── Footer ──────────────────────────────────────────────────────
+          {
+            echo
+            if [ "$HARD_FAILS" -gt 0 ]; then
+              echo "**Result: ❌ $HARD_FAILS blocking issue(s), $WARNS warning(s).** Do not merge until resolved."
+            elif [ "$WARNS" -gt 0 ]; then
+              echo "**Result: ⚠️ passed with $WARNS warning(s).** Review the warnings before merging."
+            else
+              echo "**Result: ✅ all checks passed.** Safe to merge — release will publish \`$NAME $VERSION\`."
+            fi
+            echo
+            echo "<sub>Automated safety net · re-runs on each push. A ⚠️ is advisory; a ❌ blocks.</sub>"
+          } >> "$BODY"
+
+          echo "hard_fails=$HARD_FAILS" >> "$GITHUB_OUTPUT"
+          echo "warns=$WARNS" >> "$GITHUB_OUTPUT"
+
+      - name: Post sticky validation comment
+        if: always()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- helm-sync-validation -->';
+            let body;
+            try {
+              body = fs.readFileSync(process.env.RUNNER_TEMP + '/comment.md', 'utf8');
+            } catch (e) {
+              body = `${marker}\n## 🤖 Chart-sync validation\n\n⚠️ Validation job did not produce a report — it likely failed early. See the [workflow logs](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`;
+            }
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Fail the check on blocking issues
+        if: always()
+        env:
+          HARD_FAILS: ${{ steps.checks.outputs.hard_fails }}
+        run: |
+          if [ "${HARD_FAILS:-1}" != "0" ]; then
+            echo "::error::Chart-sync validation found ${HARD_FAILS:-unknown} blocking issue(s). See the PR comment."
+            exit 1
+          fi
+          echo "Chart-sync validation passed."
