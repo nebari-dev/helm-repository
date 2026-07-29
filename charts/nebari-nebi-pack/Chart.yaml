@@ -2,5 +2,4 @@ apiVersion: v2
 name: nebari-nebi-pack
 description: A Helm chart for deploying Nebi (environment management platform) on Nebari
 type: application
-version: 0.1.2
-appVersion: "0.13"
+version: 0.1.1
