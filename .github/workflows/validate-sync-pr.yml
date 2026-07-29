@@ -80,7 +80,11 @@ jobs:
           # Every changed file must live under charts/. This is the load-bearing
           # security check: it stops a mislabeled/tampered PR from smuggling in a
           # workflow or action edit and riding the sync flow into a public publish.
-          mapfile -t CHANGED < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          # Three-dot: diff from the merge-base, so files that changed on `main`
+          # after this branch forked (a routine state for sync PRs that fell
+          # behind) are NOT counted as this PR's changes.
+          MERGE_BASE=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          mapfile -t CHANGED < <(git diff --name-only "$MERGE_BASE" "$HEAD_SHA")
           OUTSIDE=()
           CHART_DIRS=()
           for f in "${CHANGED[@]}"; do
@@ -212,8 +216,15 @@ jobs:
           fi
 
           # ── Footer ──────────────────────────────────────────────────────
+          # Machine-readable verdict consumed by the auto-merge workflow.
+          # A PR only auto-merges on `pass` (no blocking issues AND no warnings).
+          if [ "$HARD_FAILS" -gt 0 ]; then VERDICT=fail
+          elif [ "$WARNS" -gt 0 ]; then VERDICT=warn
+          else VERDICT=pass
+          fi
           {
             echo
+            echo "<!-- verdict: $VERDICT -->"
             if [ "$HARD_FAILS" -gt 0 ]; then
               echo "**Result: ❌ $HARD_FAILS blocking issue(s), $WARNS warning(s).** Do not merge until resolved."
             elif [ "$WARNS" -gt 0 ]; then

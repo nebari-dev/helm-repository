@@ -1,0 +1,127 @@
+name: Auto-merge chart-sync PR
+
+# Auto-merges an automated chart-sync PR once its validation check has passed
+# cleanly. This runs ONLY after "Validate chart-sync PR" completes, and merges
+# only when that run succeeded AND the sticky validation comment reports a fully
+# green verdict (no blocking issues and no warnings). Check-only: no human
+# review is required, by design.
+#
+# Why a PAT and not GITHUB_TOKEN:
+#   A push made with the default GITHUB_TOKEN does NOT trigger other workflows
+#   (GitHub's recursion guard). Merging a sync PR must trigger the "Release Helm
+#   Charts" workflow (push to main, paths charts/**) so the chart is published.
+#   So the merge is performed with NEBARI_HELM_REPO_TOKEN - the same bot PAT the
+#   sync-chart action uses - whose push DOES trigger the release.
+#
+# Prerequisite: the org secret NEBARI_HELM_REPO_TOKEN must be readable by THIS
+# repository (it is provisioned for the source repos that call the action; grant
+# helm-repository access too). Without it this workflow no-ops with a warning.
+
+on:
+  workflow_run:
+    workflows: ["Validate chart-sync PR"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: automerge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether to auto-merge
+        id: decide
+        uses: actions/github-script@v9
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HAS_TOKEN: ${{ secrets.NEBARI_HELM_REPO_TOKEN != '' }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const headBranch = process.env.HEAD_BRANCH;
+
+            // Resolve the PR behind this validation run.
+            let pr = (context.payload.workflow_run.pull_requests || [])[0];
+            if (pr) {
+              pr = (await github.rest.pulls.get({ owner, repo, pull_number: pr.number })).data;
+            } else {
+              const { data: list } = await github.rest.pulls.list({
+                owner, repo, state: 'open', head: `${owner}:${headBranch}`,
+              });
+              pr = list[0];
+            }
+            if (!pr) { core.info(`No open PR for branch ${headBranch}; nothing to merge.`); return; }
+
+            const reject = (msg) => { core.info(`Not auto-merging PR #${pr.number}: ${msg}`); core.setOutput('go', 'false'); };
+
+            if (pr.state !== 'open')          return reject(`state is ${pr.state}`);
+            if (pr.base.ref !== 'main')        return reject(`base is ${pr.base.ref}, not main`);
+            if (pr.draft)                      return reject('PR is a draft');
+            if (!pr.labels.some(l => l.name === 'helm-sync')) return reject('missing helm-sync label');
+
+            // Require the fully-green verdict emitted by the validation comment.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number: pr.number, per_page: 100,
+            });
+            const sticky = comments.find(c => c.body && c.body.includes('<!-- helm-sync-validation -->'));
+            if (!sticky)                                    return reject('no validation comment found');
+            if (!sticky.body.includes('<!-- verdict: pass -->')) return reject('validation verdict is not a clean pass');
+
+            // Independent confined-diff re-check. This workflow runs from `main`
+            // (untamperable), so it does NOT solely trust the head-branch
+            // validation run - a head PR could have edited the validation
+            // workflow to force a pass. Re-confirm here that the PR only touches
+            // a single chart under charts/ before merging into a public publish.
+            const cmp = await github.rest.repos.compareCommitsWithBasehead({
+              owner, repo, basehead: `${pr.base.sha}...${pr.head.sha}`,
+            });
+            const files = (cmp.data.files || []).map(f => f.filename);
+            const outside = files.filter(f => !f.startsWith('charts/'));
+            if (outside.length) return reject(`diff touches files outside charts/: ${outside.join(', ')}`);
+            const chartDirs = new Set(files.map(f => f.split('/').slice(0, 2).join('/')));
+            if (chartDirs.size !== 1) return reject(`expected exactly one chart dir, saw: ${[...chartDirs].join(', ') || 'none'}`);
+
+            if (process.env.HAS_TOKEN !== 'true') {
+              core.warning('NEBARI_HELM_REPO_TOKEN is not readable by this repo - cannot auto-merge (a GITHUB_TOKEN merge would not trigger the release workflow). Grant this repo access to the org secret.');
+              return reject('bot token unavailable');
+            }
+
+            core.info(`PR #${pr.number} is a clean sync PR - will auto-merge.`);
+            core.setOutput('go', 'true');
+            core.setOutput('pr_number', String(pr.number));
+
+      - name: Squash-merge with the bot PAT
+        if: steps.decide.outputs.go == 'true'
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ secrets.NEBARI_HELM_REPO_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = Number('${{ steps.decide.outputs.pr_number }}');
+            await github.rest.pulls.merge({ owner, repo, pull_number, merge_method: 'squash' });
+            core.info(`Merged PR #${pull_number}.`);
+
+      - name: Comment and clean up
+        if: steps.decide.outputs.go == 'true'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = Number('${{ steps.decide.outputs.pr_number }}');
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: pull_number,
+              body: `Auto-merged: validation passed cleanly (no blocking issues, no warnings). The release workflow will publish this chart. [Auto-merge run](${runUrl}).`,
+            });
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number });
+            try {
+              await github.rest.git.deleteRef({ owner, repo, ref: `heads/${pr.head.ref}` });
+            } catch (e) {
+              core.info(`Branch cleanup skipped: ${e.message}`);
+            }
