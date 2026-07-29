@@ -1,0 +1,22 @@
+{{- if and .Values.mimir.enabled (not (index .Values "mimir-distributed" "enabled")) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-mimir
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-lgtm-pack.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mimir
+spec:
+  type: ClusterIP
+  ports:
+    - name: http-metrics
+      port: 8080
+      targetPort: http-metrics
+    - name: grpc
+      port: 9095
+      targetPort: grpc
+  selector:
+    {{- include "nebari-lgtm-pack.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mimir
+{{- end }}
