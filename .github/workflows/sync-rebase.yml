@@ -64,6 +64,13 @@ jobs:
           ref: ${{ steps.pr.outputs.branch }}
           fetch-depth: 0
           persist-credentials: true
+          # Push the rebased branch with the bot PAT, not the default
+          # GITHUB_TOKEN. A force-push made by GITHUB_TOKEN lands as
+          # github-actions[bot], which (a) makes the resulting validation run
+          # require manual approval and (b) - being a GITHUB_TOKEN-originated
+          # event - does not cascade to trigger the workflow_run auto-merge.
+          # Pushing with the PAT (a real collaborator) avoids both.
+          token: ${{ secrets.NEBARI_HELM_REPO_TOKEN }}
 
       - name: Rebase onto main, preferring PR branch on conflicts
         id: rebase
