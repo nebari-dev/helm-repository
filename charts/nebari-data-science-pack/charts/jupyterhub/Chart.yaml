@@ -1,16 +1,16 @@
 annotations:
   artifacthub.io/images: |
-    - image: quay.io/jupyterhub/configurable-http-proxy:5.1.0
+    - image: quay.io/jupyterhub/configurable-http-proxy:5.2.0
       name: configurable-http-proxy
-    - image: quay.io/jupyterhub/k8s-hub:4.3.2
+    - image: quay.io/jupyterhub/k8s-hub:4.4.0
       name: k8s-hub
-    - image: quay.io/jupyterhub/k8s-image-awaiter:4.3.2
+    - image: quay.io/jupyterhub/k8s-image-awaiter:4.4.0
       name: k8s-image-awaiter
-    - image: quay.io/jupyterhub/k8s-network-tools:4.3.2
+    - image: quay.io/jupyterhub/k8s-network-tools:4.4.0
       name: k8s-network-tools
-    - image: quay.io/jupyterhub/k8s-secret-sync:4.3.2
+    - image: quay.io/jupyterhub/k8s-secret-sync:4.4.0
       name: k8s-secret-sync
-    - image: quay.io/jupyterhub/k8s-singleuser-sample:4.3.2
+    - image: quay.io/jupyterhub/k8s-singleuser-sample:4.4.0
       name: k8s-singleuser-sample
     - image: registry.k8s.io/kube-scheduler:v1.30.14
       name: kube-scheduler
@@ -18,10 +18,10 @@ annotations:
       name: pause
     - image: registry.k8s.io/pause:3.10.1
       name: pause
-    - image: traefik:v3.6.4
+    - image: traefik:v3.6.12
       name: traefik
 apiVersion: v2
-appVersion: 5.4.3
+appVersion: 5.5.0
 description: Multi-user Jupyter installation
 home: https://z2jh.jupyter.org
 icon: https://hub.jupyter.org/helm-chart/images/hublogo.svg
@@ -38,4 +38,4 @@ maintainers:
 name: jupyterhub
 sources:
 - https://github.com/jupyterhub/zero-to-jupyterhub-k8s
-version: 4.3.2
+version: 4.4.0

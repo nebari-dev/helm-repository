@@ -87,7 +87,7 @@ hub:
   extraVolumeMounts: []
   image:
     name: quay.io/jupyterhub/k8s-hub
-    tag: "4.3.2"
+    tag: "4.4.0"
     pullPolicy:
     pullSecrets: []
   resources: {}
@@ -221,7 +221,7 @@ proxy:
       # tag is automatically bumped to new patch versions by the
       # watch-dependencies.yaml workflow.
       #
-      tag: "5.1.0" # https://github.com/jupyterhub/configurable-http-proxy/tags
+      tag: "5.2.0" # https://github.com/jupyterhub/configurable-http-proxy/tags
       pullPolicy:
       pullSecrets: []
     extraCommandLineFlags: []
@@ -279,7 +279,7 @@ proxy:
       # tag is automatically bumped to new patch versions by the
       # watch-dependencies.yaml workflow.
       #
-      tag: "v3.6.4" # ref: https://hub.docker.com/_/traefik?tab=tags
+      tag: "v3.6.12" # ref: https://hub.docker.com/_/traefik?tab=tags
       pullPolicy:
       pullSecrets: []
     hsts:
@@ -331,7 +331,7 @@ proxy:
         type: "RuntimeDefault"
     image:
       name: quay.io/jupyterhub/k8s-secret-sync
-      tag: "4.3.2"
+      tag: "4.4.0"
       pullPolicy:
       pullSecrets: []
     resources: {}
@@ -371,7 +371,7 @@ singleuser:
   networkTools:
     image:
       name: quay.io/jupyterhub/k8s-network-tools
-      tag: "4.3.2"
+      tag: "4.4.0"
       pullPolicy:
       pullSecrets: []
     resources: {}
@@ -409,8 +409,8 @@ singleuser:
   storage:
     type: dynamic
     extraLabels: {}
-    extraVolumes: {}
-    extraVolumeMounts: {}
+    extraVolumes:
+    extraVolumeMounts:
     static:
       pvcName:
       subPath: "{username}"
@@ -424,7 +424,7 @@ singleuser:
       subPath:
   image:
     name: quay.io/jupyterhub/k8s-singleuser-sample
-    tag: "4.3.2"
+    tag: "4.4.0"
     pullPolicy:
     pullSecrets: []
   startTimeout: 300
@@ -522,7 +522,7 @@ scheduling:
         type: "RuntimeDefault"
     image:
       # IMPORTANT: Bumping the minor version of this binary should go hand in
-      #            hand with an inspection of the user-scheduelr's RBAC
+      #            hand with an inspection of the user-scheduler's RBAC
       #            resources that we have forked in
       #            templates/scheduling/user-scheduler/rbac.yaml.
       #
@@ -654,7 +654,7 @@ prePuller:
     # image and the configuration below relates to the hook-image-awaiter Job
     image:
       name: quay.io/jupyterhub/k8s-image-awaiter
-      tag: "4.3.2"
+      tag: "4.4.0"
       pullPolicy:
       pullSecrets: []
     containerSecurityContext:
@@ -728,6 +728,7 @@ httpRoute:
   gateway:
     name: your-gateway
     namespace: "" # required for a gateway resource in another namespace
+    # sectionName: https # optional: specify Gateway listener section (e.g., 'http', 'https')
 
 # cull relates to the jupyterhub-idle-culler service, responsible for evicting
 # inactive singleuser pods.
