@@ -74,7 +74,7 @@ keyManager:
   image:
     repository: ghcr.io/nebari-dev/llm-serving-pack/key-manager
     # Floating on main; pinned to a build sha at release time (see cicd-and-releasing).
-    tag: "sha-9fb01eb"
+    tag: "sha-a88351b"
     pullPolicy: Always
   auditInterval: 5m
   oidcUserinfoURL: ""
@@ -176,7 +176,7 @@ frontend:
   image:
     repository: ghcr.io/nebari-dev/llm-serving-pack/frontend
     # Floating on main; pinned to a build sha at release time (see cicd-and-releasing).
-    tag: "sha-9fb01eb"
+    tag: "sha-a88351b"
     pullPolicy: Always
   # port nginx listens on. Must be > 1024 - the container runs as non-root
   # (UID 101) with all capabilities dropped and cannot bind privileged ports.
@@ -185,6 +185,36 @@ frontend:
     port: 8080
   # title - optional browser-tab title override rendered into config.json.
   title: ""
+  # branding - rendered into /config.json at deploy time and applied by the SPA
+  # before it mounts. Leave everything empty to use the built-in Nebari defaults
+  # (no visual change from an unbranded install). Outside Kubernetes the same
+  # fields resolve from a local config.json or BRANDING_* env vars - see the
+  # Configuration docs and frontend/docker-entrypoint.sh.
+  branding:
+    # URL to a custom logo shown in the header. Leave empty for the built-in
+    # Nebari logo. May be an absolute http(s) URL or a root-relative path.
+    logoUrl: ""
+    # URL to a custom dark-mode logo. Leave empty to fall back to logoUrl, then
+    # the built-in Nebari dark logo.
+    logoUrlDark: ""
+    # URL to a custom favicon. Leave empty for the built-in favicon.
+    faviconUrl: ""
+    # CSS variable overrides injected at runtime - no image rebuild required.
+    # Values are validated in the browser and rejected if they contain CSS
+    # injection characters (';', '{', '}', quotes, url(), javascript:, etc.).
+    # Supported tokens: primary, primaryForeground, background, foreground,
+    # secondary, secondaryForeground, muted, mutedForeground, accent,
+    # accentForeground, border, ring, radius.
+    # Example:
+    #   theme:
+    #     light:
+    #       primary: "oklch(55% 0.19 250)"
+    #       primaryForeground: "#ffffff"
+    #     dark:
+    #       primary: "oklch(62% 0.21 250)"
+    theme:
+      light: {}
+      dark: {}
   # keycloak - connection settings rendered into /config.json at deploy time and
   # fetched by the SPA at startup, so the image needs no build-time config.
   keycloak:
@@ -201,7 +231,7 @@ operator:
   image:
     repository: ghcr.io/nebari-dev/llm-serving-pack/operator
     # Floating on main; pinned to a build sha at release time (see cicd-and-releasing).
-    tag: "sha-9fb01eb"
+    tag: "sha-a88351b"
     pullPolicy: Always
 
 # modelDownloader - the init/job image the operator uses to fetch model
@@ -212,7 +242,7 @@ modelDownloader:
   image:
     repository: ghcr.io/nebari-dev/llm-serving-pack/model-downloader
     # Floating on main; pinned to a build sha at release time (see cicd-and-releasing).
-    tag: "sha-9fb01eb"
+    tag: "sha-a88351b"
 
 defaults:
   serving:
