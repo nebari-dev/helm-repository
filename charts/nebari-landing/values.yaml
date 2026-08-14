@@ -73,14 +73,34 @@ frontend:
     theme:
       light: {}
       dark: {}
+    # Optional classification banners (e.g. U.S. government CUI markings)
+    # rendered full-width above the header (top) and below the page content
+    # (bottom). Rendered into /config.json at runtime — no image rebuild.
+    # A banner is disabled while its text is empty. background/foreground
+    # accept CSS color values; when omitted the banner uses the theme's
+    # inverted colors, which follow light/dark mode.
+    # Example:
+    #   banners:
+    #     top:
+    #       text: "CUI"
+    #       background: "#502b85"
+    #       foreground: "#ffffff"
+    #     bottom:
+    #       text: "CUI"
+    banners:
+      top: {}
+      bottom: {}
 
+  # Right-sized for static nginx serving the SPA on an idle base install.
+  # Override upward for sustained high traffic, custom nginx modules, or
+  # unusually large/static-heavy frontend deployments.
   resources:
     requests:
-      cpu: 50m
-      memory: 64Mi
+      cpu: 10m
+      memory: 32Mi
     limits:
-      cpu: 200m
-      memory: 128Mi
+      cpu: 100m
+      memory: 64Mi
 
   service:
     type: ClusterIP
@@ -150,13 +170,16 @@ webapi:
     # How long notifications remain in Redis before expiring.
     retention: "72h"
 
+  # Right-sized for the Go REST/WebSocket API on an idle base install.
+  # Override upward for sustained high request volume, large service lists,
+  # heavy WebSocket fan-out, or unusually bursty access-request traffic.
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 25m
+      memory: 64Mi
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 200m
+      memory: 128Mi
 
   serviceAccount:
     create: true
@@ -258,10 +281,13 @@ redis:
     # Enable AOF persistence for durability.
     extraFlags:
       - "--appendonly yes"
+    # Right-sized for the standalone Redis master used by the landing stack.
+    # Override upward for sustained write load, longer notification retention,
+    # large pin/access-request state, or replicated/HA Redis deployments.
     resources:
       requests:
-        cpu: 100m
-        memory: 128Mi
+        cpu: 50m
+        memory: 64Mi
       limits:
-        cpu: 500m
-        memory: 256Mi
+        cpu: 200m
+        memory: 128Mi
