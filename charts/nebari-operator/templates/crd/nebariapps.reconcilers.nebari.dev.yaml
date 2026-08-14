@@ -1,4 +1,4 @@
-{{- if .Values.crd.enable }}
+{{- if .Values.crd.enabled }}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -406,8 +406,19 @@ spec:
                   icon:
                     description: |-
                       Icon is an identifier for the service icon (e.g., "jupyter", "grafana")
-                      or a URL to a custom icon image.
+                      or a URL to a custom icon image. Shown in both light and dark mode when
+                      IconLight/IconDark are not set.
                       Supported built-in icons: jupyter, grafana, prometheus, keycloak, argocd, kubernetes
+                    type: string
+                  iconDark:
+                    description: |-
+                      IconDark is the URL of the icon to display when the UI is in dark mode.
+                      Takes precedence over Icon in dark mode.
+                    type: string
+                  iconLight:
+                    description: |-
+                      IconLight is the URL of the icon to display when the UI is in light mode.
+                      Takes precedence over Icon in light mode.
                     type: string
                   priority:
                     default: 100
@@ -712,7 +723,14 @@ spec:
                       of last reconciliation.
                     type: boolean
                   icon:
-                    description: Icon identifies the service icon.
+                    description: Icon identifies the service icon (default, shown
+                      in both light and dark mode).
+                    type: string
+                  iconDark:
+                    description: IconDark is the icon URL for dark mode.
+                    type: string
+                  iconLight:
+                    description: IconLight is the icon URL for light mode.
                     type: string
                   priority:
                     description: Priority controls sort order within a category (lower
