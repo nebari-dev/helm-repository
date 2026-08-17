@@ -149,9 +149,18 @@ frontend:
     # CSS variable overrides injected at runtime — no image rebuild required.
     # Values are validated in the browser and rejected if they contain CSS
     # injection characters (';', '{', '}', quotes, url(), javascript:, etc.).
-    # Supported tokens: primary, primaryForeground, background, foreground,
-    # secondary, secondaryForeground, muted, mutedForeground, accent,
-    # accentForeground, border, ring, radius.
+    # Supported tokens: primary, primaryForeground, primaryHover, background,
+    # foreground, secondary, secondaryForeground, muted, mutedForeground,
+    # accent, accentForeground, border, ring, radius, sidebarPrimary,
+    # sidebarPrimaryForeground, sidebarRing.
+    # primaryHover, sidebarPrimary, sidebarPrimaryForeground and sidebarRing are
+    # derived from primary / primaryForeground / ring by the SPA's stylesheet —
+    # setting primary alone rebrands hover and sidebar states too. Set them only
+    # to pin a specific shade.
+    # Keys are passed through to CSS as-is (no allow-list is enforced at deploy
+    # or at runtime), so any other theme variable the SPA defines can be set
+    # here — but only the tokens above are supported and covered by compatibility
+    # guarantees.
     # Example:
     #   theme:
     #     light:
