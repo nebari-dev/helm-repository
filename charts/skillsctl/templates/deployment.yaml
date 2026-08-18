@@ -8,13 +8,24 @@ spec:
   replicas: {{ .Values.replicaCount }}
   {{- if and .Values.persistence.enabled (ne .Values.persistence.accessMode "ReadWriteMany") }}
   # Any access mode short of ReadWriteMany binds the volume to one node, so the
-  # default RollingUpdate deadlocks: it holds the old pod until the new one is
-  # Ready, and the new pod cannot attach until the old one releases the claim.
-  # Recreate also avoids running two image generations at once, which would let
-  # an older pod seed skills under the newer release's version. Inverted on
-  # purpose, so an unset or unexpected accessMode still gets the safe strategy.
+  # default surge deadlocks the rollout: it holds the old pod until the new one
+  # is Ready, and the new pod cannot attach the claim until the old one releases
+  # it. maxSurge 0 terminates the old pod first, which also avoids running two
+  # image generations at once, where an older pod could seed skills under the
+  # newer release's version.
+  #
+  # This is expressed as RollingUpdate rather than Recreate on purpose. The API
+  # server defaults spec.strategy.rollingUpdate and no field manager owns it, so
+  # server-side apply cannot drop it, and Recreate alongside it is rejected with
+  # "may not be specified when strategy type is 'Recreate'".
+  #
+  # Inverted condition, so an unset or unexpected accessMode still gets the safe
+  # strategy.
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   {{- end }}
   selector:
     matchLabels:
