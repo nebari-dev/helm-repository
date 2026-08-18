@@ -5,7 +5,7 @@ description: >
   Go webapi backend, backed by Redis for pins, notifications,
   access requests, WebSocket fan-out, and WebSocket auth tickets.
 type: application
-version: 0.1.4
+version: 0.1.5
 # On main, appVersion is "latest" so source consumers (e.g. ArgoCD pointing
 # at a non-release commit) resolve to the floating :latest image tag, which
 # always points at main's most recent webapi/frontend build on Quay.
@@ -15,7 +15,7 @@ version: 0.1.4
 # tag points at, so consumers checking out the tag see appVersion pinned to
 # a matching image tag. Image tags themselves are left empty in values.yaml
 # so the deployment templates fall back to .Chart.AppVersion — see values.yaml.
-appVersion: "v0.1.4"
+appVersion: "v0.1.5"
 maintainers:
   - name: OpenTeams
     url: https://github.com/nebari-dev
