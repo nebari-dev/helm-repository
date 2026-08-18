@@ -27,7 +27,10 @@ service:
 persistence:
   enabled: true
   storageClassName: ""  # uses cluster default if empty
-  accessMode: ReadWriteOnce  # set to ReadWriteMany for HA
+  # ReadWriteOnce forces the Deployment to strategy: Recreate, since an RWO
+  # volume cannot attach to the new pod while the old one still holds it.
+  # Upgrades therefore have a brief gap. Set to ReadWriteMany for HA.
+  accessMode: ReadWriteOnce
   size: 1Gi
   mountPath: /data
 

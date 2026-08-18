@@ -6,6 +6,16 @@ metadata:
     {{- include "skillsctl.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  {{- if and .Values.persistence.enabled (ne .Values.persistence.accessMode "ReadWriteMany") }}
+  # Any access mode short of ReadWriteMany binds the volume to one node, so the
+  # default RollingUpdate deadlocks: it holds the old pod until the new one is
+  # Ready, and the new pod cannot attach until the old one releases the claim.
+  # Recreate also avoids running two image generations at once, which would let
+  # an older pod seed skills under the newer release's version. Inverted on
+  # purpose, so an unset or unexpected accessMode still gets the safe strategy.
+  strategy:
+    type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "skillsctl.selectorLabels" . | nindent 6 }}
