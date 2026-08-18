@@ -60,9 +60,14 @@ frontend:
     # Leave empty to use the built-in Nebari favicon.
     faviconUrl: ""
     # CSS variable overrides injected at runtime — no image rebuild required.
-    # Supported tokens: primary, primaryForeground, background, foreground,
-    # secondary, secondaryForeground, muted, mutedForeground, accent,
-    # accentForeground, border, ring, radius.
+    # Supported tokens: primary, primaryForeground, primaryHover, background,
+    # foreground, secondary, secondaryForeground, muted, mutedForeground,
+    # accent, accentForeground, border, ring, sidebarRing, radius.
+    # primaryHover (button/badge hover + active) and sidebarRing are derived
+    # from primary and ring respectively, so overriding primary is normally
+    # enough — set them only to break that derivation.
+    # Any other key is passed through as-is (camelCase becomes a kebab-cased
+    # CSS custom property); only the tokens above are supported.
     # Example:
     #   theme:
     #     light:
