@@ -7,4 +7,4 @@ dependencies:
 description: A Helm chart for deploying JupyterHub with jhub-apps on Kubernetes
 name: nebari-data-science-pack
 type: application
-version: 0.1.4
+version: 0.1.5
