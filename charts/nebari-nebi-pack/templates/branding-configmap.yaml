@@ -1,0 +1,46 @@
+{{- if include "nebari-nebi-pack.brandingEnabled" . }}
+{{- $values := .Values.branding | default dict }}
+{{- $branding := dict }}
+{{- with $values.title }}{{ $_ := set $branding "title" (toString .) }}{{ end }}
+{{- with $values.logoUrl }}{{ $_ := set $branding "logoUrl" (toString .) }}{{ end }}
+{{- with $values.logoUrlDark }}{{ $_ := set $branding "logoUrlDark" (toString .) }}{{ end }}
+{{- with $values.faviconUrl }}{{ $_ := set $branding "faviconUrl" (toString .) }}{{ end }}
+{{- $theme := dict }}
+{{- range $scheme := list "light" "dark" }}
+  {{- $tokens := dict }}
+  {{- range $name, $value := (index ($values.theme | default dict) $scheme | default dict) }}
+    {{- /* Coerce to string: the frontend ignores non-string token values, so an
+           unquoted YAML number like `radius: 0.5` would otherwise be dropped. */}}
+    {{- $_ := set $tokens $name (toString $value) }}
+  {{- end }}
+  {{- if $tokens }}{{ $_ := set $theme $scheme $tokens }}{{ end }}
+{{- end }}
+{{- if $theme }}{{ $_ := set $branding "theme" $theme }}{{ end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nebari-nebi-pack.fullname" . }}-branding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-nebi-pack.labels" . | nindent 4 }}
+data:
+  # Runtime branding for the Nebi web UI.
+  #
+  # Mounted at {{ include "nebari-nebi-pack.brandingMountPath" . }} and pointed at by
+  # NEBI_BRANDING_CONFIG_PATH. Nebi serves this file at /public/config.json in
+  # place of the default baked into the image, and the SPA fetches it before it
+  # mounts (frontend/src/lib/brandingConfig.ts), applying the title, favicon,
+  # logo and theme tokens.
+  #
+  # Only the fields actually set in values.yaml are emitted; the frontend falls
+  # back to its built-in default per missing field. The document is built with
+  # toPrettyJson rather than hand-written JSON so values are escaped correctly
+  # and the output is always parseable.
+  #
+  # This ConfigMap is mounted as a directory (no subPath) so kubelet keeps the
+  # file up to date in place, and the Deployment carries a checksum/config
+  # annotation over this file so a branding change also triggers a rollout
+  # instead of silently waiting for the next unrelated restart.
+  config.json: |
+    {{- dict "branding" $branding | toPrettyJson | nindent 4 }}
+{{- end }}
