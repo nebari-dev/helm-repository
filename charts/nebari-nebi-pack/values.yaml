@@ -63,7 +63,7 @@ nebariapp:
 # =============================================================================
 image:
   repository: quay.io/nebari/nebi
-  tag: sha-be3187c
+  tag: sha-bd25921
   pullPolicy: IfNotPresent
 
 replicaCount: 1
@@ -136,6 +136,78 @@ persistence:
   accessMode: ReadWriteOnce
   storageClassName: ""  # Leave empty to use cluster default
   mountPath: /app/data/environments
+
+# =============================================================================
+# Branding
+# =============================================================================
+# Runtime branding for the Nebi web UI — title, logo, favicon and theme tokens
+# applied at deploy time, with no image rebuild.
+#
+# How it works: when any field below is non-empty the chart renders a ConfigMap
+# holding a `config.json`, mounts it at /etc/nebi/branding, and points nebi at
+# it with NEBI_BRANDING_CONFIG_PATH. Nebi serves that file at /public/config.json
+# in place of the copy baked into the image, and the SPA fetches it before it
+# mounts (frontend/src/lib/brandingConfig.ts).
+#
+# When every field is empty (the default) nothing is rendered, no volume is
+# mounted, no env var is set, and `helm template` output is byte-identical to
+# prior versions of the chart — existing installs are unaffected.
+#
+# Requires an image containing the runtime-theming support (nebi >= the
+# "Support Basic Runtime Theming" release; the pinned tag above has it).
+branding:
+  # Browser tab title. Empty uses the built-in "Nebi - Environment Management".
+  title: ""
+  # Logo shown in the UI header. Must be same-origin: a root-relative path
+  # (e.g. /assets/acme-logo.svg) or a base64 data: URI of an image type
+  # (png/jpeg/svg+xml/webp/gif/x-icon). External http(s) URLs are rejected by
+  # the frontend. Empty uses the built-in Nebi logo, which already switches
+  # between light and dark variants.
+  logoUrl: ""
+  # Optional dark-mode variant of the logo, same URL rules as logoUrl. Dark mode
+  # resolves to logoUrlDark, falling back to logoUrl, then to the built-in dark
+  # logo; light mode always uses logoUrl. Set only logoUrl to reuse one asset in
+  # both schemes (the behaviour before this field existed).
+  #
+  # Needs nebi >= the release containing logoUrlDark support (nebari-dev/nebi
+  # PR 516) - the pinned image tag above predates it. On an older image the key
+  # is simply ignored and dark mode keeps using logoUrl, so setting it early is
+  # harmless but has no effect until the image is bumped.
+  logoUrlDark: ""
+  # Favicon, same URL rules as logoUrl. Empty uses the built-in favicon.
+  faviconUrl: ""
+  # CSS custom-property overrides applied at runtime, per color scheme.
+  # `light` is written to :root, `dark` to .dark.
+  #
+  # Keys are camelCase token names; they are kebab-cased and prefixed to form
+  # the CSS variable (primaryHover -> --color-primary-hover). `radius` maps to
+  # --radius. A key that already starts with `--` is passed through verbatim.
+  #
+  # Overridable tokens (from the frontend's index.css):
+  #   background, foreground, card, cardForeground, popover, popoverForeground,
+  #   primary, primaryForeground, primaryHover, navHover, secondary,
+  #   secondaryForeground, muted, mutedForeground, accent, accentForeground,
+  #   destructive, destructiveForeground, border, input, ring, radius
+  #
+  # Values are sanitized in the browser and dropped if they contain CSS
+  # injection characters (; < > { } " ' \) or url(...) / expression(...) /
+  # javascript:. Any CSS color notation without those characters works
+  # (#rrggbb, rgb(...), hsl(...), oklch(...)). Note the quote restriction means
+  # font-family stacks with quoted names cannot be set this way.
+  #
+  # Example:
+  #   theme:
+  #     light:
+  #       primary: "#0f62fe"
+  #       primaryHover: "#0043ce"
+  #       primaryForeground: "#ffffff"
+  #       radius: 0.25rem
+  #     dark:
+  #       primary: "#78a9ff"
+  #       primaryHover: "#a6c8ff"
+  theme:
+    light: {}
+    dark: {}
 
 # =============================================================================
 # TLS Trust

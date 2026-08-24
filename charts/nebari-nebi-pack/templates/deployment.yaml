@@ -16,6 +16,15 @@ spec:
       {{- include "nebari-nebi-pack.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- if include "nebari-nebi-pack.brandingEnabled" . }}
+      annotations:
+        # Roll the pod when the branding ConfigMap changes. The volume below is
+        # mounted as a directory (not subPath) so kubelet would eventually
+        # refresh the file in place, but the checksum makes the change take
+        # effect immediately and makes it visible as a rollout instead of an
+        # apparently no-op sync.
+        checksum/config: {{ include (print $.Template.BasePath "/branding-configmap.yaml") . | sha256sum }}
+      {{- end }}
       labels:
         {{- include "nebari-nebi-pack.selectorLabels" . | nindent 8 }}
     spec:
@@ -93,7 +102,13 @@ spec:
             - name: SSL_CERT_FILE
               value: /etc/ssl/certs/org-ca.crt
             {{- end }}
-          {{- if or .Values.persistence.enabled .Values.orgCABundle.configMapName }}
+            {{- if include "nebari-nebi-pack.brandingEnabled" . }}
+            # Branding — nebi serves this file at /public/config.json instead of
+            # the copy embedded in the image.
+            - name: NEBI_BRANDING_CONFIG_PATH
+              value: {{ printf "%s/config.json" (include "nebari-nebi-pack.brandingMountPath" .) | quote }}
+            {{- end }}
+          {{- if or .Values.persistence.enabled .Values.orgCABundle.configMapName (include "nebari-nebi-pack.brandingEnabled" .) }}
           volumeMounts:
             {{- if .Values.persistence.enabled }}
             - name: environments
@@ -103,6 +118,14 @@ spec:
             - name: org-ca-bundle
               mountPath: /etc/ssl/certs/org-ca.crt
               subPath: org-ca.crt
+              readOnly: true
+            {{- end }}
+            {{- if include "nebari-nebi-pack.brandingEnabled" . }}
+            # Mounted as a directory on purpose: a subPath mount is a one-time
+            # copy that kubelet never refreshes, so a branding edit would only
+            # land on the next pod restart.
+            - name: branding-config
+              mountPath: {{ include "nebari-nebi-pack.brandingMountPath" . | quote }}
               readOnly: true
             {{- end }}
           {{- end }}
@@ -124,7 +147,7 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- if or .Values.persistence.enabled .Values.orgCABundle.configMapName }}
+      {{- if or .Values.persistence.enabled .Values.orgCABundle.configMapName (include "nebari-nebi-pack.brandingEnabled" .) }}
       volumes:
         {{- if .Values.persistence.enabled }}
         - name: environments
@@ -138,5 +161,10 @@ spec:
             items:
               - key: ca-bundle.crt
                 path: org-ca.crt
+        {{- end }}
+        {{- if include "nebari-nebi-pack.brandingEnabled" . }}
+        - name: branding-config
+          configMap:
+            name: {{ include "nebari-nebi-pack.fullname" . }}-branding
         {{- end }}
       {{- end }}

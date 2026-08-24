@@ -70,6 +70,30 @@ Service account name
 {{- end }}
 
 {{/*
+Whether runtime branding is configured. Renders the string "true" when any
+branding field is set, and the empty string otherwise, so callers can use it
+directly in an `if`. Empty maps are falsey in Go templates, so an untouched
+`theme.light: {}` / `theme.dark: {}` does not count as configured.
+Keeping the predicate in one place guarantees the ConfigMap, the volume, the
+mount, the env var and the checksum annotation all appear or vanish together.
+*/}}
+{{- define "nebari-nebi-pack.brandingEnabled" -}}
+{{- $branding := .Values.branding | default dict -}}
+{{- $theme := $branding.theme | default dict -}}
+{{- if or $branding.title $branding.logoUrl $branding.logoUrlDark $branding.faviconUrl $theme.light $theme.dark -}}
+true
+{{- end -}}
+{{- end }}
+
+{{/*
+Path the branding ConfigMap is mounted at inside the container. The file itself
+is <dir>/config.json, which NEBI_BRANDING_CONFIG_PATH points at.
+*/}}
+{{- define "nebari-nebi-pack.brandingMountPath" -}}
+/etc/nebi/branding
+{{- end }}
+
+{{/*
 PostgreSQL DSN
 */}}
 {{- define "nebari-nebi-pack.postgresDSN" -}}
