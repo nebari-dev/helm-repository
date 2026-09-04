@@ -19,7 +19,7 @@ manager:
     repository: quay.io/nebari/nebari-operator
     ## Image tag (defaults to Chart.appVersion if not set)
     ##
-    tag: "v0.1.0"
+    tag: "v0.1.1"
     pullPolicy: IfNotPresent
 
   ## Arguments
