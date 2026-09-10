@@ -2,7 +2,7 @@ apiVersion: v2
 name: nebari-rayserve-pack
 description: A Nebari Software Pack for Ray Serve
 type: application
-version: 0.4.1
+version: 0.5.0
 appVersion: "2.43.0"
 dependencies:
   - name: kuberay-operator

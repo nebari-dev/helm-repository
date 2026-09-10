@@ -162,6 +162,9 @@ head:
 # Ray Workers
 # =============================================================================
 worker:
+  # A values-only change to these does not reach a running RayCluster: KubeRay
+  # leaves them to the autoscaler. Patch the RayCluster in place instead (see
+  # docs, "Adding workers"). Chart-side fix tracked in rayserve-pack#41.
   replicas: 1
   minReplicas: 1
   maxReplicas: 1
@@ -221,6 +224,55 @@ worker:
     periodSeconds: 5
     timeoutSeconds: 2
     failureThreshold: 120
+
+# =============================================================================
+# Ray In-Tree Autoscaling
+# =============================================================================
+# Off by default. When enabled, the chart sets `enableInTreeAutoscaling: true` and
+# KubeRay attaches the Ray autoscaler as a sidecar on the head pod. It adds
+# worker pods within [worker.minReplicas, worker.maxReplicas] when Ray tasks,
+# actors, or Serve replicas have nowhere to run, and removes pods idle for
+# idleTimeoutSeconds; worker.replicas is only the starting size.
+#
+# Treat the range as a capacity budget set once, not a tuning knob:
+#   - Both bounds default to 1. Raise worker.maxReplicas or nothing scales.
+#   - Day-to-day behaviour belongs in each Serve deployment's
+#     `autoscaling_config` under serveApplications. RayService applies Serve
+#     config changes to the running cluster in place; any other change here
+#     rolls a new RayCluster (zero-downtime, but a full head and worker
+#     restart); a change to the range alone reaches nothing until the next
+#     roll — patch the RayCluster to apply it live.
+#   - The sidecar reserves 500m CPU / 512Mi memory on the head pod unless
+#     `autoscaling.resources` says otherwise.
+#
+# Full explanation in docs/src/content/docs/scaling.md ("Ray autoscaling").
+# KubeRay background:
+# https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/configuring-autoscaling.html
+autoscaling:
+  enabled: false
+
+  # Seconds an idle worker pod is kept before scale-down. 60 is Ray's
+  # general-purpose default; inference workloads pay an image pull and a
+  # model load per new worker, so 300-600 usually churns less.
+  idleTimeoutSeconds: 60
+
+  # upscalingMode — read by the Ray autoscaler, not the KubeRay operator:
+  #   - `Default`      — upscaling is not rate-limited
+  #   - `Conservative` — rate-limited: pending worker pods are capped at the
+  #                      number of workers already connected to the cluster
+  #   - `Aggressive`   — an alias for `Default`; behaviour is identical
+  upscalingMode: Default
+
+  # Autoscaler sidecar resources. Left unset ({}), KubeRay applies requests
+  # AND limits of 500m CPU / 512Mi memory:
+  #   resources:
+  #     limits:
+  #       cpu: "500m"
+  #       memory: "512Mi"
+  #     requests:
+  #       cpu: "500m"
+  #       memory: "512Mi"
+  resources: {}
 
 # =============================================================================
 # Overrides

@@ -3,6 +3,15 @@
 The RayService controller manages the Ray cluster and Serve proxy.
 Serve is pre-initialized with host 0.0.0.0 on port 8000.
 
+{{- if .Values.autoscaling.enabled }}
+{{- if not (gt (int .Values.worker.maxReplicas) (int .Values.worker.minReplicas)) }}
+
+WARNING: autoscaling.enabled is true but the worker range is
+  [{{ .Values.worker.minReplicas }}, {{ .Values.worker.maxReplicas }}], so nothing can scale. Raise worker.maxReplicas.
+
+{{- end }}
+{{- end }}
+
 {{- if .Values.nebariapp.enabled }}
 
 NebariApp is ENABLED. The nebari-operator will configure:
