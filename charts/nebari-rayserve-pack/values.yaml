@@ -1,16 +1,26 @@
 # =============================================================================
 # Nebari Integration
 # =============================================================================
-# Creates a NebariApp CRD that configures routing, TLS, and auth via nebari-operator.
-# Set enabled: true when deploying on a Nebari cluster.
+# NebariApp CRs (https://github.com/nebari-dev/nebari-operator).
+# Rendered through the official nebari-app.nebariApp template 
+# (https://github.com/nebari-dev/nebari-operator/tree/main/charts/nebari-app) with templating enabled.
 nebariapp:
-  enabled: false
-  # hostname: rayserve.nebari.example.com  # Required when serve.enabled is true
   serve:
-    enabled: false  # Set to true and provide nebariapp.hostname to expose the serve endpoint externally
+    enabled: false
+    hostname: '{{ fail "nebariapp.serve.hostname is required if nebariapps.serve.enabled is true" }}'
+    service:
+      name: '{{ include "nebari-rayserve.serve-service-name" . | toJson }}'
+      port: 8000
+    routing:
+      routes:
+        - pathPrefix: /
+          pathType: PathPrefix
   dashboard:
-    enabled: true
-    # hostname: ray-dashboard.nebari.example.com  # Separate hostname for dashboard
+    enabled: false
+    hostname: '{{ fail "nebariapp.dashboard.hostname is required if nebariapps.dashboard.enabled is true" }}'
+    service:
+      name: '{{ include "nebari-rayserve.head-service-name" . | toJson }}'
+      port: 8265
     landingPage:
       enabled: false
       displayName: "Ray Dashboard"
@@ -23,21 +33,10 @@ nebariapp:
         path: /api/component_activities
         intervalSeconds: 30
         timeoutSeconds: 5
-  service:
-    name: ""   # Defaults to <release>-<chart>-serve-svc (serve) or -head-svc (dashboard)
-    servePort: 8000
-    dashboardPort: 8265
-  auth:
-    enabled: false
-    provider: keycloak
-    provisionClient: true
-    redirectURI: /oauth2/callback
-    scopes:
-      - openid
-      - profile
-      - email
-
-  gateway: public
+    routing:
+      routes:
+        - pathPrefix: /
+          pathType: PathPrefix
 
 # =============================================================================
 # KubeRay Operator
