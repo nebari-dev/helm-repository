@@ -12,26 +12,34 @@ WARNING: autoscaling.enabled is true but the worker range is
 {{- end }}
 {{- end }}
 
-{{- if .Values.nebariapp.enabled }}
+{{ $tplCtx := . }}
+{{- range $name, $component := dict 
+  "Ray Serve" (dict
+    "nebariapp"  .Values.nebariapp.serve
+    "serviceName" (include "nebari-rayserve.serve-service-name" .)
+    "servicePort" 8000
+    )
+  "Ray Dashboard" (dict
+    "nebariapp"  .Values.nebariapp.dashboard
+    "serviceName" (include "nebari-rayserve.head-service-name" .)
+    "servicePort" 8265
+) -}}
+{{- if $component.nebariapp.enabled }}
+{{- $nebariapp := include "nebari-app.deepTplJson" (dict "value" (omit $component.nebariapp "enabled") "ctx" $tplCtx) | fromJson }}
 
-NebariApp is ENABLED. The nebari-operator will configure:
-  {{- if ne (toString (dig "serve" "enabled" true .Values.nebariapp)) "false" }}
-  - HTTPRoute for Ray Serve: {{ .Values.nebariapp.hostname }}
-  {{- end }}
-  {{- if .Values.nebariapp.dashboard.enabled }}
-  - HTTPRoute for Ray Dashboard: {{ .Values.nebariapp.dashboard.hostname }}
-  {{- end }}
-  {{- if .Values.nebariapp.auth.enabled }}
-  - OIDC authentication via {{ .Values.nebariapp.auth.provider }}
+NebariApp for {{ $name }} is ENABLED. The nebari-operator will configure:
+  - HTTPRoute: {{ $nebariapp.hostname }}
+  {{- if (and $nebariapp.auth $nebariapp.auth.enabled) }}
+  - OIDC authentication via {{ $nebariapp.auth.provider | default "keycloak" }}
   {{- end }}
 
 {{- else }}
 
 To access locally:
 
-  kubectl port-forward svc/{{ include "nebari-rayserve.serve-service-name" . }} 8000:8000 -n {{ .Release.Namespace }}
-  kubectl port-forward svc/{{ include "nebari-rayserve.head-service-name" . }} 8265:8265 -n {{ .Release.Namespace }}
+  kubectl port-forward svc/{{ $component.serviceName }} {{ $component.servicePort }}:{{ $component.servicePort }} -n {{ $tplCtx.Release.Namespace }}
 
+{{- end }}
 {{- end }}
 
 === Deploying Models ===
