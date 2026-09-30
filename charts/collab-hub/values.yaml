@@ -35,7 +35,7 @@ api:
       # -- The repository of the main application image
       repository: ghcr.io/nebari-dev/collab-hub-pack/api
       # -- The tag of the main application image. If not set, the chart's appVersion is used.
-      tag: "sha-2029ce0"
+      tag: "sha-d6fcf5b"
       # -- The pull policy for the main application image
       pullPolicy: IfNotPresent
     securityContext:
@@ -726,3 +726,8 @@ cogs:
     intervalSeconds: 300
     # -- Whether a sweep runs when the API starts, before the first interval.
     runOnStartup: true
+
+# Feature flags for work in progress that is on main but not yet exposed. Every
+# flag is off until it is listed here and set to true; each entry becomes
+# COLLAB_HUB_API__FEATURES__<NAME>. See docs/feature-flags.md.
+features: {}

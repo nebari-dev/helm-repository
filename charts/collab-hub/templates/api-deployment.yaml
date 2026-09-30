@@ -413,6 +413,10 @@ spec:
             {{- end }}
             {{- end }}
             {{- end }}
+            {{- range $name, $on := .Values.features }}
+            - name: {{ printf "COLLAB_HUB_API__FEATURES__%s" ($name | upper) | quote }}
+              value: {{ $on | toString | quote }}
+            {{- end }}
             {{- with .Values.api.deployment.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
