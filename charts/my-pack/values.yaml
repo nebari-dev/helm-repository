@@ -1,0 +1,64 @@
+# Default values for my-pack (auth-aware FastAPI)
+# This is a YAML-formatted file.
+
+# =============================================================================
+# Application
+# =============================================================================
+image:
+  repository: ghcr.io/nebari-dev/software-pack-template/auth-fastapi-example
+  tag: "sha-c208d29"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+resources: {}
+  # limits:
+  #   cpu: 200m
+  #   memory: 256Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# =============================================================================
+# Nebari Integration
+# =============================================================================
+# NebariApp CR (https://github.com/nebari-dev/nebari-operator).
+# Rendered through the official nebari-app.nebariApp template 
+# (https://github.com/nebari-dev/nebari-operator/tree/main/charts/nebari-app) with templating enabled.
+nebariapp:
+  enabled: false
+  hostname: '{{ fail "nebariapp.hostname is required when nebariapp.enabled is true"
+    }}'
+  service:
+    name: '{{ include "my-pack.fullname" . | toJson }}'
+    port: '{{ .Values.service.port }}'
+  routing:
+    routes:
+    - pathPrefix: /
+      pathType: PathPrefix
+    publicRoutes:
+    - pathPrefix: /health
+      pathType: Exact
+    tls:
+      enabled: true
+  auth:
+    enabled: true
+    provider: keycloak
+    provisionClient: true
+    # redirectURI: /oauth2/callback   # Default (operator-supplied); set only to override
+    scopes:
+    - openid
+    - profile
+    - email
+  gateway: public
+
+# =============================================================================
+# Overrides
+# =============================================================================
+nameOverride: ""
+fullnameOverride: ""
