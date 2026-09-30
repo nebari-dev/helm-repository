@@ -1019,6 +1019,16 @@
         }
       },
       "additionalProperties": false
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature flags for work in progress. Every flag is off until it is listed here and set to true; each entry becomes COLLAB_HUB_API__FEATURES__<NAME>.",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+      },
+      "additionalProperties": {
+        "type": "boolean"
+      }
     }
   },
   "additionalProperties": false,
