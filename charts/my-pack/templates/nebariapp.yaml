@@ -1,0 +1,11 @@
+{{- if .Values.nebariapp.enabled }}
+{{- include "nebari-app.nebariApp" (dict
+    "metadata" (dict
+      "name"      (include "my-pack.fullname" .)
+      "namespace" .Release.Namespace
+      "labels"    (include "my-pack.labels" . | fromYaml)
+    )
+    "spec"   (omit .Values.nebariapp "enabled")
+    "tplCtx" .
+) -}}
+{{- end }}

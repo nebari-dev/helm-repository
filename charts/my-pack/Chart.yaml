@@ -1,0 +1,10 @@
+apiVersion: v2
+name: my-pack
+description: A Nebari Software Pack with auth-aware FastAPI application
+type: application
+version: 0.1.2
+appVersion: "1.0.0"
+dependencies:
+  - name: nebari-app
+    repository: oci://quay.io/nebari/charts
+    version: ">=0.1.1"
