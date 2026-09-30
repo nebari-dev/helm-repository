@@ -1,0 +1,13 @@
+{{- /* Optional: a release installed into a namespace that already exists (or
+one created by `helm install --create-namespace`) must not also own a Namespace
+object, or the install fails on a resource the release did not create. Nebari
+installs that expect the pack to create its own namespace keep the default. */ -}}
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Release.Namespace }}
+  labels:
+    nebari.dev/managed: "true"
+    {{- include "collab-hub.labels" (dict "top" . "component" "nebariapp") | nindent 4 }}
+{{- end }}

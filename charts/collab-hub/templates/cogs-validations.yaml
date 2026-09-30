@@ -1,0 +1,71 @@
+{{- /* Cog registry (issue #87). Like frames-validations.yaml these fail the
+render, not the deployment: every rule here mirrors a startup check in
+config.py (CogsConfig / CogRegistrySourceConfig), so a misconfiguration is
+reported to whoever ran helm instead of by a crash-looping pod. */}}
+{{- if and .Values.cogs.index.enabled (not .Values.cogs.registry.sources) }}
+{{- fail "cogs.index.enabled=true with no cogs.registry.sources: an indexer with nothing to index is a misconfiguration, not an idle worker. Add a source or set cogs.index.enabled=false (the Cog read API stays up either way)." }}
+{{- end }}
+{{- if and .Values.cogs.caBundle.configMap (not .Values.cogs.caBundle.key) }}
+{{- fail "cogs.caBundle.key must name the ConfigMap key holding the PEM bundle when cogs.caBundle.configMap is set." }}
+{{- end }}
+{{- $ids := list }}
+{{- $envIds := list }}
+{{- range $index, $source := .Values.cogs.registry.sources }}
+{{- $label := printf "cogs.registry.sources[%d] (%s)" $index $source.id }}
+{{- if has $source.id $ids }}
+{{- fail (printf "%s reuses an id already used by an earlier source: the id is stored with every indexed row, so two sources sharing one would make their artifacts indistinguishable." $label) }}
+{{- end }}
+{{- $ids = append $ids $source.id }}
+{{- /* The source list is rendered into the pod spec as plain JSON, and the
+app quotes URLs in its messages: a password embedded as userinfo would be in
+the manifest, the release history and the logs. The app refuses it too
+(registry.py _http_url), but only after the render has already put it there.
+values.schema.json carries the same pattern; this check names the field. */}}
+{{- range $field := list "url" "apiUrl" "tokenUrl" "indexUrl" }}
+{{- $value := toString (index $source $field | default "") }}
+{{- if regexMatch "^[A-Za-z][A-Za-z0-9+.-]*://[^/?#]*@" $value }}
+{{- fail (printf "%s.%s embeds a username or password in the URL; credentials go in credentials.existingSecret, never in values or the rendered manifest." $label $field) }}
+{{- end }}
+{{- end }}
+{{- $envId := regexReplaceAll "[^A-Z0-9]" (upper $source.id) "_" }}
+{{- if has $envId $envIds }}
+{{- fail (printf "%s maps to the same Secret env var names (COLLAB_HUB_COGS_SOURCE_%s_*) as an earlier source: ids that differ only in '.', '-' or '_' collide once upper-cased for the environment. Rename one of them." $label $envId) }}
+{{- end }}
+{{- $envIds = append $envIds $envId }}
+{{- if eq $source.kind "harbor" }}
+{{- if not $source.projects }}
+{{- fail (printf "%s is kind=harbor and needs at least one entry in projects: enumeration is per project." $label) }}
+{{- end }}
+{{- if or $source.repositories $source.indexUrl }}
+{{- fail (printf "%s is kind=harbor and does not read repositories or indexUrl; those belong to kind=static." $label) }}
+{{- end }}
+{{- else if eq $source.kind "static" }}
+{{- if and (not $source.repositories) (not $source.indexUrl) }}
+{{- fail (printf "%s is kind=static and needs repositories and/or indexUrl: it has no listing API to ask." $label) }}
+{{- end }}
+{{- if or $source.projects $source.apiUrl }}
+{{- fail (printf "%s is kind=static and does not read projects or apiUrl; those belong to kind=harbor." $label) }}
+{{- end }}
+{{- if $source.webhook }}
+{{- fail (printf "%s is kind=static and has no webhook; drop the webhook block." $label) }}
+{{- end }}
+{{- end }}
+{{- /* values.schema.json requires existingSecret inside each block when the
+block is present; these catch the block written as {existingSecret: ""},
+which the schema accepts as a string and which would mount nothing. */}}
+{{- if and (hasKey $source "credentials") (not $source.credentials.existingSecret) }}
+{{- fail (printf "%s.credentials.existingSecret is empty: name the Secret holding the registry credential, or drop the credentials block for an anonymous source." $label) }}
+{{- end }}
+{{- if and (hasKey $source "webhook") (not $source.webhook.existingSecret) }}
+{{- fail (printf "%s.webhook.existingSecret is empty: name the Secret holding the shared webhook secret, or drop the webhook block." $label) }}
+{{- end }}
+{{- end }}
+{{- /* The chart renders every cogs setting itself, and secrets arrive by
+Secret reference; an extraEnv entry naming one would render last and win,
+bypassing both the schema and the checks above. */}}
+{{- range .Values.api.deployment.extraEnv }}
+{{- $name := upper (toString (.name | default "")) }}
+{{- if or (eq $name "COLLAB_HUB_API__COGS") (hasPrefix "COLLAB_HUB_API__COGS__" $name) (hasPrefix "COLLAB_HUB_COGS_SOURCE_" $name) }}
+{{- fail (printf "api.deployment.extraEnv may not set %s: configure the Cog registry through cogs.* (sources, credentials.existingSecret, webhook.existingSecret, caBundle, index), which the chart validates." .name) }}
+{{- end }}
+{{- end }}

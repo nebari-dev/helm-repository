@@ -1,0 +1,1314 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Values for collab-hub helm chart",
+  "type": "object",
+  "properties": {
+    "nameOverride": {
+      "type": "string"
+    },
+    "fullnameOverride": {
+      "type": "string"
+    },
+    "namespace": {
+      "type": "object",
+      "properties": {
+        "create": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "serviceAccount": {
+          "type": "object",
+          "properties": {
+            "create": {
+              "type": "boolean"
+            },
+            "name": {
+              "type": "string"
+            },
+            "annotations": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "deployment": {
+          "type": "object",
+          "properties": {
+            "replicaCount": {
+              "type": "integer"
+            },
+            "extraEnv": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/envVar"
+              }
+            },
+            "image": {
+              "$ref": "#/$defs/image"
+            },
+            "securityContext": {
+              "$ref": "#/$defs/securityContext"
+            },
+            "resources": {
+              "$ref": "#/$defs/resources"
+            }
+          },
+          "additionalProperties": false
+        },
+        "autoscaling": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "minReplicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxReplicas": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "targetCPUUtilizationPercentage": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 100
+            },
+            "targetMemoryUtilizationPercentage": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "additionalProperties": false
+        },
+        "service": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer"
+            },
+            "targetPort": {
+              "type": "integer"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ingress": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "Ingress",
+                "HTTPRoute"
+              ]
+            },
+            "host": {
+              "type": "string"
+            },
+            "className": {
+              "type": "string"
+            },
+            "annotations": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "parentRefs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/parentRef"
+              }
+            },
+            "paths": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/ingressPath"
+              }
+            },
+            "tls": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "secretName": {
+                  "type": "string"
+                },
+                "certificate": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "dnsNames": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "issuerRef": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "Issuer",
+                            "ClusterIssuer"
+                          ]
+                        },
+                        "group": {
+                          "type": "string"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "nebariapp": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "hostname": {
+              "type": "string"
+            },
+            "routing": {
+              "type": "object",
+              "properties": {
+                "routes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/route"
+                  }
+                },
+                "publicRoutes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/route"
+                  }
+                },
+                "tls": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "auth": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "provider": {
+                  "type": "string"
+                },
+                "provisionClient": {
+                  "type": "boolean"
+                },
+                "enforceAtGateway": {
+                  "type": "boolean"
+                },
+                "redirectURI": {
+                  "type": "string"
+                },
+                "clientSecretRef": {
+                  "type": "string"
+                },
+                "scopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "groups": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "forwardAccessToken": {
+                  "type": "boolean"
+                },
+                "denyRedirect": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                },
+                "issuerURL": {
+                  "type": "string"
+                },
+                "spaClient": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "deviceFlowClient": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "keycloakConfig": {
+                  "type": "object",
+                  "additionalProperties": true
+                },
+                "tokenExchange": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": false
+            },
+            "landingPage": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "priority": {
+                  "type": "integer"
+                },
+                "externalUrl": {
+                  "type": "string"
+                },
+                "healthCheck": {
+                  "type": "object",
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "path": {
+                      "type": "string"
+                    },
+                    "port": {
+                      "type": "integer"
+                    },
+                    "intervalSeconds": {
+                      "type": "integer"
+                    },
+                    "timeoutSeconds": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "gateway": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "server": {
+      "type": "object",
+      "properties": {
+        "proxyHeaders": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "forwardedAllowIps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trustAnyProxy": {
+          "type": "boolean"
+        },
+        "rootPath": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "enforce": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cors": {
+          "type": "object",
+          "properties": {
+            "allowedOrigins": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowedHeaders": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowCredentials": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pathRule"
+          }
+        },
+        "metricsAccess": {
+          "type": "string",
+          "enum": [
+            "public",
+            "authenticated"
+          ]
+        },
+        "defaultAccess": {
+          "type": "string",
+          "enum": [
+            "public",
+            "authenticated"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "observability": {
+      "type": "object",
+      "properties": {
+        "logging": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "string",
+              "enum": [
+                "debug",
+                "info",
+                "warning",
+                "error"
+              ]
+            },
+            "asJson": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "frames": {
+      "type": "object",
+      "properties": {
+        "auth": {
+          "type": "object",
+          "properties": {
+            "idToken": {
+              "type": "object",
+              "properties": {
+                "jwksUrl": {
+                  "type": "string",
+                  "pattern": "^$|^https://",
+                  "description": "Must be https:// (or empty to leave the verifier unconfigured): signing keys fetched over cleartext http can be substituted by an on-path attacker."
+                },
+                "issuer": {
+                  "type": "string"
+                },
+                "audience": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "bearer": {
+              "type": "object",
+              "properties": {
+                "jwksUrl": {
+                  "type": "string",
+                  "pattern": "^$|^https://",
+                  "description": "Must be https:// (or empty to leave the verifier unconfigured): signing keys fetched over cleartext http can be substituted by an on-path attacker."
+                },
+                "issuer": {
+                  "type": "string"
+                },
+                "audience": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "cliClientId": {
+              "type": "string",
+              "description": "The public realm client the collab-hub CLI signs in with (authorization code with PKCE on a loopback redirect); empty means apollo-desktop, the desktop's client."
+            },
+            "identityClaim": {
+              "type": "string",
+              "enum": [
+                "",
+                "legacy",
+                "sub"
+              ]
+            },
+            "orgSource": {
+              "type": "string",
+              "enum": [
+                "",
+                "claims",
+                "membership",
+                "single"
+              ]
+            },
+            "singleOrg": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "memberSources": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            "defaults": {
+              "type": "object",
+              "properties": {
+                "orgId": {
+                  "type": "string"
+                },
+                "workspaceId": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "email": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": [
+                "disabled",
+                "ses"
+              ]
+            },
+            "acceptUrl": {
+              "type": "string"
+            },
+            "ses": {
+              "type": "object",
+              "properties": {
+                "existingSecret": {
+                  "type": "string"
+                },
+                "senderAddressKey": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "regionKey": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "configurationSetKey": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "requestTimeoutSeconds": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 60
+                }
+              },
+              "additionalProperties": false
+            },
+            "appInstructions": {
+              "type": "string",
+              "description": "How an invitee gets the desktop app, as they will read it. Required when a provider is set."
+            }
+          },
+          "additionalProperties": false
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "backend": {
+              "type": "string",
+              "enum": [
+                "local",
+                "s3"
+              ]
+            },
+            "mountPath": {
+              "type": "string"
+            },
+            "persistence": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "existingClaim": {
+                  "type": "string"
+                },
+                "size": {
+                  "$ref": "#/$defs/memoryString"
+                },
+                "storageClass": {
+                  "type": "string"
+                },
+                "accessModes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "s3": {
+          "type": "object",
+          "properties": {
+            "bucket": {
+              "type": "string"
+            },
+            "prefix": {
+              "type": "string"
+            },
+            "endpointUrl": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "accessKeyIdKey": {
+              "type": "string"
+            },
+            "secretAccessKeyKey": {
+              "type": "string"
+            },
+            "sessionTokenKey": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "activeState": {
+          "type": "object",
+          "properties": {
+            "backend": {
+              "type": "string",
+              "enum": [
+                "disabled",
+                "memory",
+                "postgres"
+              ]
+            },
+            "postgres": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string"
+                },
+                "existingSecret": {
+                  "type": "string"
+                },
+                "databaseUrlKey": {
+                  "type": "string"
+                },
+                "autoMigrate": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "databaseUrlKey": {
+              "type": "string"
+            },
+            "autoMigrate": {
+              "type": "boolean"
+            },
+            "pool": {
+              "type": "object",
+              "properties": {
+                "minSize": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 500
+                },
+                "maxSize": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 500
+                },
+                "timeoutSeconds": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 60
+                },
+                "maxWaiting": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "serviceAccess": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "grantOnAcceptance": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Identity-provider group paths an accepted invitation grants. Empty grants nothing."
+            },
+            "keycloak": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "issuerUrl": {
+                  "type": "string"
+                },
+                "tokenUrl": {
+                  "type": "string"
+                },
+                "adminApiBaseUrl": {
+                  "type": "string"
+                },
+                "existingSecret": {
+                  "type": "string"
+                },
+                "clientIdKey": {
+                  "type": "string"
+                },
+                "clientSecretKey": {
+                  "type": "string"
+                },
+                "groupIds": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": "Group path to Keycloak group id, for paths the membership credential cannot look up. A write-only credential is refused every read, so supplying the id keeps it that narrow and removes any startup call to the identity provider."
+                }
+              }
+            }
+          }
+        },
+        "invitations": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "requireVerifiedEmail": {
+              "type": "boolean",
+              "description": "Whether invitation acceptance also requires an identity-provider-verified address. True keeps Gate B's two checks; false relies on the invitation token as proof of mailbox control and keeps the address match."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "tasks": {
+      "type": "object",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "enum": [
+            "memory",
+            "postgres"
+          ]
+        },
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "databaseUrlKey": {
+              "type": "string"
+            },
+            "autoMigrate": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "connectors": {
+      "type": "object",
+      "properties": {
+        "google": {
+          "type": "object",
+          "properties": {
+            "brokerTokenUrl": {
+              "type": "string"
+            },
+            "driveApiBaseUrl": {
+              "type": "string"
+            },
+            "gmailApiBaseUrl": {
+              "type": "string"
+            },
+            "calendarApiBaseUrl": {
+              "type": "string"
+            },
+            "requestTimeoutSeconds": {
+              "type": "number",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "slack": {
+          "type": "object",
+          "properties": {
+            "brokerTokenUrl": {
+              "type": "string"
+            },
+            "apiBaseUrl": {
+              "type": "string"
+            },
+            "requestTimeoutSeconds": {
+              "type": "number",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "github": {
+          "type": "object",
+          "properties": {
+            "brokerTokenUrl": {
+              "type": "string"
+            },
+            "apiBaseUrl": {
+              "type": "string"
+            },
+            "requestTimeoutSeconds": {
+              "type": "number",
+              "minimum": 1
+            },
+            "allowedOrgs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 39,
+                "pattern": "^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$"
+              }
+            },
+            "apiGetEnabled": {
+              "type": "boolean"
+            },
+            "apiGetMaxConcurrency": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "notion": {
+          "type": "object",
+          "properties": {
+            "brokerTokenUrl": {
+              "type": "string"
+            },
+            "apiBaseUrl": {
+              "type": "string"
+            },
+            "notionVersion": {
+              "type": "string"
+            },
+            "requestTimeoutSeconds": {
+              "type": "number",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "userDirectory": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "provider": {
+          "type": "string",
+          "enum": [
+            "keycloak"
+          ]
+        },
+        "keycloak": {
+          "type": "object",
+          "properties": {
+            "issuerUrl": {
+              "type": "string"
+            },
+            "tokenUrl": {
+              "type": "string"
+            },
+            "adminApiBaseUrl": {
+              "type": "string"
+            },
+            "existingSecret": {
+              "type": "string"
+            },
+            "clientIdKey": {
+              "type": "string"
+            },
+            "clientSecretKey": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "cogs": {
+      "type": "object",
+      "properties": {
+        "registry": {
+          "type": "object",
+          "properties": {
+            "sources": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/cogRegistrySource"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "caBundle": {
+          "type": "object",
+          "properties": {
+            "configMap": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "index": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "intervalSeconds": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 86400
+            },
+            "runOnStartup": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "ingressPath": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "pathType": {
+          "type": "string",
+          "enum": [
+            "Prefix",
+            "Exact"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "pathType"
+      ],
+      "additionalProperties": false
+    },
+    "parentRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "sectionName": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "pathRule": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "match": {
+          "type": "string",
+          "enum": [
+            "prefix",
+            "exact"
+          ]
+        },
+        "access": {
+          "type": "string",
+          "enum": [
+            "public",
+            "authenticated"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "access"
+      ],
+      "additionalProperties": false
+    },
+    "route": {
+      "type": "object",
+      "properties": {
+        "pathPrefix": {
+          "type": "string"
+        },
+        "pathType": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "image": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "envVar": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        },
+        "valueFrom": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "securityContext": {
+      "type": "object",
+      "properties": {
+        "pod": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "container": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "cpuString": {
+      "type": "string",
+      "description": "CPU value in Kubernetes format (e.g., '100m', '0.5', '1').",
+      "pattern": "^([0-9]+m?|[0-9]+(\\.[0-9]+)?)$"
+    },
+    "memoryString": {
+      "type": "string",
+      "description": "Memory value in Kubernetes format (e.g., '128Mi', '1Gi').",
+      "pattern": "^[0-9]+[EPTGMK]i?$"
+    },
+    "resources": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "$ref": "#/$defs/cpuString"
+            },
+            "memory": {
+              "$ref": "#/$defs/memoryString"
+            }
+          },
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "$ref": "#/$defs/cpuString"
+            },
+            "memory": {
+              "$ref": "#/$defs/memoryString"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "cogRegistryUrl": {
+      "type": "string",
+      "pattern": "^https?://(?:[A-Za-z0-9._-]+|\\[(?:(?:[0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}:){1,7}:|(?:[0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}|(?:[0-9A-Fa-f]{1,4}:){1,5}(?::[0-9A-Fa-f]{1,4}){1,2}|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){1,3}|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){1,4}|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){1,5}|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){1,6}|:(?:(?::[0-9A-Fa-f]{1,4}){1,7}|:)|(?:[0-9A-Fa-f]{1,4}:){6}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|(?:[0-9A-Fa-f]{1,4}:){1,5}:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|(?:[0-9A-Fa-f]{1,4}:){1,4}(?::[0-9A-Fa-f]{1,4}){0,1}:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|(?:[0-9A-Fa-f]{1,4}:){1,3}(?::[0-9A-Fa-f]{1,4}){0,2}:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|(?:[0-9A-Fa-f]{1,4}:){1,2}(?::[0-9A-Fa-f]{1,4}){0,3}:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|[0-9A-Fa-f]{1,4}:(?::[0-9A-Fa-f]{1,4}){0,4}:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|::(?:[0-9A-Fa-f]{1,4}:){0,5}(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})(?:%25[A-Za-z0-9._~-]+)?\\])(?::(?:0*(?:6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[1-5][0-9]{4}|[0-9]{1,4}))?)?(?:/[^?#]*)?$"
+    },
+    "cogRegistryOptionalUrl": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 0
+        },
+        {
+          "$ref": "#/$defs/cogRegistryUrl"
+        }
+      ]
+    },
+    "cogRegistrySource": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "maxLength": 64
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "harbor",
+            "static"
+          ]
+        },
+        "url": {
+          "$ref": "#/$defs/cogRegistryUrl"
+        },
+        "apiUrl": {
+          "$ref": "#/$defs/cogRegistryOptionalUrl"
+        },
+        "tokenUrl": {
+          "$ref": "#/$defs/cogRegistryOptionalUrl"
+        },
+        "projects": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:(?:\\.|_|__|-+)[a-z0-9]+)*$"
+          }
+        },
+        "repositories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:(?:\\.|_|__|-+)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:\\.|_|__|-+)[a-z0-9]+)*)*$",
+            "maxLength": 255
+          }
+        },
+        "indexUrl": {
+          "$ref": "#/$defs/cogRegistryOptionalUrl"
+        },
+        "caBundlePath": {
+          "type": "string"
+        },
+        "requestTimeoutSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 60
+        },
+        "credentials": {
+          "type": "object",
+          "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "usernameKey": {
+              "type": "string"
+            },
+            "passwordKey": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "existingSecret"
+          ],
+          "additionalProperties": false
+        },
+        "webhook": {
+          "type": "object",
+          "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "secretKey": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "existingSecret"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "url"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
