@@ -1,0 +1,31 @@
+# CI render fixture for the Cog registry block (issue #87): one Harbor source
+# with a robot credential and a webhook secret, one anonymous static source,
+# a private-CA bundle, and the indexer on. Rendered by scripts/chart_render_tests.sh
+# in the lint workflow; the Secrets and ConfigMap named here are not created
+# by the chart.
+cogs:
+  registry:
+    sources:
+      - id: harbor-main
+        kind: harbor
+        url: https://harbor.example.com
+        apiUrl: http://harbor-core.harbor.svc.cluster.local:80
+        tokenUrl: http://harbor-core.harbor.svc.cluster.local:80/service/token
+        projects: [cogs]
+        credentials:
+          existingSecret: collab-hub-harbor-robot
+        webhook:
+          existingSecret: collab-hub-harbor-webhook
+      - id: public.mirror
+        kind: static
+        url: https://registry.example.com
+        indexUrl: https://registry.example.com/catalog.v1.json
+        repositories: [cogs/alpha]
+        caBundlePath: /etc/ssl/certs/ca-certificates.crt
+        requestTimeoutSeconds: 20
+  caBundle:
+    configMap: collab-hub-cogs-ca
+  index:
+    enabled: true
+    intervalSeconds: 120
+    runOnStartup: false

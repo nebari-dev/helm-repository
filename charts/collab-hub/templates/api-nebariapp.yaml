@@ -1,0 +1,12 @@
+{{- if and .Values.api.enabled .Values.api.nebariapp.enabled }}
+{{- $component := "api" }}
+{{- include "collab-hub.nebariapp" (dict
+    "top" .
+    "component" $component
+    "service" (dict
+      "name" (include "collab-hub.component-name" (dict "top" . "component" $component))
+      "port" .Values.api.service.port
+    )
+    "nebariapp" (merge (dict "serviceAccountName" (include "collab-hub.api-service-account-name" .)) .Values.api.nebariapp)
+) }}
+{{- end }}

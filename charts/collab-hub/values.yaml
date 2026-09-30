@@ -1,0 +1,728 @@
+# -- String to override the default name of the chart deployment
+nameOverride: ""
+# -- String to override the default full name of the chart deployment
+fullnameOverride: ""
+
+namespace:
+  # -- Whether the chart creates the release namespace. Set to false when
+  # installing into a namespace that already exists or one created by
+  # `helm install --create-namespace`; the chart would otherwise try to own a
+  # Namespace object it did not create and the install would fail.
+  create: true
+
+api:
+  # -- Whether to deploy the api
+  enabled: true
+  serviceAccount:
+    # -- Whether to create a ServiceAccount for the API pod.
+    create: true
+    # -- ServiceAccount name. Defaults to the API component name.
+    name: ""
+    # -- ServiceAccount annotations, for example EKS IRSA role annotations.
+    annotations: {}
+  deployment:
+    # -- Number of replicas for the main application pod
+    replicaCount: 1
+    # -- Extra environment variables for local smoke tests and advanced
+    # deployments. These render last, so a name the chart already sets is the
+    # one the container resolves. While protection is enforced the chart
+    # therefore refuses entries naming its own security settings
+    # (`COLLAB_HUB_API__SECURITY` and below, `COLLAB_HUB_API__SERVER` and
+    # its proxy-header fields) — use `security.*` / `server.*` instead, which
+    # the chart validates. See docs/standalone-deployment.md.
+    extraEnv: []
+    image:
+      # -- The repository of the main application image
+      repository: ghcr.io/nebari-dev/collab-hub-pack/api
+      # -- The tag of the main application image. If not set, the chart's appVersion is used.
+      tag: "sha-2029ce0"
+      # -- The pull policy for the main application image
+      pullPolicy: IfNotPresent
+    securityContext:
+      pod:
+        # -- The user ID to run the pod with
+        runAsUser: 1000
+        # -- The group ID to run the pod with
+        runAsGroup: 1000
+        # -- The group ID for the pod's filesystem
+        fsGroup: 1000
+      container:
+        # -- Whether to run the container with a read-only root filesystem
+        readOnlyRootFilesystem: true
+    resources:
+      # -- Resource limits for the main application container
+      limits:
+        # -- CPU limit for the main application container
+        cpu: 500m
+        # -- Memory limit for the main application container
+        memory: 512Mi
+      # -- Resource requests for the main application container
+      requests:
+        # -- CPU request for the main application container
+        cpu: 500m
+        # -- Memory request for the main application container
+        memory: 512Mi
+  autoscaling:
+    # -- Whether to create a HorizontalPodAutoscaler for the API deployment.
+    enabled: false
+    # -- Minimum API replicas when autoscaling is enabled.
+    minReplicas: 2
+    # -- Maximum API replicas when autoscaling is enabled.
+    maxReplicas: 5
+    # -- Target average CPU utilization percentage.
+    targetCPUUtilizationPercentage: 70
+    # -- Optional target average memory utilization percentage.
+    targetMemoryUtilizationPercentage:
+  service:
+    # -- The type of service to create
+    type: ClusterIP
+    # -- The port that the service should expose
+    port: 80
+    # -- The target port on the container
+    targetPort: 8000
+  ingress:
+    # -- Whether to expose the API outside the cluster without a NebariApp.
+    # Off by default: a Nebari install routes through the NebariApp CR below,
+    # and this is the standalone path. Nothing here authenticates traffic —
+    # the app's `security.paths` map does, in-process.
+    enabled: false
+    # -- Which routing object to create: "Ingress" (networking.k8s.io/v1,
+    # available in every cluster) or "HTTPRoute" (Gateway API, for clusters
+    # whose router is a Gateway — Envoy Gateway serves no Ingress objects).
+    # Ingress is the default because its API is always present; HTTPRoute
+    # needs the Gateway API CRDs installed or the release will not render.
+    kind: Ingress
+    # -- Fully qualified hostname the API is served on. Required when enabled.
+    host: ""
+    # -- IngressClass name, for example "nginx". Empty uses the cluster
+    # default IngressClass. Ingress only.
+    className: ""
+    # -- Extra annotations on the routing object. With kind=Ingress this is
+    # where TLS automation goes, for example
+    # `cert-manager.io/cluster-issuer: letsencrypt-prod`, along with any
+    # controller-specific HTTP-to-HTTPS redirect setting.
+    annotations: {}
+    # -- Gateways this route attaches to. Required when kind=HTTPRoute.
+    # Each entry takes name, and optionally namespace, sectionName, and port.
+    parentRefs: []
+    # -- Paths routed to the API service. The default sends the whole host to
+    # the app; narrow it to publish only part of the surface. This is an
+    # exposure list, not an auth policy: what each path requires from a caller
+    # is `security.paths` below, which the app enforces itself.
+    paths:
+    - path: /
+      pathType: Prefix
+    tls:
+      # -- Whether the host is served over TLS. kind=Ingress only: it adds the
+      # spec.tls block naming the Secret below. Setting it to false serves the
+      # API over plaintext HTTP, which puts bearer tokens and IdToken cookies
+      # on the wire in clear text — only acceptable when TLS terminates on a
+      # proxy in front of this Ingress.
+      #
+      # With kind=HTTPRoute this value is ignored: TLS is a property of the
+      # parent Gateway's listener, which the chart neither creates nor
+      # configures.
+      enabled: true
+      # -- TLS Secret name. Defaults to <api component name>-tls.
+      secretName: ""
+      certificate:
+        # -- Whether to create a cert-manager Certificate for the host.
+        # kind=Ingress only, and only when nothing else provisions the Secret:
+        # leave it false when an issuer annotation above already does, or the
+        # two race for the same Secret. Requires the cert-manager CRDs.
+        #
+        # Not available for kind=HTTPRoute, and the chart refuses to render
+        # that combination. TLS there belongs to the parent Gateway's
+        # listener, which this chart does not own and cannot point at a Secret
+        # it creates — see docs/standalone-deployment.md and
+        # an internal issue.
+        enabled: false
+        # -- Names on the certificate. Defaults to [api.ingress.host].
+        dnsNames: []
+        issuerRef:
+          # -- cert-manager issuer name. Required when certificate.enabled.
+          name: ""
+          # -- Issuer or ClusterIssuer.
+          kind: ClusterIssuer
+          # -- API group of the issuer.
+          group: cert-manager.io
+  nebariapp:
+    # -- Whether to create a NebariApp for Nebari routing/auth integration.
+    enabled: false
+    # -- The hostname for the NebariApp
+    hostname: ""
+    # -- Routing configuration for the NebariApp
+    routing:
+      routes:
+      - pathPrefix: /
+        pathType: PathPrefix
+      publicRoutes:
+      - pathPrefix: /v1
+        pathType: PathPrefix
+      - pathPrefix: /mcp
+        pathType: PathPrefix
+      - pathPrefix: /health
+        pathType: Exact
+      tls:
+        enabled: true
+    auth:
+      # -- Enforce browser auth at the gateway while publicRoutes let native clients reach app-level bearer auth.
+      enabled: true
+      provider: keycloak
+      provisionClient: true
+      enforceAtGateway: true
+      scopes:
+      - openid
+      - profile
+      - email
+    landingPage:
+      enabled: true
+      displayName: Collab Hub Frames
+      description: Manage reusable Markdown context Frames for AI chat sessions.
+      category: AI
+      icon: 🖼️
+      priority: 50
+      healthCheck:
+        enabled: true
+        path: /health
+        port: 80
+        intervalSeconds: 30
+        timeoutSeconds: 5
+    gateway: public
+
+server:
+  # -- Whether uvicorn trusts X-Forwarded-* headers. Trusting them is correct
+  # behind a proxy that always sets them, and wrong otherwise: a client that
+  # can reach the Service directly would get to dictate the scheme and the
+  # client address the app records.
+  #
+  # null (default) follows the exposure mode: true when api.ingress.enabled,
+  # false otherwise — which is what installs behind the Nebari gateway do
+  # today, so an upgrade changes nothing. Set true/false to decide explicitly.
+  # When on, forwardedAllowIps or trustAnyProxy must say which peers are
+  # trusted.
+  proxyHeaders:
+  # -- Addresses or CIDRs allowed to set the forwarded headers, for example
+  # the ingress controller's pod CIDR. Required when proxy headers are on,
+  # unless trustAnyProxy is set.
+  forwardedAllowIps: []
+  # -- Acknowledge trusting X-Forwarded-* from every peer that can reach the
+  # Service ("*"). The chart creates no NetworkPolicy, so "only the proxy can
+  # reach the pod" is an assumption: any workload in the cluster can dial a
+  # ClusterIP Service and then choose the client address and scheme this app
+  # logs. Prefer naming the proxy's CIDR above.
+  trustAnyProxy: false
+  # -- ASGI root path, when the app is served under a URL prefix rather than
+  # at the root of its host.
+  rootPath: ""
+
+security:
+  # -- Whether the app enforces the protection map and the restricted CORS
+  # default below.
+  #
+  # null (default) follows api.ingress.enabled. Standalone exposure is new, so
+  # it is hardened from the start; an install behind the Nebari gateway keeps
+  # exactly the behavior it has today — /metrics stays scrapeable in-cluster
+  # and / stays gateway-authenticated — until its operator opts in. Set true
+  # to opt a gateway install in (check first that frames.auth.idToken.jwksUrl
+  # is set, or browser traffic to / will 401), or false to opt out.
+  enforce:
+  cors:
+    # -- Browser origins allowed to call the API cross-origin.
+    #
+    # null (default) means: no CORS setting is passed to the app, so it keeps
+    # its ["*"] default — unless security.enforce resolves true, where the
+    # chart passes [] instead. Empty grants no cross-origin access at all,
+    # which is the right answer for a multi-tenant hub: native clients (the
+    # desktop app) send no Origin and are unaffected, and the server's own
+    # pages are same-origin. Set an explicit list to name the origins you
+    # serve in either mode; never "*".
+    allowedOrigins:
+    # -- Request headers browsers may send cross-origin.
+    allowedHeaders: ["Authorization", "Content-Type"]
+    # -- Whether cross-origin responses may carry credentials. Cannot be
+    # combined with a "*" origin (the chart refuses to render it and the app
+    # refuses to start — Starlette would echo the caller's Origin, allowing
+    # any site).
+    allowCredentials: false
+  # -- Per-path protection map, applied when security.enforce resolves true.
+  # Each entry is {path, match: prefix|exact, access: public|authenticated}.
+  # The most specific rule wins (exact over prefix, then longest path); among
+  # equally specific rules the last one listed wins, so an override can be
+  # appended rather than the map restated.
+  #
+  # This is the answer to "/ and /metrics are public behind a plain ingress":
+  # protection is data, so the pages arriving with the server web surface can
+  # declare /invite/accept public without a code change.
+  #
+  # A deployment running the browser web surface must add {/web, /invite,
+  # /admin} as public prefixes here, or the app refuses to start. That is not
+  # an authorization decision: this map's "authenticated" level runs the API
+  # credential check, which a browser session cannot pass, and every one of
+  # those routes enforces its own session, CSRF, and role checks per request.
+  #
+  # Keep the /health entries: they are what lets the pod pass its own probes
+  # when defaultAccess is authenticated.
+  #
+  # The /web, /invite and /admin entries are the browser surface, and "public"
+  # here does not mean unauthenticated. This map's `authenticated` level runs
+  # the *API* credential check (an IdToken cookie or a bearer token) before
+  # routing, which a browser in the middle of signing in cannot pass — so a
+  # map that authenticates these prefixes would 401 the sign-in flow itself,
+  # on every request, for every operator. The web routes authenticate
+  # themselves instead, with their own session cookie, CSRF token and role
+  # checks in-route, and the app refuses to start if this map does not leave
+  # the routes it actually serves public.
+  #
+  # They are inert on an install that does not enable the web surface: no
+  # routes are registered under them, so a request there matches nothing in
+  # the app and falls through to the MCP catch-all mounted at "/", which runs
+  # its own McpAuthMiddleware and authenticates on the API axis before the
+  # sub-application sees it. A prefix declared public that serves nothing is
+  # not a hole. Where the web surface is enabled and organizations come from
+  # membership, /admin now serves the admin panel (/admin/, /admin/assets/*
+  # and its JSON API under /admin/api/*). The panel authenticates itself with
+  # the web session, the CSRF token on every write, and the operator check.
+  #
+  # /admin is listed ahead of its routes (nebari-dev/collab-hub-pack#91) on
+  # purpose. The alternative — each page shipping its own entry — leaves
+  # release/public transiently broken between two merges: the operator page
+  # lands, the startup check finds /admin resolving to authenticated, and
+  # every hardened install refuses to start. A slightly early prefix is the
+  # cheaper mistake, and it is one that costs nothing while it is unused.
+  #
+  # /org stays out: it is routeless with no change adding routes to it, so
+  # there is no merge for it to be early *for*. The owner invitation page
+  # (#142) deliberately did not claim it — it lives at /web/org/invitations,
+  # under the already-public /web prefix, so it needs no entry of its own.
+  paths:
+  - path: /health
+    match: exact
+    access: public
+  - path: /health/db
+    match: exact
+    access: public
+    # How the collab-hub CLI signs in: asked before the client holds a token,
+    # and naming only what the realm's discovery document already publishes.
+  - path: /v1/auth/cli
+    match: exact
+    access: public
+  - path: /web
+    match: prefix
+    access: public
+  - path: /invite
+    match: prefix
+    access: public
+  - path: /admin
+    match: prefix
+    access: public
+  - path: /
+    match: exact
+    access: authenticated
+  # -- Protection for /metrics, appended to the map above so opening it never
+  # means restating the map. "public" lets an in-cluster Prometheus scrape
+  # without credentials; pair it with an api.ingress.paths list that does not
+  # route /metrics, which the chart enforces. There is no scrape-token mode
+  # yet (nebari-dev/collab-hub-pack#97).
+  metricsAccess: authenticated
+  # -- Access applied to any path no rule matches. Keep it "authenticated" so
+  # a route that ships without its own auth dependency fails closed.
+  defaultAccess: authenticated
+
+observability:
+  logging:
+    # -- Application log level: debug, info, warning, or error.
+    level: info
+    # -- Emit structured JSON logs. True is correct for cluster log shipping.
+    asJson: true
+
+frames:
+  auth:
+    idToken:
+      # -- JWKS URL used to verify IdToken cookies forwarded to the app. Leave
+      # empty to verify cookies against the bearer verifier instead — jwks,
+      # issuer, and audience are all inherited from frames.auth.bearer.* as a
+      # whole (a dedicated idToken.issuer or idToken.audience below still wins
+      # over the inherited bearer value when set).
+      # Must be an https:// URL: signing keys fetched over cleartext http can be
+      # substituted by an on-path attacker. The schema rejects http here, and the
+      # API refuses to start on a non-https URL (issue #77).
+      jwksUrl: ""
+      # -- Expected IdToken issuer. Leave empty to fall back to bearer issuer or skip issuer validation.
+      issuer: ""
+      # -- Expected IdToken audience. Leave empty: on a bearer-only deployment
+      # (idToken.jwksUrl unset) the bearer audience is inherited and enforced;
+      # otherwise audience validation is skipped.
+      audience: ""
+    bearer:
+      # -- JWKS URL used to verify native-client bearer tokens.
+      # Must be an https:// URL: signing keys fetched over cleartext http can be
+      # substituted by an on-path attacker. The schema rejects http here, and the
+      # API refuses to start on a non-https URL (issue #77).
+      jwksUrl: ""
+      # -- Expected token issuer. Leave empty to skip issuer validation.
+      issuer: ""
+      # -- Expected token audience. Leave empty to skip audience validation.
+      audience: ""
+    # -- Which claim becomes the persisted ACL principal: "" (same as "legacy")
+    # or "sub". Leave empty on any deployment that already has Frames data: its
+    # stored owners/readers are usernames or emails, and flipping the principal
+    # before the identity migration orphans them permanently. Set "sub" on a
+    # deployment starting empty (the external Collab hub) — usernames and emails
+    # are mutable or self-asserted, so a rename would otherwise orphan frames.
+    # With "sub", grants naming an email address are rejected with a 422,
+    # and the deployment must trust exactly one issuer: a bare "sub" is unique
+    # only within one issuer, so frames.auth.bearer.issuer / idToken.issuer must
+    # be set and agree (the API refuses to start otherwise).
+    identityClaim: ""
+    # -- The public realm client the collab-hub CLI signs in with, which
+    # GET /v1/auth/cli hands to the CLI beside the bearer issuer. Empty means
+    # "apollo-desktop": the CLI reuses the desktop's client and its flow,
+    # authorization code with PKCE on a http://127.0.0.1 loopback redirect, so
+    # its tokens carry the audience frames.auth.bearer.audience already checks.
+    # Set it only for a realm whose desktop client has another id.
+    cliClientId: ""
+    # -- Where a caller's organization comes from: "" (same as "claims"),
+    # "membership", or "single".
+    #
+    # "claims" is the historical behavior — org and workspace are read from the
+    # token, falling back to defaults below. Since no identity provider mints an
+    # org claim today, that fallback is what every caller actually gets, so the
+    # whole deployment becomes a single organization in which an "internal"
+    # Frame is visible to everyone who can sign in.
+    #
+    # "membership" makes the server own the model: the caller's row in
+    # collab_org_members decides their organization and role, workspace is
+    # always "default", org claims in the token are ignored, and an
+    # authenticated user with no active membership is answered 403
+    # `no_organization` rather than being placed somewhere. Requires
+    # identityClaim=sub (membership rows are keyed by the OIDC subject), a
+    # shared frames.postgres URL, and both defaults below left empty — the API
+    # refuses to start otherwise.
+    #
+    # "single" is membership resolution for a hub that declares it hosts
+    # exactly one organization (singleOrg below): a caller with no membership
+    # row whose sign-in arrived through one of singleOrg.memberSources gets a
+    # real member row written on their first authenticated request, so a
+    # brand-new realm account needs no invitation and no operator SQL. Existing
+    # rows — active or removed — are never rewritten: removal keeps sticking,
+    # and turning the mode off leaves every member intact. All the
+    # "membership" requirements apply unchanged.
+    #
+    # THE ACCESS BOUNDARY under "single" is the declared providers' membership
+    # policy: everyone those identity providers admit becomes a member and can
+    # read every "internal" Frame. Restrict each declared provider to your
+    # organization (for a Google provider, hostedDomain) — an unrestricted
+    # provider on this list admits anyone with an account there.
+    #
+    # Required (any value) whenever api.ingress.enabled: on a deployment
+    # exposed on its own hostname, leaving this to a default is how everyone
+    # silently ends up in one organization.
+    orgSource: ""
+    # The one organization a "single" deployment hosts. Read only when
+    # orgSource=single, and refused (at render time) with any other orgSource,
+    # so a declaration cannot sit around half-armed.
+    singleOrg:
+      # -- The organization id every auto-admitted caller joins. Load-bearing:
+      # membership rows key on it, and changing it later points new sign-ins at
+      # a different organization while existing rows stay where they are. If no
+      # collab_orgs row with this id exists, it is created (with `name` below)
+      # alongside the first admission.
+      id: ""
+      # -- Display name for the organization, used only if its row is created
+      # by this mode; it never renames an existing organization.
+      name: ""
+      # -- Keycloak identity-provider aliases whose sign-ins are auto-admitted
+      # as members. Matched exactly against the token's `identity_provider`
+      # claim (surface it with a "User Session Note" protocol mapper on the
+      # client scope — session note `identity_provider`, added to ID and access
+      # tokens). Logins arriving any other way — hand-created realm accounts,
+      # self-registration, an undeclared provider — authenticate fine and
+      # resolve to no_organization until membership is granted deliberately.
+      # No wildcard, deliberately: name the providers.
+      memberSources: []
+    defaults:
+      # -- Default org id used when a verified token has no org claim. Must be
+      # empty when orgSource=membership; the fallback is retired there, and
+      # leaving a value set means it springs back the moment anyone flips
+      # orgSource to "claims".
+      orgId: ""
+      # -- Default workspace id used when a verified token has no workspace
+      # claim. Must be empty when orgSource=membership.
+      workspaceId: ""
+  email:
+    # -- Invitation email provider. Disabled preserves existing deployments.
+    provider: disabled
+    # -- Complete browser acceptance-page URL. The one-time secret is appended
+    # to the fragment at send time and must never be placed in values.
+    acceptUrl: ""
+    # -- How an invitee gets the desktop app, in the words they will read. The
+    # approved onboarding copy has a step telling them to install it, and no
+    # default can be truthful for every deployment, so this is required once a
+    # provider is set: the API refuses to start rather than mail a placeholder.
+    appInstructions: ""
+    ses:
+      # -- Existing Secret containing SES sender configuration only. AWS
+      # credentials come from the API ServiceAccount identity, not this Secret.
+      existingSecret: ""
+      senderAddressKey: SES_SENDER_ADDRESS
+      regionKey: SES_REGION
+      configurationSetKey: SES_CONFIGURATION_SET
+      requestTimeoutSeconds: 10
+  invitations:
+    # -- Whether accepting an invitation additionally requires the identity
+    # provider to have verified the accepter's address.
+    #
+    # Gate B is two checks: the address is verified, AND it equals the invited
+    # address. This drops only the first. The argument for dropping it is that
+    # the invitation token already proves mailbox control -- a 256-bit secret
+    # delivered only to the invited address, which is exactly what a
+    # verification link proves.
+    #
+    # What it costs: a forwarded or shared-mailbox invitation becomes usable by
+    # whoever received it, and their account then carries the invited person's
+    # address permanently. Leave it true on any deployment whose invitees arrive
+    # through an identity provider with trustEmail -- there the check is free
+    # and the invitee never sees a verification step.
+    #
+    # Setting this false also requires the realm to stop forcing verification
+    # (Keycloak `verifyEmail=false`), or nothing changes: Keycloak will not
+    # issue a token to an unverified account, so the relaxed check is never
+    # reached.
+    requireVerifiedEmail: true
+  serviceAccess:
+    # -- Identity-provider group paths an accepted invitation grants. Empty
+    # means grant nothing, which is the default and the only safe one: the
+    # behaviour this replaced granted at account creation and so reached anyone
+    # who self-registered. Paths as the provider spells them, e.g. ["/llm"].
+    grantOnAcceptance: []
+    keycloak:
+      # -- OIDC issuer URL for the realm whose group membership is written.
+      issuerUrl: ""
+      # -- OAuth token URL for the client credentials grant. Derived from
+      # issuerUrl when empty.
+      tokenUrl: ""
+      # -- Base URL for the realm admin API.
+      adminApiBaseUrl: ""
+      # -- Existing Secret holding the membership-writing client credentials.
+      # Deliberately a different credential from userDirectory.keycloak: that
+      # one is read-only and this one writes, and sharing the configuration
+      # would invite sharing the secret.
+      existingSecret: ""
+      # -- Key in existingSecret containing the client id.
+      clientIdKey: client-id
+      # -- Key in existingSecret containing the client secret.
+      clientSecretKey: client-secret
+      # -- Group path to Keycloak group id, for paths this credential cannot
+      # look up. Keycloak's membership endpoint needs an id, and resolving a
+      # path to one requires *reading* groups -- which a write-only credential
+      # is refused. Supplying the id keeps the credential that narrow and means
+      # startup makes no call to the identity provider, so a provider blip
+      # during a rollout cannot stop the API from starting. A path left out of
+      # this mapping is looked up instead, which needs group-read authority.
+      # Example: {"/llm": "fcd9e0f8-d05e-4e13-ae25-97846cfade17"}
+      groupIds: {}
+  storage:
+    # -- Frame content backend used by the API: local or s3.
+    backend: local
+    # -- Local mount path used by the API for local Frame storage.
+    mountPath: /var/frames
+    persistence:
+      enabled: false
+      existingClaim: ""
+      size: 5Gi
+      storageClass: ""
+      accessModes:
+      - ReadWriteOnce
+  s3:
+    bucket: ""
+    prefix: frames
+    endpointUrl: ""
+    region: ""
+    # -- Optional static credential secret for S3-compatible stores. Prefer ServiceAccount identity on EKS.
+    existingSecret: ""
+    accessKeyIdKey: AWS_ACCESS_KEY_ID
+    secretAccessKeyKey: AWS_SECRET_ACCESS_KEY
+    sessionTokenKey: AWS_SESSION_TOKEN
+  # -- Single shared Postgres URL backing the relational frames features.
+  # Setting it lights up history and groups (required features, no per-feature
+  # toggle) and is the fallback for active-state's postgres backend. When unset,
+  # the history and group endpoints return 503.
+  postgres:
+    url: ""
+    existingSecret: ""
+    databaseUrlKey: DATABASE_URL
+    autoMigrate: false
+    # -- Sizing, wait timeout, and waiter bound for the shared psycopg
+    # connection pools (one pool per distinct database URL, shared by all
+    # relational stores). timeoutSeconds bounds how long a request waits for a
+    # connection when the pool is exhausted or Postgres is down before the API
+    # answers 503; maxWaiting bounds how many requests may queue for a
+    # connection at once (0 disables the bound). maxSize must be >= minSize.
+    pool:
+      minSize: 1
+      maxSize: 10
+      timeoutSeconds: 5.0
+      maxWaiting: 50
+  activeState:
+    # -- disabled, memory, or postgres. With "postgres" and no url below, falls
+    # back to the shared frames.postgres URL.
+    backend: disabled
+    postgres:
+      url: ""
+      existingSecret: ""
+      databaseUrlKey: DATABASE_URL
+      autoMigrate: false
+
+tasks:
+  # -- memory or postgres. Use postgres with tasks.postgres.url or the shared
+  # frames.postgres.url for durable scheduled task synchronization.
+  backend: memory
+  postgres:
+    url: ""
+    existingSecret: ""
+    databaseUrlKey: DATABASE_URL
+    autoMigrate: false
+
+connectors:
+  google:
+    # -- Keycloak broker token endpoint for the linked Google identity. Normal
+    # hub users must also receive the broker client role `read-token` through
+    # their default role or group; otherwise Keycloak returns 403.
+    brokerTokenUrl: ""
+    # -- Google Drive API base URL. Override for local fake Drive API smoke tests.
+    driveApiBaseUrl: https://www.googleapis.com/drive/v3
+    # -- Gmail API base URL. Override for local fake Gmail API smoke tests.
+    gmailApiBaseUrl: https://gmail.googleapis.com/gmail/v1
+    # -- Google Calendar API base URL. Override for local fake Calendar API smoke tests.
+    calendarApiBaseUrl: https://www.googleapis.com/calendar/v3
+    # -- Timeout for broker and Google API requests.
+    requestTimeoutSeconds: 10
+  slack:
+    # -- Keycloak broker token endpoint for the linked Slack identity. Normal
+    # hub users must also receive the broker client role `read-token` through
+    # their default role or group; otherwise Keycloak returns 403.
+    brokerTokenUrl: ""
+    # -- Slack Web API base URL. Override for local fake Slack API smoke tests.
+    apiBaseUrl: https://slack.com/api
+    # -- Timeout for broker and Slack API requests.
+    requestTimeoutSeconds: 10
+  github:
+    # -- Keycloak broker token endpoint for the linked GitHub identity. Normal
+    # hub users must also receive the broker client role `read-token` through
+    # their default role or group; otherwise Keycloak returns 403.
+    brokerTokenUrl: ""
+    # -- GitHub REST API base URL. Override for local fake GitHub API smoke tests.
+    apiBaseUrl: https://api.github.com
+    # -- Timeout for broker and GitHub API requests.
+    requestTimeoutSeconds: 10
+    # -- GitHub org logins to restrict search and the generic api/get read to.
+    # Empty = the token's full visibility (personal repos + every approved org).
+    # Set this so agent searches do not interleave personal and work results and
+    # the generic read cannot reach outside the allowlist.
+    allowedOrgs: []
+    # -- Enable the generic GitHub read (api/get). Off by default (fail-closed):
+    # a hub opts in explicitly, ideally alongside allowedOrgs. Read once at
+    # startup, so toggling it is a redeploy/restart, not a live config reload —
+    # which is also the incident containment path.
+    apiGetEnabled: false
+    # -- Max concurrent generic GitHub reads per API process. The throttle short
+    # of the full kill switch during an abuse incident (read once at startup).
+    apiGetMaxConcurrency: 8
+  notion:
+    # -- Keycloak broker token endpoint for the linked Notion workspace (Option A).
+    # Normal hub users must also receive the broker client role `read-token`
+    # through their default role or group; otherwise Keycloak returns 403. Leave
+    # empty under Option B (hub-side OAuth + token store). See docs/notion-connector.md.
+    brokerTokenUrl: ""
+    # -- Notion API base URL. Override for local fake Notion API smoke tests.
+    apiBaseUrl: https://api.notion.com
+    # -- Pinned Notion API version, sent on every request. Do not float; bumping
+    # it (2025-09-03+) is a code migration, not a config change.
+    notionVersion: "2022-06-28"
+    # -- Timeout for broker and Notion API requests.
+    requestTimeoutSeconds: 10
+
+userDirectory:
+  # -- Whether to configure Collab Hub API access to the hub user directory.
+  enabled: false
+  # -- User directory provider. Only keycloak is currently supported.
+  provider: keycloak
+  keycloak:
+    # -- OIDC issuer URL for the Keycloak realm.
+    issuerUrl: ""
+    # -- OAuth token URL used for the client credentials grant.
+    tokenUrl: ""
+    # -- Base URL for the Keycloak realm admin API.
+    adminApiBaseUrl: ""
+    # -- Existing Secret containing the Keycloak service-account client credentials.
+    existingSecret: ""
+    # -- Key in existingSecret containing the Keycloak client id.
+    clientIdKey: client-id
+    # -- Key in existingSecret containing the Keycloak client secret.
+    clientSecretKey: client-secret
+
+cogs:
+  # The Cog registry integration: which OCI registries the hub indexes for
+  # Cogs, how it authenticates to them, and how often it sweeps. Everything
+  # under `registry.sources` reaches the API as ONE JSON environment variable
+  # (COLLAB_HUB_API__COGS__REGISTRY_SOURCES); secrets never do. Each source's
+  # `credentials.existingSecret` / `webhook.existingSecret` is mounted as its
+  # own env vars, named deterministically from the source id:
+  #   COLLAB_HUB_COGS_SOURCE_<ID>_USERNAME
+  #   COLLAB_HUB_COGS_SOURCE_<ID>_PASSWORD
+  #   COLLAB_HUB_COGS_SOURCE_<ID>_WEBHOOK_SECRET
+  # where <ID> is the id upper-cased with every character outside [A-Z0-9]
+  # replaced by "_" (harbor-main -> HARBOR_MAIN). The JSON carries only those
+  # *names* (`credentials.password_env` etc.); the API reads the variables at
+  # startup and refuses to start if one is missing or empty. Two ids that map
+  # to the same <ID> fail the render. See docs/cog-registry.md.
+  registry:
+    # -- Registry sources to index, in order. Each entry:
+    #   id: stable identifier stored with every indexed row (lowercase, [a-z0-9._-], max 64)
+    #   kind: "harbor" (enumerate projects via Harbor's REST API, translate its
+    #         webhooks) or "static" (a fixed repository list and/or a
+    #         catalog.v1.json index; generic OCI only)
+    #   url: external registry URL; its host is the identity in <host>/<repo>@<digest>
+    #   apiUrl: optional in-cluster URL for the listing API and OCI endpoints (harbor only)
+    #   tokenUrl: optional in-cluster bearer-token endpoint for the OCI client
+    #   projects: Harbor projects to enumerate (harbor: at least one)
+    #   repositories: OCI repository paths to index (static)
+    #   indexUrl: catalog.v1.json URL listing repositories (static)
+    #   caBundlePath: per-source CA bundle path; defaults to cogs.caBundle when that is set
+    #   requestTimeoutSeconds: HTTP timeout, default 10
+    #   credentials:
+    #     existingSecret: Secret holding the robot/service credential (required if the block is present)
+    #     usernameKey: key in that Secret, default "username"
+    #     passwordKey: key in that Secret, default "password"
+    #   webhook:
+    #     existingSecret: Secret holding the shared webhook secret (harbor only)
+    #     secretKey: key in that Secret, default "secret"
+    # Example:
+    #   - id: harbor-main
+    #     kind: harbor
+    #     url: https://harbor.example.com
+    #     apiUrl: http://harbor-core.harbor.svc.cluster.local:80
+    #     projects: [cogs]
+    #     credentials:
+    #       existingSecret: collab-hub-harbor-robot
+    #     webhook:
+    #       existingSecret: collab-hub-harbor-webhook
+    sources: []
+  caBundle:
+    # -- ConfigMap holding the CA certificate(s) that signed the registries'
+    # gateway-issued certificates (dev clusters run a private CA). Mounted
+    # read-only at /etc/collab-hub/cogs-ca and passed to every source that
+    # does not set its own caBundlePath. Empty means system trust only.
+    configMap: ""
+    # -- Key in that ConfigMap holding the PEM bundle.
+    key: ca.crt
+  index:
+    # -- Whether the indexer sweeps the configured sources. Off leaves the
+    # Cog read API up and static (it serves what the index already holds);
+    # on with zero sources fails the render and the API's startup.
+    enabled: false
+    # -- Seconds between sweeps (10..86400).
+    intervalSeconds: 300
+    # -- Whether a sweep runs when the API starts, before the first interval.
+    runOnStartup: true

@@ -1,0 +1,47 @@
+{{- /* Standalone exposure for installs that are not fronted by a NebariApp.
+Only one of the two kinds renders: `Ingress` (default — networking.k8s.io/v1 is
+present in every cluster) or `HTTPRoute` (Gateway API, for clusters running
+Envoy Gateway or another Gateway-API controller, where the CRDs are installed).
+
+Neither object authenticates anything. The app's protection map
+(`security.paths`) is what keeps `/` and `/metrics` from being public here, and
+it is enforced in-process, so it holds no matter which object routes the
+traffic. */ -}}
+{{- if and .Values.api.enabled .Values.api.ingress.enabled (eq .Values.api.ingress.kind "Ingress") }}
+{{- $component := "api" }}
+{{- $name := include "collab-hub.component-name" (dict "top" . "component" $component) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "collab-hub.labels" (dict "top" . "component" $component) | nindent 4 }}
+  {{- with .Values.api.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.api.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
+  {{- if .Values.api.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.api.ingress.host | quote }}
+      secretName: {{ include "collab-hub.api-tls-secret-name" . | quote }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.api.ingress.host | quote }}
+      http:
+        paths:
+          {{- range .Values.api.ingress.paths }}
+          - path: {{ .path | quote }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ $name }}
+                port:
+                  number: {{ $.Values.api.service.port }}
+          {{- end }}
+{{- end }}

@@ -1,0 +1,37 @@
+{{- /* Optional cert-manager Certificate for the Ingress host.
+
+Off by default: with an Ingress the idiomatic route is a
+`cert-manager.io/cluster-issuer` annotation on the Ingress itself (set it in
+`api.ingress.annotations`), and rendering this object as well has two things
+racing for the same Secret. Turn it on when nothing else creates the
+certificate. Requires the cert-manager CRDs, which is why it is opt-in.
+
+`kind: Ingress` only — the chart refuses the HTTPRoute combination rather than
+render it. A Gateway API listener's TLS is configured on the Gateway, which
+this chart does not own: a Secret created here would be in the release
+namespace with nothing pointing at it, and if the Gateway lives elsewhere a
+cross-namespace reference additionally needs a ReferenceGrant. See
+docs/standalone-deployment.md and an internal issue. */ -}}
+{{- if and .Values.api.enabled .Values.api.ingress.enabled (eq .Values.api.ingress.kind "Ingress") .Values.api.ingress.tls.enabled .Values.api.ingress.tls.certificate.enabled }}
+{{- $component := "api" }}
+{{- $name := include "collab-hub.component-name" (dict "top" . "component" $component) }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "collab-hub.labels" (dict "top" . "component" $component) | nindent 4 }}
+spec:
+  secretName: {{ include "collab-hub.api-tls-secret-name" . | quote }}
+  dnsNames:
+    {{- if .Values.api.ingress.tls.certificate.dnsNames }}
+    {{- toYaml .Values.api.ingress.tls.certificate.dnsNames | nindent 4 }}
+    {{- else }}
+    - {{ .Values.api.ingress.host | quote }}
+    {{- end }}
+  issuerRef:
+    name: {{ .Values.api.ingress.tls.certificate.issuerRef.name | quote }}
+    kind: {{ .Values.api.ingress.tls.certificate.issuerRef.kind }}
+    group: {{ .Values.api.ingress.tls.certificate.issuerRef.group }}
+{{- end }}

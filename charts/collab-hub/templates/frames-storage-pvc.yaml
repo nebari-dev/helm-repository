@@ -1,0 +1,18 @@
+{{- if and .Values.frames.storage.persistence.enabled (not .Values.frames.storage.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "collab-hub.frames-storage-claim" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "collab-hub.labels" (dict "top" . "component" "frames") | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.frames.storage.persistence.accessModes | nindent 4 }}
+  {{- with .Values.frames.storage.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.frames.storage.persistence.size }}
+{{- end }}

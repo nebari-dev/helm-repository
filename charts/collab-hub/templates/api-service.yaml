@@ -1,0 +1,18 @@
+{{- if .Values.api.enabled }}
+{{- $component := "api" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "collab-hub.component-name" (dict "top" . "component" $component) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "collab-hub.labels" (dict "top" . "component" $component) | nindent 4 }}
+spec:
+  type: {{ .Values.api.service.type }}
+  selector:
+    {{- include "collab-hub.selectorLabels" (dict "top" . "component" $component) | nindent 4 }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.api.service.port }}
+      targetPort: {{ .Values.api.service.targetPort }}
+{{- end }}

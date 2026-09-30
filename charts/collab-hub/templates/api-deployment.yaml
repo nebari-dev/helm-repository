@@ -1,0 +1,461 @@
+{{- if .Values.api.enabled }}
+{{- $component := "api" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "collab-hub.component-name" (dict "top" . "component" $component) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "collab-hub.labels" (dict "top" . "component" $component) | nindent 4 }}
+spec:
+  {{- if not .Values.api.autoscaling.enabled }}
+  replicas: {{ .Values.api.deployment.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "collab-hub.selectorLabels" (dict "top" . "component" $component) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "collab-hub.labels" (dict "top" . "component" $component) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "collab-hub.api-service-account-name" . }}
+      {{- with .Values.api.deployment.securityContext.pod }}
+      securityContext:
+        {{- . | toYaml | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: api
+          image: "{{ .Values.api.deployment.image.repository }}:{{ .Values.api.deployment.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.api.deployment.image.pullPolicy }}
+          {{- with .Values.api.deployment.securityContext.container }}
+          securityContext:
+            {{- . | toYaml | nindent 12 }}
+          {{- end }}
+          {{- $enforced := eq (include "collab-hub.security-enforced" .) "true" }}
+          {{- $proxyHeaders := eq (include "collab-hub.proxy-headers-enabled" .) "true" }}
+          env:
+            - name: COLLAB_HUB_API__SERVER__PROXY_HEADERS
+              value: {{ $proxyHeaders | quote }}
+            {{- if $proxyHeaders }}
+            - name: COLLAB_HUB_API__SERVER__FORWARDED_ALLOW_IPS
+              value: {{ toJson (ternary (list "*") .Values.server.forwardedAllowIps (and .Values.server.trustAnyProxy (not .Values.server.forwardedAllowIps))) | quote }}
+            {{- end }}
+            - name: COLLAB_HUB_API__SERVER__ROOT_PATH
+              value: {{ .Values.server.rootPath | quote }}
+            # Lists and the protection map travel as JSON: pydantic-settings
+            # parses complex fields from the environment that way, which is
+            # what keeps the map data in values instead of code.
+            {{- if not (kindIs "invalid" .Values.security.cors.allowedOrigins) }}
+            - name: COLLAB_HUB_API__SECURITY__CORS__ALLOWED_ORIGINS
+              value: {{ toJson .Values.security.cors.allowedOrigins | quote }}
+            {{- else if $enforced }}
+            # Hardened exposure: no cross-origin grant. Left unset otherwise,
+            # so an existing install keeps the application's ["*"] default
+            # rather than losing browser callers on upgrade.
+            - name: COLLAB_HUB_API__SECURITY__CORS__ALLOWED_ORIGINS
+              value: "[]"
+            {{- end }}
+            - name: COLLAB_HUB_API__SECURITY__CORS__ALLOWED_HEADERS
+              value: {{ toJson .Values.security.cors.allowedHeaders | quote }}
+            - name: COLLAB_HUB_API__SECURITY__CORS__ALLOW_CREDENTIALS
+              value: {{ .Values.security.cors.allowCredentials | quote }}
+            {{- if $enforced }}
+            - name: COLLAB_HUB_API__SECURITY__PATHS
+              value: {{ include "collab-hub.security-paths" . | quote }}
+            - name: COLLAB_HUB_API__SECURITY__DEFAULT_ACCESS
+              value: {{ .Values.security.defaultAccess | quote }}
+            {{- else }}
+            # Gateway exposure keeps the behavior it has today: the map is not
+            # enforced, so route dependencies remain the only auth and an
+            # in-cluster /metrics scrape keeps working. Set security.enforce=true
+            # to opt in.
+            - name: COLLAB_HUB_API__SECURITY__PATHS
+              value: "[]"
+            - name: COLLAB_HUB_API__SECURITY__DEFAULT_ACCESS
+              value: "public"
+            {{- end }}
+            - name: COLLAB_HUB_API__OBSERVABILITY__LOGGING__LEVEL
+              value: {{ .Values.observability.logging.level | quote }}
+            - name: COLLAB_HUB_API__OBSERVABILITY__LOGGING__AS_JSON
+              value: {{ .Values.observability.logging.asJson | quote }}
+            - name: COLLAB_HUB_API__STORAGE__FRAMES_PATH
+              value: {{ .Values.frames.storage.mountPath | quote }}
+            - name: COLLAB_HUB_API__FRAMES__STORAGE_BACKEND
+              value: {{ .Values.frames.storage.backend | quote }}
+            - name: COLLAB_HUB_API__FRAMES__S3__BUCKET
+              value: {{ .Values.frames.s3.bucket | quote }}
+            - name: COLLAB_HUB_API__FRAMES__S3__PREFIX
+              value: {{ .Values.frames.s3.prefix | quote }}
+            - name: COLLAB_HUB_API__FRAMES__S3__ENDPOINT_URL
+              value: {{ .Values.frames.s3.endpointUrl | quote }}
+            - name: COLLAB_HUB_API__FRAMES__S3__REGION
+              value: {{ .Values.frames.s3.region | quote }}
+            {{- with .Values.frames.s3.existingSecret }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . | quote }}
+                  key: {{ $.Values.frames.s3.accessKeyIdKey | quote }}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . | quote }}
+                  key: {{ $.Values.frames.s3.secretAccessKeyKey | quote }}
+            - name: AWS_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . | quote }}
+                  key: {{ $.Values.frames.s3.sessionTokenKey | quote }}
+                  optional: true
+            {{- end }}
+            {{- with .Values.frames.s3.region }}
+            - name: AWS_REGION
+              value: {{ . | quote }}
+            {{- end }}
+            - name: COLLAB_HUB_API__FRAMES__ACTIVE_STATE__BACKEND
+              value: {{ .Values.frames.activeState.backend | quote }}
+            - name: COLLAB_HUB_API__FRAMES__ACTIVE_STATE__POSTGRES__URL
+              {{- if .Values.frames.activeState.postgres.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frames.activeState.postgres.existingSecret | quote }}
+                  key: {{ .Values.frames.activeState.postgres.databaseUrlKey | quote }}
+              {{- else }}
+              value: {{ .Values.frames.activeState.postgres.url | quote }}
+              {{- end }}
+            - name: COLLAB_HUB_API__FRAMES__ACTIVE_STATE__POSTGRES__AUTO_MIGRATE
+              value: {{ .Values.frames.activeState.postgres.autoMigrate | quote }}
+            # Single shared Postgres URL: lights up history + groups and is the
+            # active-state fallback. Unset ⇒ history/group endpoints return 503.
+            - name: COLLAB_HUB_API__FRAMES__POSTGRES__URL
+              {{- if .Values.frames.postgres.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frames.postgres.existingSecret | quote }}
+                  key: {{ .Values.frames.postgres.databaseUrlKey | quote }}
+              {{- else }}
+              value: {{ .Values.frames.postgres.url | quote }}
+              {{- end }}
+            - name: COLLAB_HUB_API__FRAMES__POSTGRES__AUTO_MIGRATE
+              value: {{ .Values.frames.postgres.autoMigrate | quote }}
+            - name: COLLAB_HUB_API__FRAMES__POSTGRES__POOL__MIN_SIZE
+              value: {{ .Values.frames.postgres.pool.minSize | quote }}
+            - name: COLLAB_HUB_API__FRAMES__POSTGRES__POOL__MAX_SIZE
+              value: {{ .Values.frames.postgres.pool.maxSize | quote }}
+            - name: COLLAB_HUB_API__FRAMES__POSTGRES__POOL__TIMEOUT_SECONDS
+              value: {{ .Values.frames.postgres.pool.timeoutSeconds | quote }}
+            - name: COLLAB_HUB_API__FRAMES__POSTGRES__POOL__MAX_WAITING
+              value: {{ .Values.frames.postgres.pool.maxWaiting | quote }}
+            - name: COLLAB_HUB_API__TASKS__BACKEND
+              value: {{ .Values.tasks.backend | quote }}
+            - name: COLLAB_HUB_API__TASKS__POSTGRES_URL
+              {{- if .Values.tasks.postgres.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.tasks.postgres.existingSecret | quote }}
+                  key: {{ .Values.tasks.postgres.databaseUrlKey | quote }}
+              {{- else }}
+              value: {{ .Values.tasks.postgres.url | quote }}
+              {{- end }}
+            - name: COLLAB_HUB_API__TASKS__AUTO_MIGRATE
+              value: {{ .Values.tasks.postgres.autoMigrate | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GOOGLE__BROKER_TOKEN_URL
+              value: {{ .Values.connectors.google.brokerTokenUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GOOGLE__DRIVE_API_BASE_URL
+              value: {{ .Values.connectors.google.driveApiBaseUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GOOGLE__GMAIL_API_BASE_URL
+              value: {{ .Values.connectors.google.gmailApiBaseUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GOOGLE__CALENDAR_API_BASE_URL
+              value: {{ .Values.connectors.google.calendarApiBaseUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GOOGLE__REQUEST_TIMEOUT_SECONDS
+              value: {{ .Values.connectors.google.requestTimeoutSeconds | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__SLACK__BROKER_TOKEN_URL
+              value: {{ .Values.connectors.slack.brokerTokenUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__SLACK__API_BASE_URL
+              value: {{ .Values.connectors.slack.apiBaseUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__SLACK__REQUEST_TIMEOUT_SECONDS
+              value: {{ .Values.connectors.slack.requestTimeoutSeconds | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GITHUB__BROKER_TOKEN_URL
+              value: {{ .Values.connectors.github.brokerTokenUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GITHUB__API_BASE_URL
+              value: {{ .Values.connectors.github.apiBaseUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GITHUB__REQUEST_TIMEOUT_SECONDS
+              value: {{ .Values.connectors.github.requestTimeoutSeconds | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GITHUB__ALLOWED_ORGS
+              value: {{ toJson .Values.connectors.github.allowedOrgs | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GITHUB__API_GET_ENABLED
+              value: {{ .Values.connectors.github.apiGetEnabled | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__GITHUB__API_GET_MAX_CONCURRENCY
+              value: {{ .Values.connectors.github.apiGetMaxConcurrency | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__NOTION__BROKER_TOKEN_URL
+              value: {{ .Values.connectors.notion.brokerTokenUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__NOTION__API_BASE_URL
+              value: {{ .Values.connectors.notion.apiBaseUrl | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__NOTION__NOTION_VERSION
+              value: {{ .Values.connectors.notion.notionVersion | quote }}
+            - name: COLLAB_HUB_API__CONNECTORS__NOTION__REQUEST_TIMEOUT_SECONDS
+              value: {{ .Values.connectors.notion.requestTimeoutSeconds | quote }}
+            {{- with .Values.frames.auth.idToken.jwksUrl }}
+            - name: FRAMES_IDTOKEN_JWKS_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.idToken.issuer }}
+            - name: FRAMES_IDTOKEN_ISSUER
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.idToken.audience }}
+            - name: FRAMES_IDTOKEN_AUDIENCE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.bearer.jwksUrl }}
+            - name: FRAMES_BEARER_JWKS_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.bearer.issuer }}
+            - name: FRAMES_BEARER_ISSUER
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.bearer.audience }}
+            - name: FRAMES_BEARER_AUDIENCE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.cliClientId }}
+            - name: COLLAB_HUB_CLI_CLIENT_ID
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.identityClaim }}
+            - name: FRAMES_AUTH_IDENTITY_CLAIM
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.orgSource }}
+            - name: FRAMES_AUTH_ORG_SOURCE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if eq .Values.frames.auth.orgSource "single" }}
+            - name: FRAMES_AUTH_SINGLE_ORG_ID
+              value: {{ .Values.frames.auth.singleOrg.id | quote }}
+            - name: FRAMES_AUTH_SINGLE_ORG_NAME
+              value: {{ .Values.frames.auth.singleOrg.name | quote }}
+            - name: FRAMES_AUTH_SINGLE_ORG_MEMBER_SOURCES
+              value: {{ join "," .Values.frames.auth.singleOrg.memberSources | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.defaults.orgId }}
+            - name: FRAMES_AUTH_DEFAULT_ORG
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.auth.defaults.workspaceId }}
+            - name: FRAMES_AUTH_DEFAULT_WORKSPACE
+              value: {{ . | quote }}
+            {{- end }}
+            - name: COLLAB_HUB_API__FRAMES__EMAIL__PROVIDER
+              value: {{ .Values.frames.email.provider | quote }}
+            {{- with .Values.frames.email.acceptUrl }}
+            - name: COLLAB_HUB_API__FRAMES__EMAIL__ACCEPT_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.frames.email.appInstructions }}
+            - name: COLLAB_HUB_API__FRAMES__EMAIL__APP_INSTRUCTIONS
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if eq .Values.frames.email.provider "ses" }}
+            - name: COLLAB_HUB_API__FRAMES__EMAIL__SES__SENDER_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frames.email.ses.existingSecret | quote }}
+                  key: {{ .Values.frames.email.ses.senderAddressKey | quote }}
+            - name: COLLAB_HUB_API__FRAMES__EMAIL__SES__REGION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frames.email.ses.existingSecret | quote }}
+                  key: {{ .Values.frames.email.ses.regionKey | quote }}
+            - name: COLLAB_HUB_API__FRAMES__EMAIL__SES__CONFIGURATION_SET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frames.email.ses.existingSecret | quote }}
+                  key: {{ .Values.frames.email.ses.configurationSetKey | quote }}
+            - name: COLLAB_HUB_API__FRAMES__EMAIL__SES__REQUEST_TIMEOUT_SECONDS
+              value: {{ .Values.frames.email.ses.requestTimeoutSeconds | quote }}
+            {{- end }}
+            {{- /* Two hazards, both the same reflowing mistake at different
+                   depths, and neither caught by the schema because the key is
+                   gone before validation.
+
+                   `eq ... "false"` and not `if not`: a nil value is falsy, and
+                   Helm strips null-valued keys during coalescing rather than
+                   falling back to the chart default -- so `requireVerifiedEmail:`
+                   left empty rendered "false" and relaxed Gate B on a
+                   deployment that never asked.
+
+                   `dig` with `default dict`: commenting out the key and leaving
+                   the `invitations:` header made the whole submap nil, and
+                   indexing it was a template error rather than a fallback.
+                   Failing closed, but a deployment that cannot render at all is
+                   still a deployment down. Only an explicit false renders. */}}
+            {{- if eq (dig "requireVerifiedEmail" true (.Values.frames.invitations | default dict) | toString) "false" }}
+            {{- /*
+              Rendered only when turned OFF, so the strict default needs no env
+              var and cannot be weakened by an empty or malformed value. A
+              deployment that wants the relaxation says so explicitly, and the
+              rendered manifest shows it -- which is the point, since it is a
+              security trade rather than a preference.
+            */}}
+            - name: COLLAB_HUB_API__FRAMES__INVITATIONS__REQUIRE_VERIFIED_EMAIL
+              value: "false"
+            {{- end }}
+            {{- if .Values.frames.serviceAccess.grantOnAcceptance }}
+            {{- /*
+              Rendered only when there is something to grant. An empty list is
+              the default, and it must stay absent rather than be rendered as
+              "[]": the API treats "configured to grant" as the trigger for
+              requiring a credential, and an explicitly empty value would be
+              indistinguishable from the default while still occupying the
+              env var.
+
+              toJson because pydantic-settings parses complex types from the
+              environment as JSON. A comma-joined string would be read as a
+              single one-element list, and the group it named would not exist.
+            */}}
+            - name: COLLAB_HUB_API__FRAMES__SERVICE_ACCESS__GRANT_ON_ACCEPTANCE
+              value: {{ .Values.frames.serviceAccess.grantOnAcceptance | toJson | quote }}
+            - name: COLLAB_HUB_API__FRAMES__SERVICE_ACCESS__KEYCLOAK__ISSUER_URL
+              value: {{ .Values.frames.serviceAccess.keycloak.issuerUrl | quote }}
+            - name: COLLAB_HUB_API__FRAMES__SERVICE_ACCESS__KEYCLOAK__TOKEN_URL
+              value: {{ .Values.frames.serviceAccess.keycloak.tokenUrl | quote }}
+            - name: COLLAB_HUB_API__FRAMES__SERVICE_ACCESS__KEYCLOAK__ADMIN_API_BASE_URL
+              value: {{ .Values.frames.serviceAccess.keycloak.adminApiBaseUrl | quote }}
+            {{- if .Values.frames.serviceAccess.keycloak.groupIds }}
+            {{- /*
+              Rendered only when set: an empty mapping means "look every path
+              up", and an env var holding `{}` would be indistinguishable from
+              that while still occupying it -- the same reasoning as the group
+              list above. toJson for the same reason too, since pydantic-settings
+              parses a dict from the environment as JSON.
+            */}}
+            - name: COLLAB_HUB_API__FRAMES__SERVICE_ACCESS__KEYCLOAK__GROUP_IDS
+              value: {{ .Values.frames.serviceAccess.keycloak.groupIds | toJson | quote }}
+            {{- end }}
+            - name: COLLAB_HUB_API__FRAMES__SERVICE_ACCESS__KEYCLOAK__CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frames.serviceAccess.keycloak.existingSecret | quote }}
+                  key: {{ .Values.frames.serviceAccess.keycloak.clientIdKey | quote }}
+            - name: COLLAB_HUB_API__FRAMES__SERVICE_ACCESS__KEYCLOAK__CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frames.serviceAccess.keycloak.existingSecret | quote }}
+                  key: {{ .Values.frames.serviceAccess.keycloak.clientSecretKey | quote }}
+            {{- end }}
+            {{- if .Values.userDirectory.enabled }}
+            - name: COLLAB_HUB_API__USER_DIRECTORY__ENABLED
+              value: {{ .Values.userDirectory.enabled | quote }}
+            - name: COLLAB_HUB_API__USER_DIRECTORY__PROVIDER
+              value: {{ .Values.userDirectory.provider | quote }}
+            - name: COLLAB_HUB_API__USER_DIRECTORY__KEYCLOAK__ISSUER_URL
+              value: {{ .Values.userDirectory.keycloak.issuerUrl | quote }}
+            - name: COLLAB_HUB_API__USER_DIRECTORY__KEYCLOAK__TOKEN_URL
+              value: {{ .Values.userDirectory.keycloak.tokenUrl | quote }}
+            - name: COLLAB_HUB_API__USER_DIRECTORY__KEYCLOAK__ADMIN_API_BASE_URL
+              value: {{ .Values.userDirectory.keycloak.adminApiBaseUrl | quote }}
+            - name: COLLAB_HUB_API__USER_DIRECTORY__KEYCLOAK__CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.userDirectory.keycloak.existingSecret | quote }}
+                  key: {{ .Values.userDirectory.keycloak.clientIdKey | quote }}
+            - name: COLLAB_HUB_API__USER_DIRECTORY__KEYCLOAK__CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.userDirectory.keycloak.existingSecret | quote }}
+                  key: {{ .Values.userDirectory.keycloak.clientSecretKey | quote }}
+            {{- end }}
+            {{- /*
+              Cog registry (issue #87). The enabled flag always renders so the
+              deployment states its intent; the tuning and the source list
+              render only when there is something for them to govern, which
+              keeps a deployment without Cogs free of cogs env beyond that one
+              line. Secrets are never in the JSON: each source's Secret keys
+              are mounted as their own env vars below, under the names the JSON
+              points at (see _helpers.tpl "collab-hub.cogs-source-env-name").
+            */}}
+            - name: COLLAB_HUB_API__COGS__INDEX__ENABLED
+              value: {{ .Values.cogs.index.enabled | quote }}
+            {{- if .Values.cogs.index.enabled }}
+            - name: COLLAB_HUB_API__COGS__INDEX__INTERVAL_SECONDS
+              value: {{ .Values.cogs.index.intervalSeconds | quote }}
+            - name: COLLAB_HUB_API__COGS__INDEX__RUN_ON_STARTUP
+              value: {{ .Values.cogs.index.runOnStartup | quote }}
+            {{- end }}
+            {{- if .Values.cogs.registry.sources }}
+            - name: COLLAB_HUB_API__COGS__REGISTRY_SOURCES
+              value: {{ include "collab-hub.cogs-registry-sources" . | quote }}
+            {{- range .Values.cogs.registry.sources }}
+            {{- $sourceId := .id }}
+            {{- $credentials := .credentials | default dict }}
+            {{- with $credentials.existingSecret }}
+            - name: {{ include "collab-hub.cogs-source-env-name" (dict "id" $sourceId "suffix" "USERNAME") }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . | quote }}
+                  key: {{ $credentials.usernameKey | default "username" | quote }}
+            - name: {{ include "collab-hub.cogs-source-env-name" (dict "id" $sourceId "suffix" "PASSWORD") }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . | quote }}
+                  key: {{ $credentials.passwordKey | default "password" | quote }}
+            {{- end }}
+            {{- $webhook := .webhook | default dict }}
+            {{- with $webhook.existingSecret }}
+            - name: {{ include "collab-hub.cogs-source-env-name" (dict "id" $sourceId "suffix" "WEBHOOK_SECRET") }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . | quote }}
+                  key: {{ $webhook.secretKey | default "secret" | quote }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.api.deployment.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.api.deployment.resources | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.api.service.targetPort }}
+          volumeMounts:
+            - name: frames-storage
+              mountPath: {{ .Values.frames.storage.mountPath }}
+            {{- if .Values.cogs.caBundle.configMap }}
+            - name: cogs-ca-bundle
+              mountPath: {{ include "collab-hub.cogs-ca-bundle-mount-path" . }}
+              readOnly: true
+            {{- end }}
+          startupProbe:
+            httpGet:
+              port: {{ .Values.api.service.targetPort }}
+              path: /health
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              port: {{ .Values.api.service.targetPort }}
+              path: /health
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+      volumes:
+        - name: frames-storage
+          {{- if or .Values.frames.storage.persistence.enabled .Values.frames.storage.persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ include "collab-hub.frames-storage-claim" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.cogs.caBundle.configMap }}
+        - name: cogs-ca-bundle
+          configMap:
+            name: {{ .Values.cogs.caBundle.configMap | quote }}
+            items:
+              - key: {{ .Values.cogs.caBundle.key | quote }}
+                path: {{ .Values.cogs.caBundle.key | quote }}
+        {{- end }}
+{{- end }}
