@@ -2,6 +2,22 @@ apiVersion: v1
 entries:
   collab-hub:
   - apiVersion: v2
+    appVersion: 0.3.0
+    created: "2026-09-30T22:55:05.628534283Z"
+    description: Helm chart for collab-hub-pack
+    digest: f583c922f0be81cd151d0272ac62bb95cea79f4c0142a1ca6a2c5e16ce396ba5
+    home: https://github.com/nebari-dev/collab-hub-pack
+    maintainers:
+    - email: info@openteams.com
+      name: OpenTeams
+    name: collab-hub
+    sources:
+    - https://github.com/nebari-dev/collab-hub-pack
+    type: application
+    urls:
+    - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/collab-hub-0.3.0.tgz
+    version: 0.3.0
+  - apiVersion: v2
     appVersion: 0.2.0
     created: "2026-09-30T16:30:52.116686852Z"
     description: Helm chart for collab-hub-pack
@@ -20,13 +36,13 @@ entries:
   my-pack:
   - apiVersion: v2
     appVersion: 1.0.0
-    created: "2026-09-30T16:30:52.117215655Z"
+    created: "2026-09-30T22:55:05.629036511Z"
     dependencies:
     - name: nebari-app
       repository: oci://quay.io/nebari/charts
       version: '>=0.1.1'
     description: A Nebari Software Pack with auth-aware FastAPI application
-    digest: 30b669fda627821e6e18151bcf4640ded59358df77214ab26491b0e82fb9572a
+    digest: da88a89a892bd0c611e3e91841e1aef2edd94b49de67c1d38ef5f1504b0bedda
     name: my-pack
     type: application
     urls:
@@ -35,9 +51,9 @@ entries:
   nebari-app:
   - apiVersion: v2
     appVersion: v0.1.1
-    created: "2026-09-30T16:30:52.117410941Z"
+    created: "2026-09-30T22:55:05.629261932Z"
     description: Library chart providing a NebariApp custom resource template.
-    digest: e18fea849fbb03cdc2a77adfe0763b825ec73216b727961f2ab68d3b53364ace
+    digest: 8a9b51ef209a5a43f882941e8de8df681eb83efe501b4f74509acff603ea3bc6
     name: nebari-app
     type: library
     urls:
@@ -56,13 +72,13 @@ entries:
   nebari-data-science-pack:
   - apiVersion: v2
     appVersion: 5.4.3
-    created: "2026-09-30T16:30:52.131830056Z"
+    created: "2026-09-30T22:55:05.643670108Z"
     dependencies:
     - name: jupyterhub
       repository: https://hub.jupyter.org/helm-chart/
       version: 4.4.0
     description: A Helm chart for deploying JupyterHub with jhub-apps on Kubernetes
-    digest: 8b34398dbf3861a4aea71c03332605e8bc7b1203d8c1f013147ee6662e9e2c4d
+    digest: 6db344780f6ec92fc0ea016a2c7a50f3b7afd192aadd29d51cd726050869e928
     name: nebari-data-science-pack
     type: application
     urls:
@@ -155,9 +171,9 @@ entries:
   nebari-frames:
   - apiVersion: v2
     appVersion: v0.1.7
-    created: "2026-09-30T16:30:52.133032334Z"
+    created: "2026-09-30T22:55:05.644857826Z"
     description: Nebari Frames - single-binary Frames server (SPA + API) for Nebari
-    digest: a88bc2fd62a08ec43550a4ab2c010d4f8deed098f7ac4eb30dd7da3026ec3ffb
+    digest: 3297ae5bdddedc3dcfccecc83298e6c135f89aec781f5c5de49e7076bc3eb4b4
     name: nebari-frames
     type: application
     urls:
@@ -196,7 +212,7 @@ entries:
   nebari-landing:
   - apiVersion: v2
     appVersion: v0.1.5
-    created: "2026-09-30T16:30:52.140988697Z"
+    created: "2026-09-30T22:55:05.653024528Z"
     dependencies:
     - condition: redis.enabled
       name: redis
@@ -205,7 +221,7 @@ entries:
     description: 'Nebari Landing Page — React/keycloak-js SPA served by nginx + Go
       webapi backend, backed by Redis for pins, notifications, access requests, WebSocket
       fan-out, and WebSocket auth tickets. '
-    digest: faebf8b59b2dd05c6da9d341085ddb605eff6cb31fde84c5215cae560d9dd9b1
+    digest: 2e15df09f66d5f38ee31549b75a9f501dd32bc999c0b38c537629bc18f60f8d8
     maintainers:
     - name: OpenTeams
       url: https://github.com/nebari-dev
@@ -357,14 +373,14 @@ entries:
   nebari-langfuse:
   - apiVersion: v2
     appVersion: 3.179.1
-    created: "2026-09-30T16:30:52.164441487Z"
+    created: "2026-09-30T22:55:05.677555259Z"
     dependencies:
     - name: langfuse
       repository: https://langfuse.github.io/langfuse-k8s
       version: 1.5.34
     description: A Nebari Software Pack that deploys Langfuse (LLM observability)
       with NebariApp routing, TLS, and Keycloak SSO.
-    digest: 6fd343af055906e4b4293e8560fdf3c1ba5b00f6f64c7d6806c40d07693df3bf
+    digest: f44ab5cd997dfbd8d55d25df0d89dee2f0107af51c5c20262c389d8f4eb21ecf
     home: https://langfuse.com/
     keywords:
     - langfuse
@@ -382,7 +398,7 @@ entries:
   nebari-lgtm-pack:
   - apiVersion: v2
     appVersion: 1.0.0
-    created: "2026-09-30T16:30:52.204696447Z"
+    created: "2026-09-30T22:55:05.716838306Z"
     dependencies:
     - name: grafana
       repository: https://grafana.github.io/helm-charts
@@ -408,7 +424,7 @@ entries:
       version: 4.51.1
     description: A Helm chart for deploying the Grafana LGTM observability stack (Loki,
       Grafana, Tempo, Mimir) on Kubernetes
-    digest: ed4cfb86332bae897ec2941dc8f5196423bfcfb0a1f1bf65023cb0157366224e
+    digest: 961e9a6d01f7501ed595af0ab3fc68eea4889f28c4dfcee0ca24f8e084e6f72a
     name: nebari-lgtm-pack
     type: application
     urls:
@@ -483,9 +499,9 @@ entries:
   nebari-llm-serving:
   - apiVersion: v2
     appVersion: 0.1.4
-    created: "2026-09-30T16:30:52.205809106Z"
+    created: "2026-09-30T22:55:05.718084998Z"
     description: Nebari software pack for serving LLMs via llm-d
-    digest: 2e260e2ce83a44e31d5eb472953dec10040b856cacf32a3e2c6ba39a42211a4c
+    digest: 9fd4b43ff96f2f9aeb844092521cf4cd3cfa0ab245a560d86f9203c7167666ea
     name: nebari-llm-serving
     type: application
     urls:
@@ -514,10 +530,10 @@ entries:
   nebari-nebi-pack:
   - apiVersion: v2
     appVersion: "0.15"
-    created: "2026-09-30T16:30:52.206644924Z"
+    created: "2026-09-30T22:55:05.718963044Z"
     description: A Helm chart for deploying Nebi (environment management platform)
       on Nebari
-    digest: 6561233f2d45daa672332b52581bb2c4fbbf9dba13113d60c8039e52ceda157f
+    digest: 1d0531623009097c33350f14dbc6547dec13d4865d09a583bd29663904fc9bc0
     name: nebari-nebi-pack
     type: application
     urls:
@@ -571,9 +587,9 @@ entries:
       kubebuilder.io/generated-by: kubebuilder
     apiVersion: v2
     appVersion: v0.1.1
-    created: "2026-09-30T16:30:52.207352092Z"
+    created: "2026-09-30T22:55:05.719673206Z"
     description: A Helm chart to distribute nebari-operator
-    digest: 95c9e0a62dffe5ad87dcea6fd561b65185ccdef3eb6f02a9a1611d3c3e152471
+    digest: a19850a5d87add8965fb31919c6d7eaf567ec10dad075831bce255c0e0ca73b1
     keywords:
     - kubernetes
     - operator
@@ -720,7 +736,7 @@ entries:
   nebari-rayserve-pack:
   - apiVersion: v2
     appVersion: 2.43.0
-    created: "2026-09-30T16:30:52.213511453Z"
+    created: "2026-09-30T22:55:05.725829868Z"
     dependencies:
     - name: nebari-app
       repository: oci://quay.io/nebari/charts
@@ -730,7 +746,7 @@ entries:
       repository: https://ray-project.github.io/kuberay-helm/
       version: 1.3.0
     description: A Nebari Software Pack for Ray Serve
-    digest: 67b3b0fb7318387fe7bb401094336ad1035ecaef019b45d7f133fc1eebe26544
+    digest: a0c68171cc48ee81a68625e1740f23c560f3a3bdad468a576d2a30f24b6de27c
     name: nebari-rayserve-pack
     type: application
     urls:
@@ -769,13 +785,13 @@ entries:
   nebari-superset:
   - apiVersion: v2
     appVersion: v0.4.0
-    created: "2026-09-30T16:30:52.226688798Z"
+    created: "2026-09-30T22:55:05.739522944Z"
     dependencies:
     - name: superset
       repository: https://apache.github.io/superset
       version: 0.17.2
     description: A Nebari Software Pack for Apache Superset
-    digest: 3793bc4ed606c35954d49f0aca7105be1da400a40f12d6a1320756763793e62e
+    digest: 8b8da558beb3fe0e75ef9eb445fd2d009fff1cb35610b423abf2e735373a3bf5
     name: nebari-superset
     type: application
     urls:
@@ -840,11 +856,11 @@ entries:
   provenance-collector:
   - apiVersion: v2
     appVersion: 0.1.4
-    created: "2026-09-30T16:30:52.227931864Z"
+    created: "2026-09-30T22:55:05.740525759Z"
     description: Kubernetes provenance collector — discovers running container images,
       resolves digests, verifies signatures, checks for updates, and generates compliance-grade
       provenance reports.
-    digest: 1c8d575a19bd5a845797f1c2c55d58f98d2e5b87d23dc3d9e861032beb92c868
+    digest: 12081badc33bef909c83610c3d5bac10241d84203d0902083dddbc5321701bbc
     home: https://github.com/nebari-dev/nebari-provenance-collector-pack
     keywords:
     - provenance
@@ -1016,10 +1032,10 @@ entries:
   skillsctl:
   - apiVersion: v2
     appVersion: 0.2.4
-    created: "2026-09-30T16:30:52.22837164Z"
+    created: "2026-09-30T22:55:05.740952593Z"
     description: A registry for discovering, installing, and publishing Claude Code
       skills
-    digest: e63375b925799075867ce47330cc8a3bd868e11f868abc405c2988fe30f87d16
+    digest: 44a2e4e3634121a43993e0e4342c98783a27dd9a7f91274ecc23ffe18dfc6ad2
     name: skillsctl
     type: application
     urls:
@@ -1157,4 +1173,4 @@ entries:
     urls:
     - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/skillsctl-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-30T16:30:52.114642735Z"
+generated: "2026-09-30T22:55:05.626408833Z"
