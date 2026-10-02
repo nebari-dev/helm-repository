@@ -35,7 +35,7 @@ api:
       # -- The repository of the main application image
       repository: ghcr.io/nebari-dev/collab-hub-pack/api
       # -- The tag of the main application image. If not set, the chart's appVersion is used.
-      tag: "sha-8351191"
+      tag: "sha-3417479"
       # -- The pull policy for the main application image
       pullPolicy: IfNotPresent
     securityContext:
