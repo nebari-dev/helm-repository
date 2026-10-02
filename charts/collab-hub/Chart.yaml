@@ -2,8 +2,8 @@ apiVersion: v2
 name: collab-hub
 type: application
 description: Helm chart for collab-hub-pack
-version: "0.4.0"
-appVersion: "0.4.0"
+version: "0.4.1"
+appVersion: "0.4.1"
 home: https://github.com/nebari-dev/collab-hub-pack
 sources:
   - https://github.com/nebari-dev/collab-hub-pack
