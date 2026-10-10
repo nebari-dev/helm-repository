@@ -4,51 +4,122 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Helm charts for Nebari's ecosystem — Software Packs and companion tools, published as a Helm index and as OCI artifacts on quay.io." />
     <title>Nebari Helm Repository</title>
-    <link rel="icon" href="https://raw.githubusercontent.com/nebari-dev/nebari-design/main/symbol/favicon.ico" />
+    <!-- Apply the saved (or system) theme before first paint to avoid a light flash. -->
+    <script>
+        (function () {
+            try {
+                var theme = localStorage.getItem('nebari-helm-theme') ||
+                    (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                if (theme === 'dark') document.documentElement.classList.add('dark');
+            } catch (e) { }
+        })();
+    </script>
+    <link rel="icon" href="assets/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-        href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Poppins:wght@300;400;500;600;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
         rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"
+        integrity="sha384-+pxiN6T7yvpryuJmE1gM9PX7yQit15auDb+ZwwvJOd/4be2Cie5/IuVXgQb/S9du"
+        crossorigin="anonymous"></script>
     <style>
-        /* ─── Design tokens ───────────────────────────────────────────── */
+        /* ── Design tokens (nebari-design semantic tokens, :root / .dark) ── */
         :root {
-            --color-bg: #0F1015;
-            --color-surface: #16161f;
-            --color-surface-2: #1e1e2e;
-            --color-border: #2a2a3d;
+            color-scheme: light;
+            --canvas: #ffffff;
+            --header: #f8f8f8;
+            --card: #ffffff;
+            --muted: #eeeeef;
+            --fg: #262628;
+            --muted-fg: #70707a;
+            --muted-strong: #5a5a61;
+            --hairline: #eeeeef;
+            --border-subtle: #d4d4d7;
+            --border: #b7b7bb;
+            --input: #9d9da6;
+            --border-strong: #85858e;
+            --accent: #eceff1;
+            --accent-fg: #4e5c6d;
+            --primary: #9547c0;
+            --primary-hover: #77399a;
+            --primary-fg: #ffffff;
+            --primary-text: #77399a;
+            --primary-soft: #f6e9ff;
+            --primary-softer: #fbf6fe;
+            --link: #9547c0;
+            --link-hover: #77399a;
+            --info: #e7efff;
+            --info-fg: #102350;
 
-            --color-primary: #BA18DA;
-            --color-primary-dim: #9a12b8;
-            --color-accent: #EAB54E;
-            --color-accent-soft: rgba(186, 24, 218, 0.12);
+            /* Theme-independent */
+            --primary-bright: #b053e2;
+            --primary-ring: #e7c4ff;
+            --success: #2c817a;
+            --status-live: #00a148;
+            --status-loading: #c59709;
+            --status-off: #85858e;
 
-            --color-text: #e2e0f0;
-            --color-text-muted: #8a8aab;
-            --color-text-faint: #55556a;
+            /* Code windows stay dark in both themes */
+            --term-bg: #1a1a1c;
+            --term-border: #353538;
+            --term-button: #262628;
+            --term-button-border: #47474b;
+            --term-text: #f8f8f8;
+            --term-row: #d4d4d7;
+            --term-dim: #9d9da6;
+            --term-comment: #85858e;
+            --term-faint: #70707a;
+            --term-prompt: #c575f4;
 
-            --color-success: #20AAA1;
-            --color-warning: #EAB54E;
+            --font-body: 'Geist', ui-sans-serif, system-ui, sans-serif;
+            --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-            --radius-sm: 6px;
-            --radius-md: 12px;
-            --radius-lg: 20px;
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            --radius-xl: 12px;
 
-            --font-body: 'Poppins', system-ui, sans-serif;
-            --font-mono: 'Atkinson Hyperlegible', monospace;
-
-            --shadow-glow: 0 0 40px rgba(186, 24, 218, 0.25);
+            --header-height: 60px;
+            --container: 1200px;
+            --section-pad: 96px;
         }
 
-        /* ─── Reset ───────────────────────────────────────────────────── */
+        :root.dark {
+            color-scheme: dark;
+            --canvas: #1a1a1c;
+            --header: #262628;
+            --card: #262628;
+            --muted: #353538;
+            --fg: #f8f8f8;
+            --muted-fg: #9d9da6;
+            --muted-strong: #b7b7bb;
+            --hairline: #353538;
+            --border-subtle: #47474b;
+            --border: #5a5a61;
+            --input: #70707a;
+            --border-strong: #85858e;
+            --accent: #3d4956;
+            --accent-fg: #eceff1;
+            --primary: #b053e2;
+            --primary-hover: #c575f4;
+            --primary-fg: #000000;
+            --primary-text: #d69afd;
+            --primary-soft: #442655;
+            --primary-softer: #2a1f30;
+            --link: #d69afd;
+            --link-hover: #e7c4ff;
+            --info: #0f2c7b;
+            --info-fg: #c2d5fb;
+        }
+
+        /* ── Base ─────────────────────────────────────────────────────────── */
         *,
         *::before,
         *::after {
             box-sizing: border-box;
-            margin: 0;
-            padding: 0;
         }
 
         html {
@@ -56,1342 +127,2764 @@
         }
 
         body {
+            margin: 0;
+            background: var(--canvas);
+            color: var(--fg);
             font-family: var(--font-body);
-            background: var(--color-bg);
-            color: var(--color-text);
-            line-height: 1.6;
             -webkit-font-smoothing: antialiased;
         }
 
+        body.drawer-open {
+            overflow: hidden;
+        }
+
         a {
-            color: var(--color-accent);
+            color: var(--link);
             text-decoration: none;
         }
 
         a:hover {
+            color: var(--link-hover);
             text-decoration: underline;
+            text-underline-offset: 4px;
         }
 
-        img {
-            max-width: 100%;
+        code,
+        pre {
+            font-family: var(--font-mono);
         }
 
-        /* ─── Layout helpers ─────────────────────────────────────────── */
+        ::selection {
+            background: var(--primary-ring);
+            color: #262628;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--primary-bright);
+            outline-offset: 2px;
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
         .container {
-            max-width: 1260px;
+            max-width: var(--container);
             margin: 0 auto;
             padding: 0 24px;
         }
 
-        /* ─── Nav ────────────────────────────────────────────────────── */
-        .nav {
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: rgba(15, 15, 20, 0.85);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--color-border);
-        }
-
-        .nav-inner {
+        .page {
+            min-height: 100vh;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            height: 64px;
+            flex-direction: column;
         }
 
-        .nav-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 700;
-            font-size: 1.1rem;
-            color: var(--color-text);
+        main {
+            flex: 1;
         }
 
-        .nav-logo img {
-            flex-shrink: 0;
-            height: 28px;
-            width: auto;
+        /* Inline code in prose. `.code-pill` adds a tinted background. */
+        .prose-code {
+            font-size: 0.89em;
+            color: var(--fg);
         }
 
-        .nav-links {
-            display: flex;
-            gap: 28px;
-            list-style: none;
+        .code-pill {
+            font-size: 13px;
+            color: var(--fg);
+            background: var(--muted);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
         }
 
-        .nav-links a {
-            color: var(--color-text-muted);
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: color 0.2s;
+        .chip {
+            font-family: var(--font-mono);
+            font-size: 11.5px;
+            color: var(--accent-fg);
+            background: var(--accent);
+            padding: 2px 7px;
+            border-radius: var(--radius-sm);
         }
 
-        .nav-links a:hover {
-            color: var(--color-text);
-            text-decoration: none;
-        }
-
-        /* ─── Hero ───────────────────────────────────────────────────── */
-        .hero {
-            position: relative;
-            padding: 96px 0 80px;
-            text-align: center;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(ellipse 70% 50% at 50% 0%, rgba(186, 24, 218, 0.18) 0%, transparent 70%);
-            pointer-events: none;
-        }
-
-        .hero-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: var(--color-accent-soft);
-            border: 1px solid rgba(186, 24, 218, 0.3);
-            border-radius: 100px;
-            padding: 4px 14px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--color-accent);
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            margin-bottom: 28px;
-        }
-
-        .hero h1 {
-            font-size: clamp(2.2rem, 5vw, 3.5rem);
-            font-weight: 700;
-            line-height: 1.15;
-            letter-spacing: -0.02em;
-            margin-bottom: 20px;
-        }
-
-        .hero h1 span {
-            background: linear-gradient(135deg, #EAB54E 0%, #BA18DA 60%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero p {
-            font-size: 1.15rem;
-            color: var(--color-text-muted);
-            max-width: 560px;
-            margin: 0 auto 40px;
-        }
-
-        .hero-actions {
-            display: flex;
-            gap: 14px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
+        /* ── Buttons ──────────────────────────────────────────────────────── */
         .btn {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 12px 24px;
-            border-radius: var(--radius-sm);
-            font-weight: 600;
-            font-size: 0.95rem;
-            transition: all 0.2s;
+            height: 40px;
+            padding: 0 18px;
+            border-radius: var(--radius-lg);
+            font: inherit;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
-            border: none;
+        }
+
+        .btn:hover {
             text-decoration: none;
         }
 
         .btn-primary {
-            background: var(--color-primary);
-            color: #fff;
-            box-shadow: 0 4px 20px rgba(186, 24, 218, 0.35);
+            border: none;
+            background: var(--primary);
+            color: var(--primary-fg);
         }
 
         .btn-primary:hover {
-            background: var(--color-primary-dim);
-            box-shadow: 0 4px 28px rgba(186, 24, 218, 0.5);
-            text-decoration: none;
-            color: #fff;
+            background: var(--primary-hover);
+            color: var(--primary-fg);
         }
 
         .btn-outline {
-            background: transparent;
-            color: var(--color-text);
-            border: 1px solid var(--color-border);
+            border: 1px solid var(--input);
+            background: var(--card);
+            color: var(--fg);
         }
 
         .btn-outline:hover {
-            border-color: var(--color-primary);
-            color: var(--color-accent);
+            background: var(--accent);
+            border-color: var(--muted-fg);
+            color: var(--fg);
+        }
+
+        .btn-sm {
+            height: 32px;
+            padding: 0 12px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .btn.is-copied {
+            background: var(--success);
+            border-color: var(--success);
+            color: #ffffff;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding-top: 4px;
+        }
+
+        .icon-btn {
+            appearance: none;
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--input);
+            background: var(--card);
+            color: var(--fg);
+            cursor: pointer;
+        }
+
+        .icon-btn:hover {
+            background: var(--accent);
+            border-color: var(--border-strong);
+        }
+
+        /* Segmented control (install method, catalog view) */
+        .segmented {
+            display: flex;
+            gap: 2px;
+            padding: 3px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-subtle);
+            background: var(--card);
+        }
+
+        .segmented button {
+            appearance: none;
+            height: 28px;
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-md);
+            border: 1px solid transparent;
+            background: transparent;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted-fg);
+            cursor: pointer;
+        }
+
+        .segmented button[aria-pressed="true"] {
+            border-color: var(--border-strong);
+            background: var(--muted);
+            color: var(--fg);
+        }
+
+        .segmented.is-icons button {
+            width: 30px;
+            padding: 0;
+        }
+
+        /* ── Header ───────────────────────────────────────────────────────── */
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: var(--header);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .site-header .container {
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .site-logo {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .site-logo img {
+            height: 30px;
+            width: auto;
+            display: block;
+        }
+
+        .logo-dark,
+        :root.dark .logo-light {
+            display: none !important;
+        }
+
+        :root.dark .logo-dark {
+            display: block !important;
+        }
+
+        .site-nav {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            font-size: 14px;
+            font-weight: 500;
+            overflow-x: auto;
+        }
+
+        .site-nav a {
+            color: var(--muted-strong);
+            padding: 6px 10px;
+            border-radius: var(--radius-md);
+            white-space: nowrap;
+        }
+
+        .site-nav a:hover {
+            color: var(--fg);
+            background: var(--muted);
             text-decoration: none;
         }
 
-        /* ─── Section ────────────────────────────────────────────────── */
-        .section {
-            padding: 72px 0;
-        }
-
-        .section+.section {
-            border-top: 1px solid var(--color-border);
-        }
-
-        .section-label {
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--color-primary);
-            margin-bottom: 10px;
-        }
-
-        .section-title {
-            font-size: 1.85rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 12px;
-        }
-
-        .section-subtitle {
-            font-size: 1rem;
-            color: var(--color-text-muted);
-            max-width: 580px;
-            margin-bottom: 40px;
-        }
-
-        /* ─── Code blocks ────────────────────────────────────────────── */
-        .code-block {
-            position: relative;
-            background: var(--color-surface-2);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-md);
-            padding: 24px 60px 24px 24px;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            color: #cdd6f4;
-            overflow-x: auto;
-            line-height: 1.8;
-            min-height: 130px;
+        .site-nav .nav-github {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
+            gap: 6px;
+            height: 32px;
+            padding: 0 12px;
+            margin-left: 8px;
+            color: var(--fg);
+            border: 1px solid var(--input);
+            border-radius: var(--radius-lg);
+            background: var(--card);
         }
 
-        .code-block pre {
-            margin: 0;
-            padding: 0;
-            font-family: inherit;
-            font-size: inherit;
-            color: inherit;
-            line-height: inherit;
-            white-space: pre;
-            flex: 1;
+        .site-nav .nav-github:hover {
+            background: var(--accent);
+            border-color: var(--muted-fg);
         }
 
-        .code-block .comment {
-            color: var(--color-text-faint);
+        .site-nav .icon-btn {
+            margin-left: 6px;
         }
 
-        .code-block .cmd {
-            color: var(--color-accent);
+        .icon-sun,
+        :root.dark .icon-moon {
+            display: none;
         }
 
-        .code-block .flag {
-            color: var(--color-success);
+        :root.dark .icon-sun {
+            display: block;
         }
 
-        .code-copy {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
-            color: var(--color-text-muted);
-            padding: 4px 10px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: var(--font-body);
+        /* ── Sections ─────────────────────────────────────────────────────── */
+        .section {
+            scroll-margin-top: var(--header-height);
         }
 
-        .code-copy:hover {
-            color: var(--color-text);
-            border-color: var(--color-primary);
+        .section-inner {
+            padding-top: var(--section-pad);
+            padding-bottom: var(--section-pad);
         }
 
-        /* ─── Quickstart method panel ────────────────────────────────── */
-        .method-panel {
+        .section-intro {
             display: flex;
             flex-direction: column;
             gap: 16px;
+            max-width: 560px;
+        }
+
+        .eyebrow {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--primary-text);
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 36px;
+            line-height: 1.15;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+            text-wrap: balance;
+        }
+
+        .section-lead {
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.65;
+            color: var(--muted-strong);
+            text-wrap: pretty;
+        }
+
+        /* ── Terminal / code window ───────────────────────────────────────── */
+        .term {
+            border-radius: 10px;
+            background: var(--term-bg);
+            border: 1px solid var(--term-border);
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .term-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid var(--term-border);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--term-dim);
+        }
+
+        .term-body {
+            font-family: var(--font-mono);
+            color: var(--term-text);
+            overflow-x: auto;
+        }
+
+        .term-line {
+            white-space: pre;
+        }
+
+        .term-prompt {
+            color: var(--term-prompt);
+        }
+
+        .term-dim {
+            color: var(--term-dim);
+        }
+
+        .term-comment {
+            color: var(--term-comment);
+        }
+
+        .term-copy {
+            display: inline-flex;
+            align-items: center;
+            height: 28px;
+            padding: 0 10px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--term-button-border);
+            background: var(--term-button);
+            color: var(--term-row);
+            font: inherit;
+            font-family: var(--font-body);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .term-copy:hover {
+            background: var(--term-border);
+            color: #ffffff;
+        }
+
+        .term-copy.is-copied {
+            background: var(--success);
+            border-color: var(--success);
+            color: #ffffff;
+        }
+
+        /* ── Hero ─────────────────────────────────────────────────────────── */
+        .hero {
+            border-bottom: 1px solid var(--hairline);
+        }
+
+        .hero-grid {
+            padding-top: 88px;
+            padding-bottom: 80px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+            gap: 56px;
+            align-items: center;
+        }
+
+        .hero-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .hero-stats {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 20px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--primary-text);
+        }
+
+        .dot {
+            flex-shrink: 0;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary-bright);
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(40px, 5.4vw, 60px);
+            line-height: 1.04;
+            font-weight: 600;
+            letter-spacing: -0.035em;
+            text-wrap: balance;
+        }
+
+        .hero-lead {
+            margin: 0;
+            font-size: 18px;
+            line-height: 1.6;
+            color: var(--muted-strong);
+            max-width: 560px;
+            text-wrap: pretty;
+        }
+
+        .hero-term {
+            border-radius: var(--radius-xl);
+            box-shadow: 0 24px 48px -24px rgba(52, 23, 68, 0.45);
+        }
+
+        .hero-term .term-bar {
+            padding: 10px 14px;
+        }
+
+        .term-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .term-dots span {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--term-button-border);
+        }
+
+        .hero-term .term-body {
+            padding: 20px 20px 24px;
+            font-size: 13.5px;
+            line-height: 1.9;
+        }
+
+        .hero-row {
+            color: var(--term-row);
+        }
+
+        .hero-row-skeleton {
+            display: block;
+            width: 70%;
+            height: 0.9em;
+            margin: 0.5em 0;
+            border-radius: var(--radius-sm);
+            background: var(--term-border);
+        }
+
+        .hero-more {
+            color: var(--term-faint);
+        }
+
+        /* ── Quick start ──────────────────────────────────────────────────── */
+        .quickstart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+            gap: 48px;
+            align-items: start;
+        }
+
+        .quickstart-grid .section-intro {
+            max-width: 440px;
+        }
+
+        .quickstart-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 0;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 24px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .tab {
+            appearance: none;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            padding: 0 0 10px;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--muted-fg);
+            cursor: pointer;
+        }
+
+        .tab:hover {
+            color: var(--fg);
+        }
+
+        .tab[aria-selected="true"] {
+            color: var(--fg);
+            border-bottom-color: var(--primary);
         }
 
         .method-intro {
-            font-size: 0.93rem;
-            color: var(--color-text-muted);
-            line-height: 1.6;
-            max-width: 680px;
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.65;
+            color: var(--muted-strong);
+            text-wrap: pretty;
         }
 
-        .method-intro code {
-            font-family: var(--font-mono);
-            font-size: 0.88em;
-            color: var(--color-accent);
+        .quick-term .term-bar {
+            padding: 8px 10px 8px 16px;
         }
 
-        .method-note {
+        .quick-term .term-body {
+            padding: 18px 20px 20px;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .quick-term .term-line {
+            min-height: 1.8em;
+        }
+
+        .callout-info {
             display: flex;
+            gap: 12px;
             align-items: flex-start;
-            gap: 10px;
-            padding: 12px 16px;
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
-            font-size: 0.85rem;
-            color: var(--color-text-muted);
+            padding: 14px 16px;
+            border-radius: var(--radius-lg);
+            background: var(--info);
+            color: var(--info-fg);
+            font-size: 14px;
             line-height: 1.55;
         }
 
-        .method-note svg {
+        .callout-info svg {
             flex-shrink: 0;
-            margin-top: 3px;
+            margin-top: 1px;
         }
 
-        .method-note code {
-            font-family: var(--font-mono);
-            font-size: 0.9em;
+        .callout-info code {
+            font-size: 13px;
         }
 
-        .subtitle-link {
-            color: var(--color-accent);
+        .callout-info a {
+            color: inherit;
             text-decoration: underline;
-            text-decoration-color: rgba(234, 181, 78, 0.4);
-            text-underline-offset: 3px;
-            margin-left: 6px;
-            font-size: 0.92em;
         }
 
-        .subtitle-link:hover {
-            text-decoration-color: var(--color-accent);
+        /* ── Catalog ──────────────────────────────────────────────────────── */
+        .catalog {
+            background: var(--header);
+            border-top: 1px solid var(--hairline);
+            border-bottom: 1px solid var(--hairline);
         }
 
-        /* ─── Charts table ───────────────────────────────────────────── */
-        .charts-grid {
+        .catalog .section-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .catalog-head {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 24px;
+        }
+
+        .copy-as {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--muted-strong);
+        }
+
+        .catalog-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .search {
+            position: relative;
+            flex: 1 1 280px;
+            max-width: 420px;
+        }
+
+        .search svg {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--muted-fg);
+            pointer-events: none;
+        }
+
+        .search input {
+            width: 100%;
+            height: 36px;
+            padding: 0 12px 0 36px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--input);
+            background: var(--card);
+            font: inherit;
+            font-size: 14px;
+            color: var(--fg);
+            outline: none;
+        }
+
+        .search input:focus {
+            border-color: var(--primary-bright);
+            box-shadow: 0 0 0 2px var(--primary-ring);
+        }
+
+        .type-filters {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .type-filters button {
+            appearance: none;
+            height: 32px;
+            padding: 0 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--card);
+            font: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--muted-strong);
+            cursor: pointer;
+        }
+
+        .type-filters button[aria-pressed="true"] {
+            border-color: var(--fg);
+            background: var(--fg);
+            color: var(--canvas);
+        }
+
+        .type-filters .count {
+            opacity: 0.7;
+        }
+
+        .catalog-status {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .result-count {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--muted-fg);
+        }
+
+        .result-count .dot {
+            width: 7px;
+            height: 7px;
+            background: var(--status-live);
+        }
+
+        .badge {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            height: 20px;
+            padding: 0 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid transparent;
+            background: var(--primary-soft);
+            color: var(--primary-text);
+        }
+
+        .badge-library {
+            border-color: var(--border-strong);
+            background: var(--card);
+            color: var(--fg);
+        }
+
+        .version-select {
+            min-width: 0;
+            height: 32px;
+            padding: 0 8px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--input);
+            background: var(--card);
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            color: var(--fg);
+            cursor: pointer;
+        }
+
+        .copy-btn {
+            display: inline-flex;
+            align-items: center;
+            height: 32px;
+            padding: 0 12px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: var(--primary);
+            color: var(--primary-fg);
+            font: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .copy-btn.is-copied {
+            background: var(--success);
+            color: #ffffff;
+        }
+
+        /* Grid view */
+        .chart-grid {
             display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
             gap: 16px;
         }
 
         .chart-card {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-md);
-            padding: 22px 24px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            transition: border-color 0.2s, box-shadow 0.2s;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-subtle);
+            background: var(--card);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            min-width: 0;
         }
 
         .chart-card:hover {
-            border-color: rgba(186, 24, 218, 0.4);
-            box-shadow: 0 0 0 1px rgba(186, 24, 218, 0.1);
+            border-color: var(--border);
+            box-shadow: 0 4px 16px -6px rgba(52, 23, 68, 0.18);
         }
 
-        .chart-header {
+        .chart-card-main {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 16px;
+            padding: 20px 20px 16px;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            cursor: pointer;
         }
 
-        .chart-name {
-            font-weight: 600;
-            font-size: 1.05rem;
-            color: var(--color-text);
+        .chart-card-main:hover {
+            background: var(--primary-softer);
         }
 
-        .chart-description {
-            font-size: 0.875rem;
-            color: var(--color-text-muted);
-            line-height: 1.5;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 10px;
-            border-radius: 100px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-        }
-
-        .badge-latest {
-            background: rgba(186, 24, 218, 0.15);
-            color: var(--color-primary);
-            border: 1px solid rgba(186, 24, 218, 0.35);
-        }
-
-        .chart-latest {
-            padding: 14px 16px;
-            background: var(--color-surface-2);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
+        .chart-head {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start;
             gap: 12px;
         }
 
-        .chart-latest-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .chart-version {
-            font-family: var(--font-mono);
-            font-weight: 600;
-            font-size: 0.95rem;
-            color: var(--color-text);
-        }
-
-        .chart-app-version {
-            font-family: var(--font-mono);
-            font-size: 0.78rem;
-            color: var(--color-text-faint);
-        }
-
-        .chart-date {
-            font-size: 0.78rem;
-            color: var(--color-text-faint);
-            margin-left: auto;
-        }
-
-        .chart-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .chart-download {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 7px 14px;
-            border-radius: var(--radius-sm);
-            font-size: 0.8rem;
-            font-weight: 600;
-            background: var(--color-accent-soft);
-            color: var(--color-accent);
-            border: 1px solid rgba(186, 24, 218, 0.25);
-            white-space: nowrap;
-            transition: all 0.2s;
-        }
-
-        .chart-download:hover {
-            background: var(--color-primary);
-            color: #fff;
-            border-color: var(--color-primary);
-            text-decoration: none;
-        }
-
-        .oci-copy-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 7px 12px;
-            border-radius: var(--radius-sm);
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            color: var(--color-text-muted);
-            font-family: var(--font-body);
-            font-size: 0.78rem;
-            cursor: pointer;
-            transition: all 0.18s;
-        }
-
-        .oci-copy-btn:hover {
-            border-color: var(--color-primary);
-            color: var(--color-text);
-        }
-
-        .oci-copy-btn.copied {
-            border-color: var(--color-success);
-            color: var(--color-success);
-        }
-
-        .oci-copy-btn code {
-            font-family: var(--font-mono);
-            font-size: 0.78rem;
-        }
-
-        .chart-history {
-            border-top: 1px solid var(--color-border);
-            padding-top: 14px;
-        }
-
-        .chart-history > summary {
-            cursor: pointer;
-            font-size: 0.83rem;
-            font-weight: 600;
-            color: var(--color-text-muted);
-            list-style: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: color 0.18s;
-            user-select: none;
-        }
-
-        .chart-history > summary:hover {
-            color: var(--color-text);
-        }
-
-        .chart-history > summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .chart-history > summary::before {
-            content: '';
-            width: 0;
-            height: 0;
-            border-left: 5px solid currentColor;
-            border-top: 4px solid transparent;
-            border-bottom: 4px solid transparent;
-            transition: transform 0.18s;
-        }
-
-        .chart-history[open] > summary::before {
-            transform: rotate(90deg);
-        }
-
-        .chart-history-list {
-            margin: 12px 0 0;
-            padding: 0;
-            list-style: none;
+        .chart-title {
+            flex: 1;
             display: flex;
             flex-direction: column;
             gap: 6px;
+            min-width: 0;
         }
 
-        .chart-history-row {
-            display: grid;
-            grid-template-columns: auto 1fr auto auto;
-            align-items: center;
-            gap: 14px;
-            padding: 8px 12px;
-            background: var(--color-surface-2);
-            border: 1px solid transparent;
-            border-radius: var(--radius-sm);
-            font-size: 0.85rem;
-            transition: border-color 0.15s;
-        }
-
-        .chart-history-row:hover {
-            border-color: var(--color-border);
-        }
-
-        .chart-history-version {
+        .chart-name {
+            margin: 0;
             font-family: var(--font-mono);
-            font-weight: 600;
-            color: var(--color-text);
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--fg);
+            overflow-wrap: anywhere;
         }
 
-        .chart-history-date {
-            font-size: 0.76rem;
-            color: var(--color-text-faint);
+        .chart-meta {
+            font-size: 12px;
+            color: var(--muted-fg);
         }
 
-        .chart-history-action {
+        .chart-desc {
+            margin: 0;
+            flex: 1;
+            font-size: 14px;
+            line-height: 1.55;
+            color: var(--muted-strong);
+            text-wrap: pretty;
+        }
+
+        .chart-deps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .chart-details {
+            appearance: none;
+            align-self: flex-start;
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            width: 28px;
-            height: 28px;
-            border-radius: var(--radius-sm);
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            color: var(--color-text-muted);
-            cursor: pointer;
-            transition: all 0.18s;
-            text-decoration: none;
+            gap: 4px;
             padding: 0;
+            border: none;
+            background: none;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--primary-text);
+            cursor: pointer;
         }
 
-        .chart-history-action:hover {
-            border-color: var(--color-primary);
-            color: var(--color-text);
-            text-decoration: none;
-        }
-
-        .chart-history-action.copied {
-            border-color: var(--color-success);
-            color: var(--color-success);
-        }
-
-        .charts-empty,
-        .charts-loading {
-            text-align: center;
-            padding: 60px 24px;
-            color: var(--color-text-muted);
-            font-size: 0.95rem;
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 28px;
-            height: 28px;
-            border: 3px solid var(--color-border);
-            border-top-color: var(--color-primary);
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            margin-bottom: 12px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* ─── Catalog toolbar (search) ───────────────────────────────── */
-        .catalog-toolbar {
+        .chart-install {
             display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 18px;
-            flex-wrap: wrap;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px 20px 20px;
+            border-top: 1px solid var(--hairline);
         }
 
-        .catalog-toolbar[hidden],
-        .chart-search-count[hidden] {
-            display: none;
-        }
-
-        .chart-search {
-            flex: 1 1 240px;
-            min-width: 0;
+        .chart-install-row {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 12px;
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
-            transition: border-color 0.18s;
         }
 
-        .chart-search:focus-within {
-            border-color: var(--color-primary);
-        }
-
-        .chart-search svg {
-            flex-shrink: 0;
-            color: var(--color-text-faint);
-        }
-
-        .chart-search input {
+        .chart-install-row .version-select {
             flex: 1;
-            min-width: 0;
-            background: transparent;
-            border: none;
-            outline: none;
-            color: var(--color-text);
-            font-family: var(--font-body);
-            font-size: 0.9rem;
         }
 
-        .chart-search input::placeholder {
-            color: var(--color-text-faint);
-        }
-
-        .chart-search-count {
-            font-size: 0.8rem;
-            color: var(--color-text-muted);
-            font-variant-numeric: tabular-nums;
+        .chart-cmd {
+            display: block;
+            font-size: 11.5px;
+            line-height: 1.5;
+            color: var(--muted-strong);
+            background: var(--header);
+            border: 1px solid var(--hairline);
+            padding: 8px 10px;
+            border-radius: var(--radius-md);
+            overflow-x: auto;
             white-space: nowrap;
         }
 
-        .chart-card[hidden] {
-            display: none;
-        }
-
-        /* ─── Skeleton placeholder cards ─────────────────────────────── */
-        .skeleton-card {
-            pointer-events: none;
-        }
-
-        .skeleton-card .chart-header {
-            gap: 10px;
-        }
-
-        .skeleton-line {
-            background: linear-gradient(
-                90deg,
-                var(--color-surface-2) 0%,
-                var(--color-border) 50%,
-                var(--color-surface-2) 100%
-            );
-            background-size: 200% 100%;
-            animation: shimmer 1.4s ease-in-out infinite;
-            border-radius: 4px;
-            height: 12px;
-        }
-
-        .skeleton-line-name {
-            height: 16px;
-            width: 35%;
-        }
-
-        .skeleton-line-desc {
-            width: 80%;
-        }
-
-        .skeleton-line-desc-short {
-            width: 55%;
-        }
-
-        .skeleton-panel {
-            height: 96px;
-            background: var(--color-surface-2);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
-            position: relative;
+        /* List view */
+        .chart-list {
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-subtle);
+            background: var(--card);
             overflow: hidden;
         }
 
-        .skeleton-panel::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(
-                90deg,
-                transparent 0%,
-                var(--color-border) 50%,
-                transparent 100%
-            );
-            background-size: 200% 100%;
-            animation: shimmer 1.4s ease-in-out infinite;
-        }
-
-        @keyframes shimmer {
-            0%   { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .skeleton-line,
-            .skeleton-panel::after,
-            .spinner {
-                animation: none;
-            }
-        }
-
-        /* ─── Narrow viewports: stack chart actions vertically ───────── */
-        @media (max-width: 540px) {
-            .chart-actions {
-                flex-direction: column;
-                align-items: stretch;
-                flex-wrap: nowrap;
-            }
-
-            .chart-actions .chart-download,
-            .chart-actions .oci-copy-btn {
-                justify-content: center;
-                width: 100%;
-                min-width: 0;
-            }
-
-            .chart-actions .oci-copy-btn code {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                flex: 1;
-                text-align: left;
-                min-width: 0;
-            }
-        }
-
-        /* ─── Info grid ──────────────────────────────────────────────── */
-        .info-grid {
+        .chart-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 2fr) auto;
             gap: 20px;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--hairline);
         }
 
-        .info-card {
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-md);
+        .chart-row:last-child {
+            border-bottom: none;
+        }
+
+        .chart-row:hover {
+            background: var(--primary-softer);
+        }
+
+        .chart-row-id {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .chart-row-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .chart-row-name {
+            appearance: none;
+            padding: 0;
+            border: none;
+            background: none;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--fg);
+            text-align: left;
+            overflow-wrap: anywhere;
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-color: var(--border);
+            text-underline-offset: 4px;
+        }
+
+        .chart-row-name:hover {
+            color: var(--primary-text);
+            text-decoration-color: currentColor;
+        }
+
+        .chart-row .badge {
+            height: 18px;
+            padding: 0 7px;
+            font-size: 11px;
+        }
+
+        .chart-row .chart-desc {
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+
+        .chart-row-install {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-row-install .version-select,
+        .chart-row-install .copy-btn {
+            height: 30px;
+        }
+
+        /* Skeleton cards shown while index.yaml loads. */
+        .chart-card.is-skeleton {
+            gap: 12px;
+            padding: 20px;
+            pointer-events: none;
+        }
+
+        .skel {
+            display: block;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(90deg, var(--muted) 0%, var(--header) 50%, var(--muted) 100%);
+            background-size: 200% 100%;
+            animation: skel-shimmer 1.4s ease-in-out infinite;
+        }
+
+        @keyframes skel-shimmer {
+            from {
+                background-position: 200% 0;
+            }
+
+            to {
+                background-position: -200% 0;
+            }
+        }
+
+        .catalog-message {
+            padding: 48px;
+            text-align: center;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-lg);
+            color: var(--muted-fg);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* ── Chart drawer ─────────────────────────────────────────────────── */
+        .drawer {
+            position: fixed;
+            inset: 0 0 0 auto;
+            margin: 0;
+            width: min(600px, 100%);
+            max-width: 100%;
+            height: 100%;
+            max-height: 100%;
+            padding: 0;
+            border: none;
+            border-left: 1px solid var(--border-subtle);
+            background: var(--card);
+            color: var(--fg);
+            box-shadow: -24px 0 48px -24px rgba(0, 0, 0, 0.35);
+            overflow-y: auto;
+        }
+
+        .drawer[open] {
+            animation: drawer-in 350ms cubic-bezier(0.2, 0, 0, 1) both;
+        }
+
+        .drawer::backdrop {
+            background: rgba(0, 0, 0, 0.5);
+            animation: fade-in 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+        }
+
+        @keyframes drawer-in {
+            from {
+                opacity: 0;
+                transform: translateX(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .drawer-head {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 20px 24px;
+            background: var(--header);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .drawer-title {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .drawer-title-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .drawer-title h2 {
+            margin: 0;
+            font-family: var(--font-mono);
+            font-size: 19px;
+            font-weight: 500;
+            overflow-wrap: anywhere;
+        }
+
+        .drawer-meta {
+            font-size: 13px;
+            color: var(--muted-fg);
+        }
+
+        .drawer-close {
+            border: none;
+            background: transparent;
+        }
+
+        .drawer-body {
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
             padding: 24px;
         }
 
-        .info-card-icon {
-            font-size: 1.6rem;
-            margin-bottom: 14px;
+        .drawer-desc {
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--muted-strong);
+            text-wrap: pretty;
         }
 
-        .info-card h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 8px;
+        .drawer-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
-        .info-card p {
-            font-size: 0.875rem;
-            color: var(--color-text-muted);
-            line-height: 1.55;
-        }
-
-        /* ─── Footer ─────────────────────────────────────────────────── */
-        .footer {
-            border-top: 1px solid var(--color-border);
-            padding: 36px 0;
-        }
-
-        .footer-inner {
+        .drawer-section-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
             flex-wrap: wrap;
-            gap: 16px;
         }
 
-        .footer-copy {
-            font-size: 0.85rem;
-            color: var(--color-text-faint);
+        .drawer-section h3 {
+            margin: 0;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--muted-fg);
+        }
+
+        .drawer-section .segmented button {
+            height: 26px;
+            font-size: 12.5px;
+        }
+
+        .drawer-cmd {
+            margin: 0;
+            padding: 14px 16px;
+            font-size: 12.5px;
+            line-height: 1.7;
+            color: var(--term-text);
+            overflow-x: auto;
+            border-radius: var(--radius-lg);
+        }
+
+        .drawer-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .drawer-table {
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .version-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
+            gap: 12px;
+            align-items: center;
+        }
+
+        .version-head {
+            padding: 8px 14px;
+            background: var(--header);
+            border-bottom: 1px solid var(--border-subtle);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--muted-fg);
+        }
+
+        .version-list {
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        .version-row {
+            appearance: none;
+            width: 100%;
+            padding: 9px 14px;
+            border: none;
+            border-bottom: 1px solid var(--hairline);
+            border-left: 2px solid transparent;
+            background: transparent;
+            font: inherit;
+            font-size: 13px;
+            color: var(--fg);
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .version-row:last-child {
+            border-bottom: none;
+        }
+
+        .version-row:hover {
+            background: var(--primary-softer);
+        }
+
+        .version-row[aria-pressed="true"] {
+            background: var(--primary-softer);
+            border-left-color: var(--primary);
+        }
+
+        .version-row .mono {
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .version-chart {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .version-app {
+            color: var(--muted-strong);
+        }
+
+        .version-date {
+            font-size: 12.5px;
+            color: var(--muted-fg);
+        }
+
+        .tag {
+            flex-shrink: 0;
+            font-family: var(--font-body);
+            font-size: 11px;
+            font-weight: 500;
+            padding: 1px 6px;
+            border-radius: 999px;
+            background: var(--primary-soft);
+            color: var(--primary-text);
+        }
+
+        .tag-pre {
+            background: transparent;
+            border: 1px solid var(--border-strong);
+            color: var(--muted-strong);
+        }
+
+        .dep-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--hairline);
+        }
+
+        .dep-row:last-child {
+            border-bottom: none;
+        }
+
+        .dep-row-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+            font-family: var(--font-mono);
+        }
+
+        .dep-name {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .dep-version {
+            font-size: 12px;
+            color: var(--muted-strong);
+        }
+
+        .dep-repo {
+            font-family: var(--font-mono);
+            font-size: 11.5px;
+            color: var(--muted-fg);
+            overflow-wrap: anywhere;
+        }
+
+        .drawer-details {
+            margin: 0;
+            display: grid;
+            grid-template-columns: 110px minmax(0, 1fr);
+            gap: 10px 16px;
+            font-size: 13.5px;
+        }
+
+        .drawer-details dt {
+            color: var(--muted-fg);
+        }
+
+        .drawer-details dd {
+            margin: 0;
+            min-width: 0;
+        }
+
+        .drawer-details .mono {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        .drawer-details .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .drawer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 18px;
+            padding-top: 6px;
+            font-size: 13.5px;
+            font-weight: 500;
+        }
+
+        /* ── Build a pack ─────────────────────────────────────────────────── */
+        .build-grid {
+            padding-top: var(--section-pad);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+            gap: 56px;
+            align-items: start;
+        }
+
+        .build-grid .section-intro {
+            gap: 20px;
+            max-width: 480px;
+        }
+
+        .pack-features {
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .pack-features div {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 12px;
+            padding: 12px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--hairline);
+        }
+
+        .pack-features div:last-child {
+            border-bottom: none;
+        }
+
+        .pack-features dt {
+            font-weight: 500;
+        }
+
+        .pack-features dd {
+            margin: 0;
+            color: var(--muted-strong);
+        }
+
+        .steps {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .step {
+            display: grid;
+            grid-template-columns: 36px minmax(0, 1fr);
+            gap: 16px;
+            padding-bottom: 28px;
+        }
+
+        .step:last-child {
+            padding-bottom: 0;
+        }
+
+        .step-rail {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary-soft);
+            color: var(--primary-text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .step:last-child .step-num {
+            background: var(--primary);
+            color: var(--primary-fg);
+        }
+
+        .step-line {
+            flex: 1;
+            width: 1px;
+            background: var(--border-subtle);
+        }
+
+        .step-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-top: 5px;
+            min-width: 0;
+        }
+
+        .step-body h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .step-body p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--muted-strong);
+        }
+
+        .step-body .term {
+            margin-top: 4px;
+            border-radius: var(--radius-lg);
+        }
+
+        .step-body .term-bar {
+            padding: 6px 12px;
+            font-size: 11.5px;
+        }
+
+        .step-body pre {
+            margin: 0;
+            padding: 12px 14px;
+            font-size: 12.5px;
+            line-height: 1.7;
+            color: var(--term-text);
+            overflow-x: auto;
+        }
+
+        .yaml-key {
+            color: var(--term-prompt);
+        }
+
+        /* ── How it works ─────────────────────────────────────────────────── */
+        .about .section-inner {
+            display: flex;
+            flex-direction: column;
+            gap: 48px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+            gap: 1px;
+            background: var(--border-subtle);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .info-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 28px 24px;
+            background: var(--card);
+        }
+
+        .info-card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-lg);
+            background: var(--primary-soft);
+            color: var(--primary-text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .info-card h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .info-card p {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--muted-strong);
+        }
+
+        /* ── Footer ───────────────────────────────────────────────────────── */
+        .site-footer {
+            background: var(--header);
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .site-footer .container {
+            padding-top: 28px;
+            padding-bottom: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--muted-fg);
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* The symbol PNG is padded; crop the mark out of it. */
+        .footer-symbol {
+            display: block;
+            flex-shrink: 0;
+            width: 33px;
+            height: 30px;
+            overflow: hidden;
+        }
+
+        .footer-symbol img {
+            display: block;
+            height: 52px;
+            max-width: none;
+            margin: -12px 0 0 -33px;
         }
 
         .footer-links {
             display: flex;
-            gap: 20px;
+            flex-wrap: wrap;
+            gap: 8px 20px;
         }
 
         .footer-links a {
-            font-size: 0.85rem;
-            color: var(--color-text-muted);
+            color: var(--muted-strong);
         }
 
-        .footer-links a:hover {
-            color: var(--color-text);
+        .footer-links .mono {
+            font-family: var(--font-mono);
         }
 
-        /* ─── Method tabs ────────────────────────────────────────────── */
-        .method-tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 28px;
-            border-bottom: 1px solid var(--color-border);
-            padding-bottom: 0;
+        /* ── Responsive / motion ──────────────────────────────────────────── */
+        @media (max-width: 760px) {
+            .chart-row {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 10px;
+            }
         }
 
-        .method-tab {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 10px 18px;
-            border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-            font-size: 0.875rem;
-            font-weight: 600;
-            font-family: var(--font-body);
-            cursor: pointer;
-            border: 1px solid transparent;
-            border-bottom: none;
-            background: transparent;
-            color: var(--color-text-muted);
-            transition: all 0.18s;
-            margin-bottom: -1px;
-        }
-
-        .method-tab:hover {
-            color: var(--color-text);
-        }
-
-        .method-tab.active {
-            background: var(--color-surface-2);
-            border-color: var(--color-border);
-            border-bottom-color: var(--color-surface-2);
-            color: var(--color-accent);
-        }
-
-        /* ─── Responsive ─────────────────────────────────────────────── */
         @media (max-width: 640px) {
-            .nav-links {
+            :root {
+                --section-pad: 64px;
+            }
+
+            .container {
+                padding: 0 16px;
+            }
+
+            .hero-grid {
+                padding-top: 56px;
+                padding-bottom: 56px;
+            }
+
+            .site-header .container {
+                gap: 12px;
+            }
+
+            .site-nav .nav-github {
+                margin-left: 4px;
+            }
+
+            .site-nav .icon-btn {
+                margin-left: 4px;
+            }
+
+            /* Keep the header to what fits; the rest is a scroll or the footer away. */
+            .site-nav .nav-wide {
                 display: none;
             }
 
-            .hero {
-                padding: 64px 0 56px;
+            .pack-features div {
+                grid-template-columns: 1fr;
+                gap: 2px;
             }
 
-            .footer-inner {
-                flex-direction: column;
-                text-align: center;
+            .catalog-status {
+                margin-left: 0;
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .drawer-head,
+            .drawer-body {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
+            }
+
+            *,
+            *::before,
+            *::after,
+            .drawer::backdrop {
+                animation: none !important;
             }
         }
     </style>
 </head>
 
 <body>
+    <div class="page">
 
-    <!-- ── Navigation ──────────────────────────────────────────────────── -->
-    <nav class="nav">
-        <div class="container nav-inner">
-            <a class="nav-logo" href="#">
-                <img src="https://raw.githubusercontent.com/nebari-dev/nebari-design/main/logo-mark/horizontal/Nebari-Logo-Horizontal-Lockup-White-text.svg"
-                    alt="Nebari" />
-            </a>
-            <ul class="nav-links">
-                <li><a href="#quickstart">Quick Start</a></li>
-                <li><a href="#charts">Charts</a></li>
-                <li><a href="https://nebari.dev/docs" target="_blank" rel="noopener">Docs</a></li>
-                <li><a href="https://github.com/nebari-dev/helm-repository" target="_blank" rel="noopener">GitHub</a>
-                </li>
-            </ul>
-        </div>
-    </nav>
-
-    <!-- ── Hero ────────────────────────────────────────────────────────── -->
-    <section class="hero">
-        <div class="container">
-            <h1>Helm charts for<br /><span>Nebari's ecosystem</span></h1>
-            <p>
-                A curated Helm chart repository for deploying <a href="https://github.com/nebari-dev/nebari-software-pack-template"
-                    target="_blank" rel="noopener"
-                    style="color:var(--color-accent);text-decoration:underline;text-decoration-color:rgba(234,181,78,0.4);text-underline-offset:3px">Nebari
-                    Software Packs</a> and companion tools on
-                Kubernetes—versioned, indexed, and always up to date.
-            </p>
-            <div class="hero-actions">
-                <a class="btn btn-primary" href="#quickstart">
-                    Get Started
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                    </svg>
+        <!-- ── Header ───────────────────────────────────────────────────── -->
+        <header class="site-header">
+            <div class="container">
+                <a href="#" class="site-logo" aria-label="Nebari Helm Repository — top of page">
+                    <img class="logo-light" src="assets/nebari-logo-horizontal.png" alt="Nebari" width="119" height="30" />
+                    <img class="logo-dark" src="assets/nebari-logo-horizontal-white.png" alt="Nebari" width="119" height="30" />
                 </a>
-                <a class="btn btn-outline" href="https://github.com/nebari-dev/helm-repository" target="_blank"
-                    rel="noopener">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path
-                            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-                    </svg>
-                    GitHub
-                </a>
+                <nav class="site-nav" aria-label="Primary">
+                    <a class="nav-wide" href="#quickstart">Quick Start</a>
+                    <a href="#charts">Charts</a>
+                    <a class="nav-wide" href="#build">Build a pack</a>
+                    <a class="nav-wide" href="https://github.com/nebari-dev/software-pack-dashboard">Dashboard</a>
+                    <a class="nav-wide" href="https://nebari.dev/docs">Docs</a>
+                    <a href="https://github.com/nebari-dev/helm-repository" class="nav-github">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path
+                                d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                            <path d="M9 18c-4.51 2-5-2-7-2" />
+                        </svg>
+                        GitHub
+                    </a>
+                    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch to dark theme"
+                        title="Switch to dark theme">
+                        <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+                        </svg>
+                        <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <circle cx="12" cy="12" r="4" />
+                            <path d="M12 2v2" />
+                            <path d="M12 20v2" />
+                            <path d="m4.93 4.93 1.41 1.41" />
+                            <path d="m17.66 17.66 1.41 1.41" />
+                            <path d="M2 12h2" />
+                            <path d="M20 12h2" />
+                            <path d="m6.34 17.66-1.41 1.41" />
+                            <path d="m19.07 4.93-1.41 1.41" />
+                        </svg>
+                    </button>
+                </nav>
             </div>
-        </div>
-    </section>
+        </header>
 
-    <!-- ── Quick Start ──────────────────────────────────────────────────── -->
-    <section class="section" id="quickstart">
-        <div class="container">
-            <p class="section-label">Quick Start</p>
-            <h2 class="section-title">Install a Nebari Helm chart</h2>
-            <p class="section-subtitle">
-                Two ways to install. The Helm-index flow is the traditional path: add the
-                repository once, then install charts by name. The OCI flow skips the repo
-                step and installs a specific version directly from quay.io.
-                <a class="subtitle-link" href="https://helm.sh/docs/intro/quickstart/" target="_blank" rel="noopener">New to Helm?</a>
-            </p>
+        <main>
 
-            <!-- Method tabs -->
-            <div class="method-tabs" role="tablist" aria-label="Installation method">
-                <button class="method-tab active" role="tab" aria-selected="true" onclick="switchMethod('index', this)">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                        <rect x="1" y="1" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.4" />
-                        <path d="M4 5h7M4 8h5M4 11h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-                    </svg>
-                    Helm Index
-                </button>
-                <button class="method-tab" role="tab" aria-selected="false" onclick="switchMethod('oci', this)">
-                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                        <circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.4" />
-                        <path d="M7.5 4v3.5l2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-                    </svg>
-                    OCI · quay.io
-                </button>
-            </div>
-
-            <!-- ── Helm Index method ─────────────────────────────────── -->
-            <div class="method-panel" id="method-index">
-                <p class="method-intro">
-                    Register the Nebari repository under the alias <code>nebari</code>. After that,
-                    every chart in the <a href="#charts">catalog below</a> is installable by name.
-                    Run <code>helm repo update</code> when you want to pick up newly published versions.
-                </p>
-                <div class="code-block" id="cb-index">
-                    <pre><span class="comment"># 1. Add the Nebari Helm repository (one-time setup)</span>
-<span class="cmd">helm</span> repo add nebari https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/
-
-<span class="comment"># 2. Pull the latest chart index</span>
-<span class="cmd">helm</span> repo update nebari
-
-<span class="comment"># 3. Install a chart (pick a name from the catalog below)</span>
-<span class="cmd">helm</span> install my-release nebari/<span class="flag">&lt;chart-name&gt;</span></pre>
-                    <button class="code-copy" onclick="copyCode('cb-index')">Copy</button>
-                </div>
-            </div>
-
-            <!-- ── OCI method ────────────────────────────────────────── -->
-            <div class="method-panel" id="method-oci" style="display:none">
-                <p class="method-intro">
-                    Install a specific chart version directly from <code>quay.io/nebari/charts</code>
-                    without registering the repo first. Each card in the
-                    <a href="#charts">catalog below</a> has a copy button that pre-fills the chart
-                    name and <code>--version</code>, so the snippets here are templates.
-                </p>
-                <div class="code-block" id="cb-oci">
-                    <pre><span class="comment"># Install a specific chart version (--version is required for OCI refs)</span>
-<span class="cmd">helm</span> install my-release oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
-
-<span class="comment"># Inspect chart metadata before installing</span>
-<span class="cmd">helm</span> show chart oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span>
-
-<span class="comment"># Pull the chart archive without installing</span>
-<span class="cmd">helm</span> pull oci://quay.io/nebari/charts/<span class="flag">&lt;chart-name&gt;</span> <span class="flag">--version</span> <span class="comment">&lt;version&gt;</span></pre>
-                    <button class="code-copy" onclick="copyCode('cb-oci')">Copy</button>
-                </div>
-                <p class="method-note">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                        <circle cx="7" cy="7" r="5.5" stroke="var(--color-success)" stroke-width="1.4"/>
-                        <path d="M4.5 7l1.7 1.7L9.5 5.5" stroke="var(--color-success)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    <span>All Nebari OCI charts on quay.io are public, so no <code>helm registry login</code> is required. For more on installing from OCI registries, see the <a href="https://helm.sh/docs/topics/registries/" target="_blank" rel="noopener">Helm OCI docs</a>.</span>
-                </p>
-            </div>
-        </div>
-    </section>
-
-    <!-- ── Charts ───────────────────────────────────────────────────────── -->
-    <section class="section" id="charts">
-        <div class="container">
-            <p class="section-label">Available Charts</p>
-            <h2 class="section-title">Browse the chart catalog</h2>
-            <p class="section-subtitle">
-                Charts are automatically packaged and published whenever a new chart directory is merged into
-                <code style="font-family:var(--font-mono);font-size:0.92em">main</code>.
-            </p>
-
-            <div class="catalog-toolbar" id="catalog-toolbar" hidden>
-                <label class="chart-search">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                        <circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.4"/>
-                        <path d="M9.2 9.2l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-                    </svg>
-                    <input type="search" id="chart-search-input" placeholder="Filter charts by name or description…" aria-label="Filter charts by name or description">
-                </label>
-                <span class="chart-search-count" id="chart-search-count" hidden></span>
-            </div>
-
-            <div class="charts-grid" id="charts-container" aria-busy="true">
-                <article class="chart-card skeleton-card" aria-hidden="true">
-                    <div class="chart-header">
-                        <div class="skeleton-line skeleton-line-name"></div>
-                        <div class="skeleton-line skeleton-line-desc"></div>
-                        <div class="skeleton-line skeleton-line-desc-short"></div>
-                    </div>
-                    <div class="skeleton-panel"></div>
-                </article>
-                <article class="chart-card skeleton-card" aria-hidden="true">
-                    <div class="chart-header">
-                        <div class="skeleton-line skeleton-line-name"></div>
-                        <div class="skeleton-line skeleton-line-desc"></div>
-                        <div class="skeleton-line skeleton-line-desc-short"></div>
-                    </div>
-                    <div class="skeleton-panel"></div>
-                </article>
-                <article class="chart-card skeleton-card" aria-hidden="true">
-                    <div class="chart-header">
-                        <div class="skeleton-line skeleton-line-name"></div>
-                        <div class="skeleton-line skeleton-line-desc"></div>
-                        <div class="skeleton-line skeleton-line-desc-short"></div>
-                    </div>
-                    <div class="skeleton-panel"></div>
-                </article>
-            </div>
-        </div>
-    </section>
-
-    <!-- ── Info cards ───────────────────────────────────────────────────── -->
-    <section class="section">
-        <div class="container">
-            <p class="section-label">About</p>
-            <h2 class="section-title">How it works</h2>
-            <p class="section-subtitle">
-                This repository is powered by GitHub Actions and GitHub Pages — no external infrastructure required.
-            </p>
-            <div class="info-grid">
-                <div class="info-card">
-                    <div class="info-card-icon">📦</div>
-                    <h3>Automated publishing</h3>
-                    <p>Add a chart source directory to <code
-                            style="font-family:var(--font-mono);font-size:0.92em">charts/</code> on
-                        <code style="font-family:var(--font-mono);font-size:0.92em">main</code> and a GitHub Actions
-                        workflow automatically packages it, updates <code
-                            style="font-family:var(--font-mono);font-size:0.92em">index.yaml</code>, and deploys
-                        everything to GitHub Pages.
-                    </p>
-                </div>
-                <div class="info-card">
-                    <div class="info-card-icon">🏷️</div>
-                    <h3>Versioned index</h3>
-                    <p>Each chart version is preserved in <code
-                            style="font-family:var(--font-mono);font-size:0.92em">index.yaml</code> with its original
-                        creation date, so <code
-                            style="font-family:var(--font-mono);font-size:0.92em">helm repo update</code> always gives
-                        you the full history.</p>
-                </div>
-                <div class="info-card">
-                    <div class="info-card-icon">&#x1F4E1;</div>
-                    <h3>OCI on quay.io</h3>
-                    <p>Every chart is also pushed to <code
-                            style="font-family:var(--font-mono);font-size:0.92em">quay.io/nebari/charts</code> as a public
-                        OCI artifact, separate from container image repositories. Install with a single
-                        <code style="font-family:var(--font-mono);font-size:0.92em">helm install oci://…</code>
-                        command — no repo registration needed.
-                    </p>
-                </div>
-                <div class="info-card">
-                    <div class="info-card-icon">🚀</div>
-                    <h3>Zero maintenance</h3>
-                    <p>No ChartMuseum, no external object storage. Everything is automated via GitHub Actions —
-                        GitHub Pages serves the Helm index and quay.io serves the OCI artifacts.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ── Footer ───────────────────────────────────────────────────────── -->
-    <footer class="footer">
-        <div class="container footer-inner">
-            <span class="footer-copy">
-                Copyright © <span id="footer-year"></span> | Made with 💜 by the <a href="https://nebari.dev"
-                    style="color:var(--color-accent)">Nebari</a> dev team
-            </span>
-            <nav class="footer-links">
-                <a href="https://nebari.dev/docs" target="_blank" rel="noopener">Docs</a>
-                <a href="https://github.com/nebari-dev" target="_blank" rel="noopener">GitHub</a>
-                <a href="https://github.com/orgs/nebari-dev/discussions" target="_blank" rel="noopener">Community</a>
-                <a href="./index.yaml" target="_blank">index.yaml</a>
-            </nav>
-        </div>
-    </footer>
-
-    <script>
-        /* ── Method tab switcher ── */
-        function switchMethod(method, btn) {
-            document.querySelectorAll('.method-tab').forEach(t => {
-                t.classList.remove('active');
-                t.setAttribute('aria-selected', 'false');
-            });
-            document.querySelectorAll('.method-panel').forEach(p => p.style.display = 'none');
-            btn.classList.add('active');
-            btn.setAttribute('aria-selected', 'true');
-            document.getElementById('method-' + method).style.display = '';
-        }
-
-        /* ── Footer year ── */
-        document.getElementById('footer-year').textContent = new Date().getFullYear();
-
-        /* ── Copy to clipboard ── */
-        function copyCode(id) {
-            const el = document.getElementById(id);
-            const btn = el.querySelector('.code-copy');
-            const pre = el.querySelector('pre');
-            navigator.clipboard.writeText(pre.innerText.trim()).then(() => {
-                btn.textContent = 'Copied!';
-                setTimeout(() => btn.textContent = 'Copy', 1800);
-            });
-        }
-
-        /* ── Delegated copy handler for dynamically-rendered chart-card buttons ── */
-        document.addEventListener('click', (e) => {
-            const btn = e.target.closest('.oci-copy-btn');
-            if (!btn) return;
-            e.preventDefault();
-            const cmd = btn.dataset.installCmd;
-            if (!cmd) return;
-            navigator.clipboard.writeText(cmd).then(() => {
-                btn.classList.add('copied');
-                setTimeout(() => btn.classList.remove('copied'), 1600);
-            });
-        });
-
-        /* ── Load & render charts from index.yaml ── */
-        (async function loadCharts() {
-            const container = document.getElementById('charts-container');
-
-            // index.yaml lives at the repo root on gh-pages.
-            // Append a timestamp to bust the GitHub Pages CDN cache on every load.
-            const indexUrl = `./index.yaml?_=${Date.now()}`;
-
-            try {
-                const res = await fetch(indexUrl);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const text = await res.text();
-                const index = jsyaml.load(text);
-
-                const entries = index.entries || {};
-                const names = Object.keys(entries);
-
-                if (names.length === 0) {
-                    container.innerHTML = `<div class="charts-empty">No charts published yet. Add a chart source directory to <code>charts/</code> on the <code>main</code> branch to get started.</div>`;
-                    return;
-                }
-
-                // Sort chart names alphabetically
-                names.sort();
-
-                container.innerHTML = '';
-
-                const formatDate = d => d
-                    ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-                    : '';
-
-                const downloadIcon = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1v8M3.5 6l3.5 4 3.5-4M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-                const copyIcon = '<svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="3.5" y="2" width="7" height="9" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M2 4.5v7a1 1 0 001 1h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
-
-                for (const name of names) {
-                    // Show latest version first (semver-aware, with prerelease handling).
-                    const versions = [...entries[name]].sort((a, b) => semverCompare(b.version, a.version));
-                    const latest = versions[0];
-                    const older = versions.slice(1);
-                    const ociBase = `oci://quay.io/nebari/charts/${name}`;
-                    const installCmd = v => `helm install my-release ${ociBase} --version ${v}`;
-
-                    const card = document.createElement('article');
-                    card.className = 'chart-card';
-                    card.dataset.chartName = name;
-                    card.dataset.chartDescription = latest.description || '';
-
-                    const latestApp = latest.appVersion
-                        ? `<span class="chart-app-version">app v${escapeHtml(String(latest.appVersion).replace(/^v/, ''))}</span>`
-                        : '';
-                    const latestDate = latest.created
-                        ? `<span class="chart-date">${escapeHtml(formatDate(latest.created))}</span>`
-                        : '';
-
-                    const historyHtml = older.length === 0 ? '' : `
-                        <details class="chart-history">
-                            <summary>${older.length === 1 ? '1 older version' : `${older.length} older versions`}</summary>
-                            <ul class="chart-history-list">
-                                ${older.map(v => `
-                                    <li class="chart-history-row">
-                                        <span class="chart-history-version">v${escapeHtml(v.version)}</span>
-                                        <span class="chart-history-date">${escapeHtml(formatDate(v.created))}</span>
-                                        <a class="chart-history-action" href="${escapeHtml(v.urls[0])}" download title="Download .tgz" aria-label="Download v${escapeHtml(v.version)} .tgz">
-                                            ${downloadIcon}
-                                        </a>
-                                        <button class="chart-history-action oci-copy-btn" type="button" data-install-cmd="${escapeHtml(installCmd(v.version))}" title="Copy helm install command" aria-label="Copy helm install command for v${escapeHtml(v.version)}">
-                                            ${copyIcon}
-                                        </button>
-                                    </li>
-                                `).join('')}
-                            </ul>
-                        </details>
-                    `;
-
-                    card.innerHTML = `
-                        <div class="chart-header">
-                            <div class="chart-name">${escapeHtml(name)}</div>
-                            <div class="chart-description">${escapeHtml(latest.description || 'No description provided.')}</div>
+            <!-- ── Hero ─────────────────────────────────────────────────── -->
+            <section class="hero">
+                <div class="container hero-grid">
+                    <div class="hero-copy">
+                        <div class="hero-stats" id="hero-stats" hidden>
+                            <span class="dot" aria-hidden="true"></span>
+                            <span id="hero-stats-text"></span>
                         </div>
-                        <div class="chart-latest">
-                            <div class="chart-latest-row">
-                                <span class="badge badge-latest">Latest</span>
-                                <span class="chart-version">v${escapeHtml(latest.version)}</span>
-                                ${latestApp}
-                                ${latestDate}
+                        <h1>Helm charts for Nebari's ecosystem</h1>
+                        <p class="hero-lead">
+                            A curated Helm chart repository for deploying
+                            <a href="https://github.com/nebari-dev/software-pack-template">Nebari Software Packs</a>
+                            and companion tools on Kubernetes—versioned, indexed, and always up to date.
+                        </p>
+                        <div class="btn-row">
+                            <a href="#quickstart" class="btn btn-primary">Get Started
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M5 12h14" />
+                                    <path d="m12 5 7 7-7 7" />
+                                </svg>
+                            </a>
+                            <a href="#charts" class="btn btn-outline">Browse charts</a>
+                        </div>
+                    </div>
+
+                    <div class="term hero-term" aria-label="Example terminal session" role="img">
+                        <div class="term-bar">
+                            <div class="term-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+                            <span>zsh</span>
+                        </div>
+                        <div class="term-body" aria-hidden="true">
+                            <div class="term-line"><span class="term-prompt">$</span> helm repo add nebari https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/</div>
+                            <div class="term-line term-dim">"nebari" has been added to your repositories</div>
+                            <div class="term-line"><span class="term-prompt">$</span> helm search repo nebari</div>
+                            <div class="term-line term-dim" id="hero-head">NAME                              CHART VERSION</div>
+                            <div id="hero-rows">
+                                <span class="hero-row-skeleton"></span>
+                                <span class="hero-row-skeleton"></span>
+                                <span class="hero-row-skeleton"></span>
+                                <span class="hero-row-skeleton"></span>
                             </div>
-                            <div class="chart-actions">
-                                <a class="chart-download" href="${escapeHtml(latest.urls[0])}" download>
-                                    ${downloadIcon}
-                                    Download .tgz
-                                </a>
-                                <button class="oci-copy-btn" type="button" data-install-cmd="${escapeHtml(installCmd(latest.version))}" title="Copy helm install command" aria-label="Copy helm install command for v${escapeHtml(latest.version)}">
-                                    <code>${escapeHtml(ociBase)} --version ${escapeHtml(latest.version)}</code>
-                                    ${copyIcon}
+                            <div class="term-line hero-more">…</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Quick Start ──────────────────────────────────────────── -->
+            <section class="section" id="quickstart">
+                <div class="container section-inner quickstart-grid">
+                    <div class="section-intro">
+                        <span class="eyebrow">Quick Start</span>
+                        <h2 class="section-title">Install a Nebari Helm chart</h2>
+                        <p class="section-lead">
+                            Two ways to install. The Helm-index flow is the traditional path: add the repository once,
+                            then install charts by name. The OCI flow skips the repo step and installs a specific
+                            version directly from quay.io.
+                            <a href="https://helm.sh/docs/intro/quickstart/">New to Helm?</a>
+                        </p>
+                    </div>
+
+                    <div class="quickstart-panel">
+                        <div class="tabs" role="tablist" aria-label="Installation method">
+                            <button class="tab" role="tab" id="tab-helm" data-method="helm" aria-controls="method-panel"
+                                aria-selected="true">Helm Index</button>
+                            <button class="tab" role="tab" id="tab-oci" data-method="oci" aria-controls="method-panel"
+                                aria-selected="false" tabindex="-1">OCI · quay.io</button>
+                        </div>
+
+                        <div class="quickstart-panel" id="method-panel" role="tabpanel" aria-labelledby="tab-helm">
+                            <p class="method-intro" data-show-for="helm">
+                                Register the Nebari repository under the alias <code class="code-pill">nebari</code>.
+                                After that, every chart in the <a href="#charts">catalog below</a> is installable by
+                                name. Run <code class="code-pill">helm repo update</code> when you want to pick up newly
+                                published versions.
+                            </p>
+                            <p class="method-intro" data-show-for="oci" hidden>
+                                Install a specific chart version directly from
+                                <code class="code-pill">quay.io/nebari/charts</code> without registering the repo first.
+                                Each card in the <a href="#charts">catalog below</a> has a copy button that pre-fills the
+                                chart name and <code class="code-pill">--version</code>, so the snippets here are
+                                templates.
+                            </p>
+
+                            <div class="term quick-term">
+                                <div class="term-bar">
+                                    <span id="quick-label">Helm index</span>
+                                    <button class="term-copy" id="quick-copy" data-idle="Copy">Copy</button>
+                                </div>
+                                <div class="term-body" id="quick-body"></div>
+                            </div>
+
+                            <div class="callout-info" data-show-for="oci" hidden>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M12 16v-4" />
+                                    <path d="M12 8h.01" />
+                                </svg>
+                                <span>All Nebari OCI charts on quay.io are public, so no
+                                    <code>helm registry login</code> is required. For more on installing from OCI
+                                    registries, see the <a href="https://helm.sh/docs/topics/registries/">Helm OCI
+                                        docs</a>.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Chart catalog ────────────────────────────────────────── -->
+            <section class="section catalog" id="charts">
+                <div class="container section-inner">
+                    <div class="catalog-head">
+                        <div class="section-intro">
+                            <span class="eyebrow">Available Charts</span>
+                            <h2 class="section-title">Browse the chart catalog</h2>
+                            <p class="section-lead">
+                                Charts are automatically packaged and published whenever a new chart directory is
+                                merged into <code class="prose-code">main</code>.
+                            </p>
+                        </div>
+                        <div class="copy-as">
+                            <span id="copy-as-label">Copy as</span>
+                            <div class="segmented" role="group" aria-labelledby="copy-as-label">
+                                <button data-method-pill="helm" aria-pressed="true">Helm index</button>
+                                <button data-method-pill="oci" aria-pressed="false">OCI</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="catalog-toolbar" id="catalog-toolbar" hidden>
+                        <div class="search">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.3-4.3" />
+                            </svg>
+                            <input type="search" id="chart-search" placeholder="Search charts, dependencies…"
+                                aria-label="Search charts by name, description, or dependency" autocomplete="off" />
+                        </div>
+                        <div class="type-filters" id="type-filters" role="group" aria-label="Filter by chart type">
+                        </div>
+                        <div class="catalog-status">
+                            <span class="result-count">
+                                <span class="dot" aria-hidden="true"></span>
+                                <span id="result-count" aria-live="polite"></span>
+                            </span>
+                            <div class="segmented is-icons" role="group" aria-label="Catalog view">
+                                <button data-layout="grid" aria-label="Grid view" title="Grid view" aria-pressed="true">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        aria-hidden="true">
+                                        <rect width="7" height="7" x="3" y="3" rx="1" />
+                                        <rect width="7" height="7" x="14" y="3" rx="1" />
+                                        <rect width="7" height="7" x="14" y="14" rx="1" />
+                                        <rect width="7" height="7" x="3" y="14" rx="1" />
+                                    </svg>
+                                </button>
+                                <button data-layout="list" aria-label="List view" title="List view" aria-pressed="false">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        aria-hidden="true">
+                                        <path d="M3 5h.01" />
+                                        <path d="M3 12h.01" />
+                                        <path d="M3 19h.01" />
+                                        <path d="M8 5h13" />
+                                        <path d="M8 12h13" />
+                                        <path d="M8 19h13" />
+                                    </svg>
                                 </button>
                             </div>
                         </div>
-                        ${historyHtml}
-                    `;
+                    </div>
 
-                    container.appendChild(card);
-                }
-                container.setAttribute('aria-busy', 'false');
-                setupChartSearch(container, names.length);
-            } catch (err) {
-                container.setAttribute('aria-busy', 'false');
-                container.innerHTML = `<div class="charts-empty">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="margin-bottom:12px;opacity:0.4"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M12 7v5M12 16v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        <div>Could not load <code>index.yaml</code>. The chart catalog will appear here once the first chart is published.</div>
-        <div style="margin-top:8px;font-size:0.8rem;opacity:0.6">${escapeHtml(err.message)}</div>
-      </div>`;
+                    <div class="chart-grid" id="chart-container" aria-busy="true">
+                        <!-- Skeleton cards, replaced once index.yaml loads. -->
+                        <article class="chart-card is-skeleton" aria-hidden="true">
+                            <span class="skel" style="width:55%;height:16px"></span>
+                            <span class="skel" style="width:35%;height:12px"></span>
+                            <span class="skel" style="width:90%;height:12px"></span>
+                            <span class="skel" style="width:100%;height:32px;margin-top:16px"></span>
+                        </article>
+                        <article class="chart-card is-skeleton" aria-hidden="true">
+                            <span class="skel" style="width:45%;height:16px"></span>
+                            <span class="skel" style="width:30%;height:12px"></span>
+                            <span class="skel" style="width:80%;height:12px"></span>
+                            <span class="skel" style="width:100%;height:32px;margin-top:16px"></span>
+                        </article>
+                        <article class="chart-card is-skeleton" aria-hidden="true">
+                            <span class="skel" style="width:60%;height:16px"></span>
+                            <span class="skel" style="width:40%;height:12px"></span>
+                            <span class="skel" style="width:85%;height:12px"></span>
+                            <span class="skel" style="width:100%;height:32px;margin-top:16px"></span>
+                        </article>
+                    </div>
+                    <div class="catalog-message" id="catalog-message" hidden></div>
+                </div>
+            </section>
+
+            <!-- ── Build a pack ─────────────────────────────────────────── -->
+            <section class="section" id="build">
+                <div class="container build-grid">
+                    <div class="section-intro">
+                        <span class="eyebrow">Build your own</span>
+                        <h2 class="section-title">Publish your app as a Nebari Software Pack</h2>
+                        <p class="section-lead">
+                            A software pack is any Kubernetes deployment that includes a
+                            <code class="code-pill">NebariApp</code> custom resource. The
+                            <a href="https://github.com/nebari-dev/nebari-operator">nebari-operator</a> watches for it
+                            and configures the rest automatically.
+                        </p>
+                        <dl class="pack-features">
+                            <div>
+                                <dt>Routing</dt>
+                                <dd>HTTPRoute on the shared Envoy Gateway</dd>
+                            </div>
+                            <div>
+                                <dt>TLS</dt>
+                                <dd>Certificate provisioned via cert-manager</dd>
+                            </div>
+                            <div>
+                                <dt>Authentication</dt>
+                                <dd>Keycloak OIDC via an Envoy Gateway SecurityPolicy</dd>
+                            </div>
+                        </dl>
+                        <div class="btn-row">
+                            <a href="https://github.com/nebari-dev/software-pack-template" class="btn btn-primary">Use
+                                the template
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M7 7h10v10" />
+                                    <path d="M7 17 17 7" />
+                                </svg>
+                            </a>
+                            <a href="https://github.com/nebari-dev/software-pack-dashboard" class="btn btn-outline">Pack
+                                dashboard</a>
+                        </div>
+                    </div>
+
+                    <ol class="steps">
+                        <li class="step">
+                            <div class="step-rail" aria-hidden="true"><span class="step-num">1</span><span
+                                    class="step-line"></span></div>
+                            <div class="step-body">
+                                <h3>Use the template</h3>
+                                <p>Create a repo from
+                                    <a href="https://github.com/nebari-dev/software-pack-template">software-pack-template</a>,
+                                    pick the example that matches your use case, and replace
+                                    <code class="prose-code">my-pack</code> with your pack name.
+                                </p>
+                            </div>
+                        </li>
+                        <li class="step">
+                            <div class="step-rail" aria-hidden="true"><span class="step-num">2</span><span
+                                    class="step-line"></span></div>
+                            <div class="step-body">
+                                <h3>Wrap a chart</h3>
+                                <p>Add the upstream chart next to the <code class="prose-code">nebari-app</code> library
+                                    chart, then point the NebariApp at the upstream service in
+                                    <code class="prose-code">values.yaml</code>.
+                                </p>
+                                <div class="term">
+                                    <div class="term-bar">Chart.yaml</div>
+<pre><span class="yaml-key">dependencies:</span>
+  - name: nebari-app
+    repository: oci://quay.io/nebari/charts
+    version: "&gt;=0.1.1"
+  - name: podinfo
+    version: 6.10.1
+    repository: oci://ghcr.io/stefanprodan/charts</pre>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="step">
+                            <div class="step-rail" aria-hidden="true"><span class="step-num">3</span></div>
+                            <div class="step-body">
+                                <h3>Release</h3>
+                                <p>Bump the version in <code class="prose-code">Chart.yaml</code> on
+                                    <code class="prose-code">main</code>. The shared release workflow packages the chart
+                                    and opens a PR against this repository, which publishes it to the catalog above and
+                                    to <code class="prose-code">quay.io/nebari/charts</code>. Then add the pack to the
+                                    <a href="https://github.com/nebari-dev/software-pack-dashboard">dashboard</a>.
+                                </p>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- ── How it works ─────────────────────────────────────────── -->
+            <section class="section about" id="about">
+                <div class="container section-inner">
+                    <div class="section-intro">
+                        <span class="eyebrow">About</span>
+                        <h2 class="section-title">How it works</h2>
+                        <p class="section-lead">
+                            This repository is powered by GitHub Actions and GitHub Pages — no external infrastructure
+                            required.
+                        </p>
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="info-card-icon" aria-hidden="true">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path
+                                        d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z" />
+                                    <path d="M12 22V12" />
+                                    <path d="m3.3 7 8.7 5 8.7-5" />
+                                </svg>
+                            </div>
+                            <h3>Automated publishing</h3>
+                            <p>Add a chart source directory to <code class="prose-code">charts/</code> on
+                                <code class="prose-code">main</code> and a GitHub Actions workflow automatically
+                                packages it, updates <code class="prose-code">index.yaml</code>, and deploys everything
+                                to GitHub Pages.
+                            </p>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-card-icon" aria-hidden="true">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path
+                                        d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z" />
+                                    <path d="M7 7h.01" />
+                                </svg>
+                            </div>
+                            <h3>Versioned index</h3>
+                            <p>Each chart version is preserved in <code class="prose-code">index.yaml</code> with its
+                                original creation date, so <code class="prose-code">helm repo update</code> always gives
+                                you the full history.</p>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-card-icon" aria-hidden="true">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
+                                </svg>
+                            </div>
+                            <h3>OCI on quay.io</h3>
+                            <p>Every chart is also pushed to <code class="prose-code">quay.io/nebari/charts</code> as a
+                                public OCI artifact, separate from container image repositories. Install with a single
+                                <code class="prose-code">helm install oci://…</code> command — no repo registration
+                                needed.
+                            </p>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-card-icon" aria-hidden="true">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                    <path d="m9 12 2 2 4-4" />
+                                </svg>
+                            </div>
+                            <h3>Zero maintenance</h3>
+                            <p>No ChartMuseum, no external object storage. Everything is automated via GitHub Actions —
+                                GitHub Pages serves the Helm index and quay.io serves the OCI artifacts.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ── Footer ───────────────────────────────────────────────────── -->
+        <footer class="site-footer">
+            <div class="container">
+                <div class="footer-brand">
+                    <span class="footer-symbol"><img src="assets/nebari-symbol.png" alt="" /></span>
+                    <span>Copyright © <span id="year">2026</span> | Made with 💜 by the
+                        <a href="https://nebari.dev">Nebari</a> dev team</span>
+                </div>
+                <nav class="footer-links" aria-label="Footer">
+                    <a href="https://nebari.dev/docs">Docs</a>
+                    <a href="https://github.com/nebari-dev">GitHub</a>
+                    <a href="https://github.com/nebari-dev/software-pack-template">Pack template</a>
+                    <a href="https://github.com/nebari-dev/software-pack-dashboard">Pack dashboard</a>
+                    <a href="https://github.com/orgs/nebari-dev/discussions">Community</a>
+                    <a href="./index.yaml" class="mono">index.yaml</a>
+                </nav>
+            </div>
+        </footer>
+
+        <!-- ── Chart detail drawer (filled by renderDrawer) ─────────────── -->
+        <dialog class="drawer" id="chart-drawer" aria-labelledby="drawer-title"></dialog>
+
+        <div class="sr-only" id="announcer" aria-live="polite"></div>
+    </div>
+
+    <script>
+        const REPO_URL = 'https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/';
+        const OCI_BASE = 'oci://quay.io/nebari/charts';
+        const STORAGE = { theme: 'nebari-helm-theme', layout: 'nebari-helm-layout' };
+
+        const QUICK = {
+            helm: {
+                label: 'Helm index',
+                lines: [
+                    '# 1. Add the Nebari Helm repository (one-time setup)',
+                    `helm repo add nebari ${REPO_URL}`,
+                    '',
+                    '# 2. Pull the latest chart index',
+                    'helm repo update nebari',
+                    '',
+                    '# 3. Install a chart (pick a name from the catalog below)',
+                    'helm install my-release nebari/<chart-name>',
+                ],
+            },
+            oci: {
+                label: 'OCI · quay.io',
+                lines: [
+                    '# Install a specific chart version (--version is required for OCI refs)',
+                    `helm install my-release ${OCI_BASE}/<chart-name> --version <version>`,
+                    '',
+                    '# Inspect chart metadata before installing',
+                    `helm show chart ${OCI_BASE}/<chart-name> --version <version>`,
+                    '',
+                    '# Pull the chart archive without installing',
+                    `helm pull ${OCI_BASE}/<chart-name> --version <version>`,
+                ],
+            },
+        };
+
+        const TYPE_FILTERS = [
+            { type: 'all', label: 'All' },
+            { type: 'application', label: 'Application' },
+            { type: 'library', label: 'Library' },
+        ];
+
+        const state = {
+            method: 'helm',
+            query: '',
+            type: 'all',
+            layout: readStored(STORAGE.layout) === 'list' ? 'list' : 'grid',
+            sel: {},          // chart name -> selected version
+            open: null,       // chart name shown in the drawer
+            generated: null,  // index.yaml `generated` timestamp
+        };
+        let charts = [];
+
+        // ── Small helpers ─────────────────────────────────────────────────
+        // Builds elements with textContent rather than innerHTML, so chart
+        // metadata from index.yaml never needs escaping.
+        function el(tag, props = {}, children = []) {
+            const node = document.createElement(tag);
+            for (const [key, value] of Object.entries(props)) {
+                if (value === undefined || value === null || value === false) continue;
+                if (key === 'class') node.className = value;
+                else if (key === 'text') node.textContent = value;
+                else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+                else node.setAttribute(key, value === true ? '' : value);
             }
-        })();
+            for (const child of children) if (child) node.append(child);
+            return node;
+        }
 
-        /* ── Catalog search: case-insensitive substring filter on name + description ── */
-        function setupChartSearch(container, total) {
-            const toolbar = document.getElementById('catalog-toolbar');
-            const input = document.getElementById('chart-search-input');
-            const countEl = document.getElementById('chart-search-count');
-            if (!toolbar || !input || !countEl) return;
-            toolbar.hidden = false;
+        function svgIcon(paths, size = 14) {
+            const ns = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(ns, 'svg');
+            for (const [k, v] of Object.entries({
+                width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
+                'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true',
+            })) svg.setAttribute(k, v);
+            for (const d of paths) {
+                const path = document.createElementNS(ns, 'path');
+                path.setAttribute('d', d);
+                svg.append(path);
+            }
+            return svg;
+        }
 
-            const cards = Array.from(container.querySelectorAll('.chart-card'));
+        function readStored(key) {
+            try { return localStorage.getItem(key); } catch (e) { return null; }
+        }
 
-            const apply = () => {
-                const q = input.value.trim().toLowerCase();
-                let shown = 0;
-                for (const card of cards) {
-                    const name = (card.dataset.chartName || '').toLowerCase();
-                    const desc = (card.dataset.chartDescription || '').toLowerCase();
-                    const match = !q || name.includes(q) || desc.includes(q);
-                    card.hidden = !match;
-                    if (match) shown++;
-                }
-                if (q) {
-                    countEl.hidden = false;
-                    countEl.textContent = `${shown} of ${total} matching`;
-                } else {
-                    countEl.hidden = true;
-                }
-                let emptyEl = container.querySelector('.chart-search-empty');
-                if (shown === 0 && q) {
-                    if (!emptyEl) {
-                        emptyEl = document.createElement('div');
-                        emptyEl.className = 'charts-empty chart-search-empty';
-                        container.appendChild(emptyEl);
-                    }
-                    emptyEl.textContent = `No charts match "${q}".`;
-                } else if (emptyEl) {
-                    emptyEl.remove();
-                }
+        function writeStored(key, value) {
+            try { localStorage.setItem(key, value); } catch (e) { }
+        }
+
+        function announce(message) {
+            const region = document.getElementById('announcer');
+            region.textContent = '';
+            requestAnimationFrame(() => { region.textContent = message; });
+        }
+
+        function isPrerelease(version) {
+            return version.includes('-');
+        }
+
+        function formatDate(value) {
+            if (!value) return '—';
+            const d = new Date(value);
+            return isNaN(d) ? '—' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function timeAgo(value) {
+            const seconds = Math.max(0, (Date.now() - new Date(value).getTime()) / 1000);
+            if (!isFinite(seconds)) return '';
+            if (seconds < 3600) return `${Math.max(1, Math.round(seconds / 60))} min ago`;
+            if (seconds < 86400) return `${Math.round(seconds / 3600)} h ago`;
+            return `${Math.round(seconds / 86400)} d ago`;
+        }
+
+        // ── Theme ─────────────────────────────────────────────────────────
+        // The <head> script applies the initial theme; this keeps the toggle
+        // label in sync and follows the OS until the user picks explicitly.
+        function syncThemeToggle() {
+            const dark = document.documentElement.classList.contains('dark');
+            const label = dark ? 'Switch to light theme' : 'Switch to dark theme';
+            const btn = document.getElementById('theme-toggle');
+            btn.setAttribute('aria-label', label);
+            btn.title = label;
+        }
+
+        function setupTheme() {
+            const root = document.documentElement;
+            document.getElementById('theme-toggle').addEventListener('click', () => {
+                const next = root.classList.contains('dark') ? 'light' : 'dark';
+                root.classList.toggle('dark', next === 'dark');
+                writeStored(STORAGE.theme, next);
+                syncThemeToggle();
+            });
+            try {
+                matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                    if (readStored(STORAGE.theme)) return;
+                    root.classList.toggle('dark', e.matches);
+                    syncThemeToggle();
+                });
+            } catch (e) { }
+            syncThemeToggle();
+        }
+
+        // ── Copy feedback ─────────────────────────────────────────────────
+        // One button shows "Copied" at a time; its idle label lives in
+        // data-idle so a method switch can relabel it mid-flash.
+        let copiedBtn = null;
+        let copiedTimer;
+
+        function resetCopied() {
+            if (!copiedBtn) return;
+            copiedBtn.classList.remove('is-copied');
+            copiedBtn.textContent = copiedBtn.dataset.idle;
+            copiedBtn = null;
+        }
+
+        // navigator.clipboard only exists in secure contexts (HTTPS or
+        // localhost). Plain-HTTP previews fall back to execCommand('copy').
+        function legacyCopy(text) {
+            const previous = document.activeElement;
+            const area = el('textarea', { readonly: true, 'aria-hidden': 'true' });
+            area.value = text;
+            area.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+            // Inside an open modal, everything outside the dialog is inert.
+            (document.querySelector('dialog[open]') || document.body).append(area);
+            area.select();
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { }
+            area.remove();
+            if (previous && previous.focus) previous.focus();
+            return ok;
+        }
+
+        async function copyText(text, btn) {
+            let ok = false;
+            if (navigator.clipboard && window.isSecureContext) {
+                try { await navigator.clipboard.writeText(text); ok = true; } catch (e) { }
+            }
+            if (!ok) ok = legacyCopy(text);
+            if (!ok) {
+                announce('Copy failed — select the command and copy it manually');
+                return;
+            }
+            if (copiedBtn !== btn) resetCopied();
+            copiedBtn = btn;
+            btn.classList.add('is-copied');
+            btn.textContent = 'Copied';
+            announce('Copied to clipboard');
+            clearTimeout(copiedTimer);
+            copiedTimer = setTimeout(resetCopied, 1600);
+        }
+
+        function setIdleLabel(btn, label) {
+            btn.dataset.idle = label;
+            if (copiedBtn !== btn) btn.textContent = label;
+        }
+
+        // ── Install method (Quick Start tabs, "Copy as", drawer) ──────────
+        function chartRef(name) {
+            return state.method === 'helm' ? `nebari/${name}` : `${OCI_BASE}/${name}`;
+        }
+
+        function installCommand(name, version) {
+            return `helm install my-release ${chartRef(name)} --version ${version}`;
+        }
+
+        function copyLabel() {
+            return state.method === 'helm' ? 'Copy helm' : 'Copy OCI';
+        }
+
+        function setMethod(method) {
+            state.method = method;
+
+            document.querySelectorAll('.tab').forEach(tab => {
+                const active = tab.dataset.method === method;
+                tab.setAttribute('aria-selected', String(active));
+                tab.tabIndex = active ? 0 : -1;
+            });
+            document.getElementById('method-panel').setAttribute('aria-labelledby', `tab-${method}`);
+            document.querySelectorAll('[data-show-for]').forEach(node => {
+                node.hidden = node.dataset.showFor !== method;
+            });
+            document.querySelectorAll('[data-method-pill]').forEach(btn => {
+                btn.setAttribute('aria-pressed', String(btn.dataset.methodPill === method));
+            });
+
+            renderQuickStart();
+            charts.forEach(syncChartView);
+            renderDrawer();
+        }
+
+        function renderQuickStart() {
+            const { label, lines } = QUICK[state.method];
+            document.getElementById('quick-label').textContent = label;
+            document.getElementById('quick-body').replaceChildren(...lines.map(line =>
+                el('div', { class: line.startsWith('#') ? 'term-line term-comment' : 'term-line', text: line })
+            ));
+        }
+
+        function methodPills() {
+            return el('div', { class: 'segmented', role: 'group', 'aria-label': 'Install method' },
+                [['helm', 'Helm index'], ['oci', 'OCI']].map(([m, label]) => el('button', {
+                    'data-method-pill': m,
+                    'data-focus-key': `method:${m}`,
+                    'aria-pressed': String(state.method === m),
+                    text: label,
+                    onclick: () => setMethod(m),
+                })));
+        }
+
+        function setupMethodControls() {
+            const tabs = Array.from(document.querySelectorAll('.tab'));
+            tabs.forEach((tab, i) => {
+                tab.addEventListener('click', () => setMethod(tab.dataset.method));
+                tab.addEventListener('keydown', e => {
+                    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+                    const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+                    next.focus();
+                    setMethod(next.dataset.method);
+                });
+            });
+            document.querySelectorAll('[data-method-pill]').forEach(btn => {
+                btn.addEventListener('click', () => setMethod(btn.dataset.methodPill));
+            });
+            const quickCopy = document.getElementById('quick-copy');
+            quickCopy.addEventListener('click', () => {
+                const commands = QUICK[state.method].lines.filter(l => l && !l.startsWith('#'));
+                copyText(commands.join('\n'), quickCopy);
+            });
+        }
+
+        // ── Catalog ───────────────────────────────────────────────────────
+        function buildChart(name, entries) {
+            const versions = [...entries].sort((a, b) => semverCompare(b.version, a.version));
+            const latest = versions[0];
+            return {
+                name,
+                versions,  // full index.yaml entries, newest first
+                type: latest.type || 'application',
+                app: latest.appVersion ? String(latest.appVersion) : '',
+                desc: String(latest.description || '').trim(),
+                deps: (latest.dependencies || []).map(d => d.name).filter(Boolean),
+                view: null,  // { root, select, copyBtn, cmdEl? } for the current layout
             };
-
-            input.addEventListener('input', apply);
         }
 
-        function escapeHtml(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;');
+        function selectedVersion(chart) {
+            return state.sel[chart.name] || String(chart.versions[0].version);
         }
 
-        // SemVer 2.0.0 comparator. Returns negative if a < b, positive if a > b.
+        function selectVersion(chart, version) {
+            state.sel[chart.name] = version;
+            syncChartView(chart);
+            renderDrawer();
+        }
+
+        function releasesLabel(chart) {
+            return chart.versions.length === 1 ? '1 release' : `${chart.versions.length} releases`;
+        }
+
+        function badge(chart) {
+            return el('span', { class: chart.type === 'library' ? 'badge badge-library' : 'badge', text: chart.type });
+        }
+
+        // Pre-releases stay out of the picker unless one is the latest or
+        // was chosen in the drawer; the drawer lists every version.
+        function versionOptions(chart) {
+            const selected = selectedVersion(chart);
+            return chart.versions
+                .map(v => String(v.version))
+                .filter((v, i) => i === 0 || !isPrerelease(v) || v === selected)
+                .map((v, i) => el('option', { value: v, text: i === 0 ? `${v}  (latest)` : v }));
+        }
+
+        function syncChartView(chart) {
+            const view = chart.view;
+            if (!view) return;
+            const version = selectedVersion(chart);
+            view.select.replaceChildren(...versionOptions(chart));
+            view.select.value = version;
+            if (view.cmdEl) view.cmdEl.textContent = installCommand(chart.name, version);
+            setIdleLabel(view.copyBtn, copyLabel());
+        }
+
+        function chartControls(chart) {
+            const select = el('select', { class: 'version-select', 'aria-label': `Version of ${chart.name}` });
+            select.addEventListener('change', () => selectVersion(chart, select.value));
+            const copyBtn = el('button', { class: 'copy-btn', 'aria-label': `Copy install command for ${chart.name}` });
+            copyBtn.addEventListener('click', () => copyText(installCommand(chart.name, selectedVersion(chart)), copyBtn));
+            return { select, copyBtn };
+        }
+
+        function renderCard(chart) {
+            const { select, copyBtn } = chartControls(chart);
+            const cmdEl = el('code', { class: 'chart-cmd' });
+            const meta = chart.app ? `app ${chart.app} · ${releasesLabel(chart)}` : releasesLabel(chart);
+
+            // The whole upper area opens the drawer on click; the
+            // "View details" button is the keyboard/screen-reader path.
+            const main = el('div', { class: 'chart-card-main', onclick: () => openDrawer(chart) }, [
+                el('div', { class: 'chart-head' }, [
+                    el('div', { class: 'chart-title' }, [
+                        el('h3', { class: 'chart-name', text: chart.name }),
+                        el('span', { class: 'chart-meta', text: meta }),
+                    ]),
+                    badge(chart),
+                ]),
+                el('p', { class: 'chart-desc', text: chart.desc }),
+                chart.deps.length
+                    ? el('div', { class: 'chart-deps', 'aria-label': 'Dependencies' },
+                        chart.deps.map(d => el('span', { class: 'chip', text: d })))
+                    : null,
+                el('button', { class: 'chart-details', 'aria-label': `View details for ${chart.name}` },
+                    ['View details', svgIcon(['m9 18 6-6-6-6'])]),
+            ]);
+
+            const root = el('article', { class: 'chart-card' }, [
+                main,
+                el('div', { class: 'chart-install' }, [
+                    el('div', { class: 'chart-install-row' }, [select, copyBtn]),
+                    cmdEl,
+                ]),
+            ]);
+            chart.view = { root, select, copyBtn, cmdEl };
+            syncChartView(chart);
+            return root;
+        }
+
+        function renderRow(chart) {
+            const { select, copyBtn } = chartControls(chart);
+            const meta = chart.app ? `app ${chart.app} · ${releasesLabel(chart)}` : releasesLabel(chart);
+            const root = el('div', { class: 'chart-row' }, [
+                el('div', { class: 'chart-row-id' }, [
+                    el('div', { class: 'chart-row-title' }, [
+                        el('button', {
+                            class: 'chart-row-name', text: chart.name,
+                            'aria-label': `View details for ${chart.name}`, onclick: () => openDrawer(chart),
+                        }),
+                        badge(chart),
+                    ]),
+                    el('span', { class: 'chart-meta', text: meta }),
+                ]),
+                el('p', { class: 'chart-desc', text: chart.desc }),
+                el('div', { class: 'chart-row-install' }, [select, copyBtn]),
+            ]);
+            chart.view = { root, select, copyBtn, cmdEl: null };
+            syncChartView(chart);
+            return root;
+        }
+
+        function renderCatalog() {
+            const container = document.getElementById('chart-container');
+            container.className = state.layout === 'list' ? 'chart-list' : 'chart-grid';
+            container.replaceChildren(...charts.map(state.layout === 'list' ? renderRow : renderCard));
+            document.querySelectorAll('[data-layout]').forEach(btn => {
+                btn.setAttribute('aria-pressed', String(btn.dataset.layout === state.layout));
+            });
+            applyFilters();
+        }
+
+        function setupLayoutControls() {
+            document.querySelectorAll('[data-layout]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (state.layout === btn.dataset.layout) return;
+                    state.layout = btn.dataset.layout;
+                    writeStored(STORAGE.layout, state.layout);
+                    renderCatalog();
+                });
+            });
+        }
+
+        function renderTypeFilters() {
+            const counts = { all: charts.length };
+            charts.forEach(c => { counts[c.type] = (counts[c.type] || 0) + 1; });
+
+            document.getElementById('type-filters').replaceChildren(...TYPE_FILTERS
+                .filter(f => f.type === 'all' || counts[f.type])
+                .map(f => el('button', {
+                    'data-type': f.type,
+                    'aria-pressed': String(state.type === f.type),
+                    onclick: () => { state.type = f.type; renderTypeFilters(); applyFilters(); },
+                }, [`${f.label} `, el('span', { class: 'count', text: String(counts[f.type]) })]))
+            );
+        }
+
+        function applyFilters() {
+            const q = state.query.trim().toLowerCase();
+            let shown = 0;
+            charts.forEach(c => {
+                const haystack = `${c.name} ${c.desc} ${c.deps.join(' ')}`.toLowerCase();
+                const match = (state.type === 'all' || c.type === state.type) && (!q || haystack.includes(q));
+                if (c.view) c.view.root.hidden = !match;
+                if (match) shown++;
+            });
+
+            const count = shown === charts.length ? `${charts.length} charts` : `${shown} of ${charts.length} charts`;
+            const ago = state.generated ? timeAgo(state.generated) : '';
+            document.getElementById('result-count').textContent =
+                ago ? `${count} · live index.yaml, generated ${ago}` : count;
+
+            document.getElementById('chart-container').hidden = shown === 0;
+            const message = document.getElementById('catalog-message');
+            message.hidden = shown > 0;
+            if (shown === 0) {
+                message.textContent = q ? `No charts match “${state.query.trim()}”.` : 'No charts of this type yet.';
+            }
+        }
+
+        function renderHero() {
+            const releases = charts.reduce((n, c) => n + c.versions.length, 0);
+            document.getElementById('hero-stats-text').textContent = `${charts.length} charts · ${releases} releases`;
+            document.getElementById('hero-stats').hidden = false;
+
+            // A few real rows for the illustrative `helm search repo` output.
+            const rows = charts.filter(c => c.type === 'application' && c.name.startsWith('nebari-')).slice(0, 4);
+            const width = Math.max(34, ...rows.map(c => `nebari/${c.name}`.length + 2));
+            document.getElementById('hero-head').textContent = 'NAME'.padEnd(width) + 'CHART VERSION';
+            document.getElementById('hero-rows').replaceChildren(...rows.map(c =>
+                el('div', { class: 'term-line hero-row', text: `nebari/${c.name}`.padEnd(width) + c.versions[0].version })
+            ));
+        }
+
+        // ── Drawer ────────────────────────────────────────────────────────
+        function openDrawer(chart) {
+            state.open = chart.name;
+            renderDrawer();
+            const dialog = document.getElementById('chart-drawer');
+            if (!dialog.open) dialog.showModal();
+            document.body.classList.add('drawer-open');
+            dialog.scrollTop = 0;
+        }
+
+        function setupDrawer() {
+            const dialog = document.getElementById('chart-drawer');
+            dialog.addEventListener('close', () => {
+                state.open = null;
+                document.body.classList.remove('drawer-open');
+            });
+            // Clicks on the backdrop land on the <dialog> element itself.
+            dialog.addEventListener('click', e => {
+                if (e.target === dialog) dialog.close();
+            });
+        }
+
+        function drawerSection(title, children, extraHead) {
+            return el('section', { class: 'drawer-section' }, [
+                el('div', { class: 'drawer-section-head' }, [el('h3', { text: title }), extraHead]),
+                ...children,
+            ]);
+        }
+
+        function renderDrawer() {
+            const dialog = document.getElementById('chart-drawer');
+            const chart = state.open && charts.find(c => c.name === state.open);
+            if (!chart) return;
+            // Re-rendering replaces the focused control; remember it so a
+            // keyboard user stays on the same version row or method button.
+            const focusKey = dialog.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
+
+            const version = selectedVersion(chart);
+            const cur = chart.versions.find(v => String(v.version) === version) || chart.versions[0];
+            const latest = String(chart.versions[0].version);
+            const app = cur.appVersion ? String(cur.appVersion) : '—';
+            const ref = chartRef(chart.name);
+            const command = installCommand(chart.name, version);
+            const valuesCommand = `helm show values ${ref} --version ${version}`;
+
+            const copyCmd = el('button', { class: 'btn btn-primary btn-sm', 'data-idle': 'Copy command', text: 'Copy command' });
+            copyCmd.addEventListener('click', () => copyText(command, copyCmd));
+            const copyValues = el('button', { class: 'btn btn-outline btn-sm', 'data-idle': 'Copy helm show values', text: 'Copy helm show values' });
+            copyValues.addEventListener('click', () => copyText(valuesCommand, copyValues));
+
+            const versionRows = chart.versions.map((v, i) => {
+                const ver = String(v.version);
+                return el('button', {
+                    class: 'version-row version-grid',
+                    'data-focus-key': `version:${ver}`,
+                    'aria-pressed': String(ver === version),
+                    onclick: () => selectVersion(chart, ver),
+                }, [
+                    el('span', { class: 'version-chart' }, [
+                        el('span', { class: 'mono', text: ver }),
+                        i === 0 ? el('span', { class: 'tag', text: 'latest' }) : null,
+                        isPrerelease(ver) ? el('span', { class: 'tag tag-pre', text: 'pre' }) : null,
+                    ]),
+                    el('span', { class: 'mono version-app', text: v.appVersion ? String(v.appVersion) : '—' }),
+                    el('span', { class: 'version-date', text: formatDate(v.created) }),
+                ]);
+            });
+
+            const deps = cur.dependencies || [];
+            const maintainers = (cur.maintainers || []).map(m => m.name).filter(Boolean);
+            const keywords = cur.keywords || [];
+
+            const links = [];
+            if (cur.home) links.push(['Homepage', cur.home]);
+            (cur.sources || []).filter(u => u && u !== cur.home).forEach(u => links.push(['Source', u]));
+            if (cur.urls && cur.urls[0]) links.push([`Download ${chart.name}-${version}.tgz`, cur.urls[0]]);
+            links.push(['View on quay.io', `https://quay.io/repository/nebari/charts/${chart.name}`]);
+
+            const closeBtn = el('button', { class: 'icon-btn drawer-close', 'aria-label': 'Close', onclick: () => dialog.close() },
+                [svgIcon(['M18 6 6 18', 'm6 6 12 12'], 18)]);
+
+            dialog.replaceChildren(
+                el('div', { class: 'drawer-head' }, [
+                    el('div', { class: 'drawer-title' }, [
+                        el('div', { class: 'drawer-title-row' }, [
+                            el('h2', { id: 'drawer-title', text: chart.name }),
+                            badge(chart),
+                        ]),
+                        el('span', { class: 'drawer-meta', text: `Latest ${latest} · app ${app} · ${releasesLabel(chart)}` }),
+                    ]),
+                    closeBtn,
+                ]),
+                el('div', { class: 'drawer-body' }, [
+                    el('p', { class: 'drawer-desc', text: String(cur.description || chart.desc).trim() }),
+                    drawerSection(`Install ${version}`, [
+                        el('pre', { class: 'term drawer-cmd', text: `helm install my-release ${ref} \\\n  --version ${version}` }),
+                        el('div', { class: 'drawer-actions' }, [copyCmd, copyValues]),
+                    ], methodPills()),
+                    drawerSection('Versions', [
+                        el('div', { class: 'drawer-table' }, [
+                            el('div', { class: 'version-grid version-head', 'aria-hidden': 'true' },
+                                ['Chart', 'App', 'Published'].map(t => el('span', { text: t }))),
+                            el('div', { class: 'version-list', role: 'group', 'aria-label': `Versions of ${chart.name}` }, versionRows),
+                        ]),
+                    ]),
+                    deps.length ? drawerSection(`Dependencies in ${version}`, [
+                        el('div', { class: 'drawer-table' }, deps.map(d => el('div', { class: 'dep-row' }, [
+                            el('div', { class: 'dep-row-head' }, [
+                                el('span', { class: 'dep-name', text: d.name }),
+                                el('span', { class: 'dep-version', text: d.version || '' }),
+                            ]),
+                            d.repository ? el('span', { class: 'dep-repo', text: d.repository }) : null,
+                        ]))),
+                    ]) : null,
+                    drawerSection('Details', [
+                        el('dl', { class: 'drawer-details' }, [
+                            el('dt', { text: 'OCI ref' }),
+                            el('dd', { class: 'mono', text: `${OCI_BASE}/${chart.name}:${version}` }),
+                            ...(maintainers.length ? [el('dt', { text: 'Maintainers' }), el('dd', { text: maintainers.join(', ') })] : []),
+                            ...(keywords.length ? [
+                                el('dt', { text: 'Keywords' }),
+                                el('dd', { class: 'chips' }, keywords.map(k => el('span', { class: 'chip', text: String(k) }))),
+                            ] : []),
+                        ]),
+                        el('div', { class: 'drawer-links' }, links.map(([label, href]) =>
+                            el('a', { href, target: '_blank', rel: 'noopener', text: `${label} ↗` }))),
+                    ]),
+                ]),
+            );
+
+            // Keep the selected version in view when the list scrolls.
+            const selectedRow = dialog.querySelector('.version-row[aria-pressed="true"]');
+            if (selectedRow) selectedRow.scrollIntoView({ block: 'nearest' });
+            const refocus = focusKey && dialog.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
+            if (refocus) refocus.focus();
+        }
+
+        // ── Load ──────────────────────────────────────────────────────────
+        async function loadCharts() {
+            const container = document.getElementById('chart-container');
+            const message = document.getElementById('catalog-message');
+
+            // Cache-bust so the GitHub Pages CDN doesn't serve a stale index.
+            try {
+                const res = await fetch(`./index.yaml?_=${Date.now()}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const index = jsyaml.load(await res.text());
+                state.generated = index.generated || null;
+                charts = Object.entries(index.entries || {})
+                    .filter(([, entries]) => entries && entries.length)
+                    .map(([name, entries]) => buildChart(name, entries))
+                    .sort((a, b) => a.name.localeCompare(b.name));
+            } catch (err) {
+                container.replaceChildren();
+                container.setAttribute('aria-busy', 'false');
+                message.replaceChildren(
+                    'Could not load the chart index. ',
+                    el('a', { href: './index.yaml', text: 'Open index.yaml' }),
+                    ' to browse it directly.'
+                );
+                message.hidden = false;
+                document.getElementById('hero-rows').replaceChildren();
+                return;
+            }
+
+            container.setAttribute('aria-busy', 'false');
+            if (charts.length === 0) {
+                container.replaceChildren();
+                message.textContent = 'No charts published yet — add a chart directory under charts/ on main.';
+                message.hidden = false;
+                document.getElementById('hero-rows').replaceChildren();
+                return;
+            }
+
+            renderHero();
+            renderTypeFilters();
+            renderCatalog();
+            document.getElementById('catalog-toolbar').hidden = false;
+            const search = document.getElementById('chart-search');
+            search.addEventListener('input', () => { state.query = search.value; applyFilters(); });
+        }
+
         // Build metadata (after '+') is ignored. Prereleases compare per spec
         // §11: no-prerelease > prerelease; identifier-by-identifier; numeric
         // identifiers have lower precedence than non-numeric ones.
@@ -1438,6 +2931,14 @@
             }
             return idsA.length - idsB.length;
         }
+
+        document.getElementById('year').textContent = new Date().getFullYear();
+        setupTheme();
+        setupMethodControls();
+        setupLayoutControls();
+        setupDrawer();
+        renderQuickStart();
+        loadCharts();
     </script>
 </body>
 
