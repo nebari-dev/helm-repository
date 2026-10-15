@@ -35,7 +35,7 @@ api:
       # -- The repository of the main application image
       repository: ghcr.io/nebari-dev/collab-hub-pack/api
       # -- The tag of the main application image. If not set, the chart's appVersion is used.
-      tag: "sha-3fe084c"
+      tag: "sha-e452f3f"
       # -- The pull policy for the main application image
       pullPolicy: IfNotPresent
     securityContext:
@@ -213,7 +213,8 @@ server:
   # logs. Prefer naming the proxy's CIDR above.
   trustAnyProxy: false
   # -- ASGI root path, when the app is served under a URL prefix rather than
-  # at the root of its host.
+  # at the root of its host. A prefix such as "/hub": it must start with a
+  # slash and not end with one, and "/" is not a root path (leave it empty).
   rootPath: ""
 
 security:
