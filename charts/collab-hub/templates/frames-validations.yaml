@@ -1,4 +1,4 @@
-{{- /* Standalone exposure (issue #60). These fail the render rather than the
+{{- /* Standalone exposure. These fail the render rather than the
 deployment: an Ingress that publishes an unauthenticated surface is not
 something to discover from the outside. */}}
 {{- if .Values.api.ingress.enabled }}
