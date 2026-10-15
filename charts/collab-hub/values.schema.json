@@ -378,7 +378,8 @@
           "type": "boolean"
         },
         "rootPath": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^$|^/.*[^/]$"
         }
       },
       "additionalProperties": false
