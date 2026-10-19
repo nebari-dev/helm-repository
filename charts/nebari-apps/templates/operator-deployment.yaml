@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.operator.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "nebari-apps.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: operator
+  template:
+    metadata:
+      labels:
+        {{- include "nebari-apps.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: operator
+    spec:
+      serviceAccountName: {{ include "nebari-apps.fullname" . }}-operator
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: operator
+          image: {{ include "nebari-apps.operatorImage" . }}
+          imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+          args:
+            - --apps-domain={{ include "nebari-apps.appsDomain" . }}
+            - --gateway={{ .Values.gateway }}
+            - --static-image={{ .Values.staticImage }}
+            - --git-image={{ .Values.gitImage }}
+            - --python-image={{ .Values.pythonImage }}
+            - {{ printf "--default-static-resources=%s" (toJson .Values.apps.defaultResources.static) | quote }}
+            - {{ printf "--default-python-resources=%s" (toJson .Values.apps.defaultResources.python) | quote }}
+            {{- if not .Values.tls.enabled }}
+            - --tls-disabled
+            {{- end }}
+            {{- if .Values.apps.landingPage.enabled }}
+            - --landing-page
+            {{- end }}
+            {{- if .Values.operator.leaderElection }}
+            - --leader-elect
+            {{- end }}
+          ports:
+            - name: probes
+              containerPort: 8081
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: probes
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: probes
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          resources:
+            {{- toYaml .Values.operator.resources | nindent 12 }}

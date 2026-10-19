@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+---
+# Apps live in project/team namespaces, so the operator needs cluster-wide
+# access to Apps and the children it reconciles them into.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-operator
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["apps.nebari.dev"]
+    resources: ["apps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps.nebari.dev"]
+    resources: ["apps/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["apps.nebari.dev"]
+    resources: ["apps/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  # Read-only: a pvc source is mounted only if its claim is labeled
+  # apps.nebari.dev/mountable=true.
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: ["reconcilers.nebari.dev"]
+    resources: ["nebariapps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-operator
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "nebari-apps.fullname" . }}-operator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nebari-apps.fullname" . }}-operator
+    namespace: {{ .Release.Namespace }}
+---
+# Leader election needs Lease access in the release namespace only.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-leader-election
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-leader-election
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "nebari-apps.fullname" . }}-leader-election
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nebari-apps.fullname" . }}-operator
+    namespace: {{ .Release.Namespace }}
