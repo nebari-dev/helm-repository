@@ -1,0 +1,61 @@
+{{- /*
+Optional guard rails for the namespaces users launch apps into
+(api.allowedNamespaces). Each namespace must already exist.
+*/ -}}
+{{- $root := . }}
+{{- range $ns := .Values.api.allowedNamespaces }}
+{{- if $root.Values.apps.limitRange.enabled }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ include "nebari-apps.fullname" $root }}-app-defaults
+  namespace: {{ $ns }}
+  labels:
+    {{- include "nebari-apps.labels" $root | nindent 4 }}
+spec:
+  limits:
+    - type: Container
+      default:
+        {{- toYaml $root.Values.apps.limitRange.default | nindent 8 }}
+      defaultRequest:
+        {{- toYaml $root.Values.apps.limitRange.defaultRequest | nindent 8 }}
+      max:
+        {{- toYaml $root.Values.apps.limitRange.max | nindent 8 }}
+{{- end }}
+{{- if $root.Values.apps.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "nebari-apps.fullname" $root }}-apps
+  namespace: {{ $ns }}
+  labels:
+    {{- include "nebari-apps.labels" $root | nindent 4 }}
+spec:
+  # Only pods the apps-operator launches.
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/managed-by: apps-operator
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $root.Values.apps.networkPolicy.gatewayNamespace }}
+      ports:
+        - port: 8080
+          protocol: TCP
+  egress:
+    - ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            {{- with $root.Values.apps.networkPolicy.blockedCIDRs }}
+            except:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+{{- end }}
+{{- end }}

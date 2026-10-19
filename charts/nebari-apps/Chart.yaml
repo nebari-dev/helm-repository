@@ -1,0 +1,13 @@
+apiVersion: v2
+name: nebari-apps
+description: >-
+  Nebari Apps Pack - launch, manage, and observe static web
+  applications on a Nebari cluster. Installs the App CRD and the
+  apps-operator that reconciles Apps into Deployments, Services, and
+  NebariApps.
+type: application
+version: 0.1.0 # x-release-please-version
+appVersion: "0.1.0" # x-release-please-version
+home: https://github.com/nebari-dev/apps-pack
+sources:
+  - https://github.com/nebari-dev/apps-pack

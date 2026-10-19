@@ -1,0 +1,271 @@
+# Default values for nebari-apps.
+
+# =============================================================================
+# Cluster integration
+# =============================================================================
+# The cluster's base domain. Required - there is no sensible default.
+clusterDomain: ""
+
+# Domain apps are exposed under: https://<subdomain>.<appsDomain>.
+# Defaults to apps.<clusterDomain>, e.g. my-app.apps.example.ai.
+appsDomain: ""
+
+# Shared Gateway that app NebariApps attach to: public | internal.
+gateway: public
+
+# TLS for everything this pack exposes (the UI and every launched app).
+# Disable to serve plain HTTP - no certificates, no HTTPS listeners
+# (useful for local development; keep enabled on real clusters).
+tls:
+  enabled: true
+
+# =============================================================================
+# Launched apps
+# =============================================================================
+apps:
+  landingPage:
+    # Cluster default for registering launched apps as tiles on the Nebari
+    # landing page. Off: apps are reachable at their URL and listed in the
+    # Apps UI, but do not appear on the landing page unless the App sets
+    # spec.landingPage.enabled=true. On: every app gets a tile unless it sets
+    # spec.landingPage.enabled=false. The UI's own "Apps" tile is separate
+    # (ui.landingPage).
+    enabled: false
+
+  # Requests/limits the operator fills in for any cpu/memory value an App's
+  # runtime.resources leaves unset, so no launched container runs unbounded.
+  # A filled limit never drops below the App's own request.
+  defaultResources:
+    static:            # nginx serving files
+      requests: {cpu: 50m, memory: 64Mi}
+      limits: {cpu: 500m, memory: 256Mi}
+    python:            # runtime.pixiTask apps (pixi install on cold start)
+      requests: {cpu: 250m, memory: 512Mi}
+      limits: {cpu: "2", memory: 2Gi}
+
+  # Optional guard rails rendered into every namespace in api.allowedNamespaces
+  # (the namespaces must already exist). Off by default.
+  limitRange:
+    # A LimitRange so any container without requests/limits (including ones
+    # created outside this pack) gets these defaults, plus a per-container max.
+    enabled: false
+    default: {cpu: 500m, memory: 512Mi}
+    defaultRequest: {cpu: 50m, memory: 64Mi}
+    max: {cpu: "4", memory: 4Gi}
+  networkPolicy:
+    # A NetworkPolicy for launched app pods: ingress only from the gateway
+    # namespace on the app port, egress only to DNS and to the internet
+    # (blockedCIDRs excluded), so user code cannot reach cluster-internal
+    # services. git/pixi sources still clone and install from the internet.
+    enabled: false
+    gatewayNamespace: envoy-gateway-system
+    blockedCIDRs:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 100.64.0.0/10
+    - 169.254.0.0/16
+
+# =============================================================================
+# apps-operator
+# =============================================================================
+operator:
+  image:
+    repository: ghcr.io/nebari-dev/apps-pack/apps-operator
+    tag: "sha-65c0efa" # Defaults to .Chart.appVersion
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+  leaderElection: true
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# =============================================================================
+# apps-api
+# =============================================================================
+api:
+  enabled: true
+  image:
+    repository: ghcr.io/nebari-dev/apps-pack/apps-api
+    tag: "sha-65c0efa" # Defaults to .Chart.appVersion
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  # Keycloak JWT bearer auth for the API (and keycloak-js login in the UI).
+  # Disable only for local development without a browser-reachable Keycloak.
+  auth:
+    enabled: true
+    # Rendering fails when auth is disabled on a TLS (i.e. real) install,
+    # because the API would then be anonymous with cluster-wide write RBAC.
+    # Set this only if you really mean to run an unauthenticated API.
+    insecureAllowAnonymous: false
+  # Namespaces users may launch apps into. An empty list falls back to every
+  # namespace labeled nebari.dev/managed=true.
+  allowedNamespaces:
+  - apps
+  # Keycloak groups whose members see and manage every App. Everyone else
+  # sees and manages only the Apps they launched (spec.owner); Apps without
+  # an owner (created with kubectl) are admin-only.
+  adminGroups:
+  - admin
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# =============================================================================
+# apps-ui
+# =============================================================================
+ui:
+  enabled: true
+  image:
+    repository: ghcr.io/nebari-dev/apps-pack/apps-ui
+    tag: "sha-65c0efa" # Defaults to .Chart.appVersion
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  # Hostname for the UI; defaults to the apps domain itself, so the UI lives
+  # at https://apps.<clusterDomain> and launched apps at https://<name>.apps.<clusterDomain>.
+  hostname: ""
+
+  # Browser-tab title. Leave empty for the built-in default ("Nebari Apps").
+  title: ""
+
+  # Branding rendered into /config.json at deploy time and applied by the UI
+  # before it mounts. Leave everything empty to use the built-in Nebari defaults
+  # (no visual change from an unbranded install). Outside Kubernetes the same
+  # fields resolve from a local config.json or BRANDING_* env vars - see the
+  # Branding docs and ui/docker-entrypoint.sh.
+  branding:
+    # URL to a custom logo shown in the header. Leave empty for the built-in
+    # Nebari logo. May be an absolute http(s) URL, a root-relative path, or a
+    # base64 data: image URI.
+    logoUrl: ""
+    # URL to a custom dark-mode logo. Leave empty to fall back to logoUrl, then
+    # the built-in Nebari dark logo.
+    logoUrlDark: ""
+    # URL to a custom favicon. Leave empty for the built-in favicon.
+    faviconUrl: ""
+    # CSS variable overrides injected at runtime - no image rebuild required.
+    # Values are validated in the browser and rejected if they contain CSS
+    # injection characters (';', '{', '}', quotes, url(), javascript:, etc.).
+    # Supported tokens: primary, primaryForeground, primaryHover, background,
+    # foreground, secondary, secondaryForeground, muted, mutedForeground,
+    # accent, accentForeground, border, ring, radius, sidebarPrimary,
+    # sidebarPrimaryForeground, sidebarRing, plus this pack's top-bar tokens
+    # headerBackground, headerForeground, headerBorder, and bodyBackground.
+    # primaryHover, sidebarPrimary, sidebarPrimaryForeground and sidebarRing
+    # are derived from primary / primaryForeground / ring, so setting those
+    # three is normally enough - list the derived ones only to pin a shade
+    # that is not a plain derivation.
+    # Any other camelCase key is still passed through to the browser as the
+    # matching --kebab-case custom property, but is unsupported and may stop
+    # working without notice; only the tokens above are part of the contract.
+    # Example:
+    #   theme:
+    #     light:
+    #       primary: "oklch(55% 0.19 250)"
+    #       primaryForeground: "#ffffff"
+    #     dark:
+    #       primary: "oklch(62% 0.21 250)"
+    theme:
+      light: {}
+      dark: {}
+    # Optional classification banners (e.g. U.S. government CUI markings)
+    # rendered full-width above the header (top) and below the page content
+    # (bottom). A banner is disabled while its text is empty. background and
+    # foreground accept CSS color values; when omitted the banner uses the
+    # theme's inverted colors, which follow light/dark mode.
+    # Example:
+    #   banners:
+    #     top:
+    #       text: "CUI"
+    #       background: "#502b85"
+    #       foreground: "#ffffff"
+    #     bottom:
+    #       text: "CUI"
+    banners:
+      top: {}
+      bottom: {}
+
+  # The UI's tile on the Nebari landing page.
+  landingPage:
+    # Tile label, blurb, and grouping shown on the landing page.
+    displayName: Apps
+    description: Launch and manage web applications on this cluster.
+    category: Platform
+    # Tile icon. Leave empty for the pack's built-in icon (files/icon.svg,
+    # embedded as a data URI); set an absolute http(s) URL or data: URI to
+    # override it.
+    icon: ""
+    # Health indicator for the tile. When enabled, the nebari-operator polls the
+    # UI's health endpoint and surfaces up/down status next to the tile. Disable
+    # to hide the indicator.
+    healthCheck:
+      enabled: true
+      path: /healthz
+      intervalSeconds: 30
+      timeoutSeconds: 5
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+# =============================================================================
+# apps-mcp
+# =============================================================================
+mcp:
+  enabled: true
+  image:
+    repository: ghcr.io/nebari-dev/apps-pack/apps-mcp
+    tag: "sha-65c0efa" # Defaults to .Chart.appVersion
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  # Agents connect at https://<ui hostname>/mcp (streamable HTTP) - the UI's
+  # nginx proxies /mcp to this service, so there is no separate hostname.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# =============================================================================
+# Keycloak (used when api.auth.enabled)
+# =============================================================================
+keycloak:
+  # Browser-facing Keycloak base URL, e.g. https://keycloak.example.ai/auth
+  url: ""
+  realm: nebari
+  # Optional in-cluster URL (split horizon) used by the API to fetch JWKS.
+  internalUrl: ""
+
+# =============================================================================
+# App runtime images
+# =============================================================================
+# Image serving static app content. Must listen on 8080 as a non-root user.
+staticImage: nginxinc/nginx-unprivileged:1.27-alpine
+
+# Image used by init containers to fetch git sources.
+gitImage: alpine/git:v2.47.2
+
+# Image running Python/pixi apps (runtime.pixiTask). Must provide the `pixi`
+# binary and be runnable as a non-root user.
+pythonImage: ghcr.io/prefix-dev/pixi:0.68.1-noble
+
+# =============================================================================
+# Overrides
+# =============================================================================
+nameOverride: ""
+fullnameOverride: ""

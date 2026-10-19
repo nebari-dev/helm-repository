@@ -1,0 +1,99 @@
+{{- if .Values.mcp.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-mcp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.mcp.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "nebari-apps.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: mcp
+  template:
+    metadata:
+      labels:
+        {{- include "nebari-apps.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: mcp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mcp
+          image: "{{ .Values.mcp.image.repository }}:{{ .Values.mcp.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.mcp.image.pullPolicy }}
+          env:
+            - name: API_URL
+              value: http://{{ include "nebari-apps.fullname" . }}-api.{{ .Release.Namespace }}.svc.cluster.local:8080
+            - name: AUTH_ENABLED
+              value: {{ .Values.api.auth.enabled | quote }}
+            {{- if .Values.api.auth.enabled }}
+            - name: OIDC_ISSUER
+              value: {{ printf "%s/realms/%s" (required "keycloak.url is required when api.auth.enabled" .Values.keycloak.url | trimSuffix "/") .Values.keycloak.realm }}
+            {{- with .Values.keycloak.internalUrl }}
+            - name: OIDC_ISSUER_INTERNAL
+              value: {{ printf "%s/realms/%s" (. | trimSuffix "/") $.Values.keycloak.realm }}
+            {{- end }}
+            # Provisioned by the UI's NebariApp (auth.deviceFlowClient) - one
+            # NebariApp covers the whole platform surface at apps.<domain>.
+            - name: OIDC_DEVICE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nebari-apps.fullname" . }}-ui-oidc-client
+                  key: device-client-id
+                  optional: true
+            # Bearer passthrough may carry a UI (SPA) token.
+            - name: OIDC_SPA_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nebari-apps.fullname" . }}-ui-oidc-client
+                  key: spa-client-id
+                  optional: true
+            - name: OIDC_ALLOWED_CLIENTS
+              value: "$(OIDC_DEVICE_CLIENT_ID),$(OIDC_SPA_CLIENT_ID)"
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.mcp.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-mcp
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "nebari-apps.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+{{- end }}

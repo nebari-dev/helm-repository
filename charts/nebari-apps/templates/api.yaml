@@ -1,0 +1,222 @@
+{{- if and (not .Values.api.auth.enabled) .Values.tls.enabled (not .Values.api.auth.insecureAllowAnonymous) }}
+{{- fail "api.auth.enabled=false makes the API anonymous with cluster-wide write access. It is meant for local development (which also sets tls.enabled=false). To run without authentication anyway, set api.auth.insecureAllowAnonymous=true." }}
+{{- end }}
+{{- if .Values.api.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+---
+# Cluster-scoped reads only: which namespaces are launchable, and pod usage
+# from metrics.k8s.io (read-only numbers).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-api-cluster
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-api-cluster
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "nebari-apps.fullname" . }}-api-cluster
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nebari-apps.fullname" . }}-api
+    namespace: {{ .Release.Namespace }}
+---
+# What the API may do inside an app namespace: write App CRs and read their
+# children for observability. Bound per namespace in api.allowedNamespaces
+# (RoleBindings); cluster-wide only when that list is empty, because then
+# app namespaces are discovered by label.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-api
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["apps.nebari.dev"]
+    resources: ["apps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "events"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get"]
+  # Roll app pods on demand (POST /apps/{ns}/{name}/restart).
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+{{- $root := . }}
+{{- range .Values.api.allowedNamespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "nebari-apps.fullname" $root }}-api
+  namespace: {{ . }}
+  labels:
+    {{- include "nebari-apps.labels" $root | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "nebari-apps.fullname" $root }}-api
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nebari-apps.fullname" $root }}-api
+    namespace: {{ $root.Release.Namespace }}
+{{- else }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-api
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "nebari-apps.fullname" . }}-api
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nebari-apps.fullname" . }}-api
+    namespace: {{ .Release.Namespace }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "nebari-apps.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "nebari-apps.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: {{ include "nebari-apps.fullname" . }}-api
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          env:
+            - name: APPS_DOMAIN
+              value: {{ include "nebari-apps.appsDomain" . }}
+            {{- with .Values.api.allowedNamespaces }}
+            - name: APPS_NAMESPACES
+              value: {{ join "," . | quote }}
+            {{- end }}
+            - name: APPS_ADMIN_GROUPS
+              value: {{ join "," .Values.api.adminGroups | quote }}
+            - name: AUTH_ENABLED
+              value: {{ .Values.api.auth.enabled | quote }}
+            - name: TLS_DISABLED
+              value: {{ not .Values.tls.enabled | quote }}
+            - name: APPS_BUILD
+              value: {{ .Values.api.image.tag | default .Chart.AppVersion | quote }}
+            {{- if .Values.api.auth.enabled }}
+            - name: OIDC_ISSUER
+              value: {{ printf "%s/realms/%s" (required "keycloak.url is required when api.auth.enabled" .Values.keycloak.url | trimSuffix "/") .Values.keycloak.realm }}
+            {{- with .Values.keycloak.internalUrl }}
+            - name: OIDC_ISSUER_INTERNAL
+              value: {{ printf "%s/realms/%s" (. | trimSuffix "/") $.Values.keycloak.realm }}
+            {{- end }}
+            - name: UI_KEYCLOAK_URL
+              value: {{ .Values.keycloak.url }}
+            - name: UI_KEYCLOAK_REALM
+              value: {{ .Values.keycloak.realm }}
+            # The SPA client is provisioned by the UI's NebariApp; the client
+            # id is written into its OIDC secret.
+            - name: UI_KEYCLOAK_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nebari-apps.fullname" . }}-ui-oidc-client
+                  key: spa-client-id
+                  optional: true
+            # The MCP server forwards device-flow tokens to this API.
+            - name: OIDC_DEVICE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nebari-apps.fullname" . }}-ui-oidc-client
+                  key: device-client-id
+                  optional: true
+            # Only tokens issued to this pack's clients are accepted. If the
+            # secret is missing the references stay unexpanded and every
+            # token is rejected (fail closed).
+            - name: OIDC_ALLOWED_CLIENTS
+              value: "$(UI_KEYCLOAK_CLIENT_ID),$(OIDC_DEVICE_CLIENT_ID)"
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /api/v1/healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          # Ready only while the Kubernetes API answers and (with auth) the
+          # realm JWKS loads; each check gives up after 3s.
+          readinessProbe:
+            httpGet:
+              path: /api/v1/readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 8
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "nebari-apps.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+{{- end }}

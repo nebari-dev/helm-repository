@@ -1,0 +1,29 @@
+{{- if .Values.ui.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nebari-apps.fullname" . }}-ui-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-apps.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+data:
+  # Served by nginx at /config.json and mounted over the placeholder baked into
+  # the image, so branding changes need no rebuild - only a helm upgrade (which
+  # rolls the UI pod via the checksum annotation on its Deployment).
+  #
+  # Keycloak settings are deliberately absent: the UI reads those from the API
+  # (GET /api/v1/config), unlike the other Nebari pack frontends. Every branding
+  # field is rendered as-is (empty strings / empty maps by default) and the UI
+  # falls back to the built-in Nebari default per field, so an unbranded install
+  # is unchanged.
+  config.json: |
+    {
+      "title":       {{ .Values.ui.title | quote }},
+      "logoUrl":     {{ .Values.ui.branding.logoUrl | quote }},
+      "logoUrlDark": {{ .Values.ui.branding.logoUrlDark | quote }},
+      "faviconUrl":  {{ .Values.ui.branding.faviconUrl | quote }},
+      "theme":       {{ .Values.ui.branding.theme | toJson }},
+      "banners":     {{ .Values.ui.branding.banners | toJson }}
+    }
+{{- end }}

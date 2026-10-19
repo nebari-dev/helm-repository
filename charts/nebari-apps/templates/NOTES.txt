@@ -1,0 +1,20 @@
+nebari-apps has been installed.
+
+The apps-operator is now watching for App resources (apps.nebari.dev/v1alpha1)
+in namespaces labeled nebari.dev/managed=true.
+
+Launch your first app:
+
+  kubectl label namespace <your-namespace> nebari.dev/managed=true
+  kubectl apply -n <your-namespace> -f https://raw.githubusercontent.com/nebari-dev/apps-pack/main/examples/static-inline-app.yaml
+
+Then watch it come up:
+
+  kubectl get apps -n <your-namespace> -w
+
+Once Phase is Running, the app is reachable at the URL in the App status
+(https://<subdomain>.{{ include "nebari-apps.appsDomain" . }}) behind
+Keycloak SSO (unless access.public is true).
+
+Requires the nebari-operator (NebariApp CRD) to be installed for routing,
+TLS, and authentication.
