@@ -206,7 +206,7 @@ grafana:
 # Loki — Log Aggregation
 # =============================================================================
 # All values under this key are passed to the loki subchart.
-# Ref: https://github.com/grafana/helm-charts/tree/main/charts/loki
+# Ref: https://github.com/grafana/loki/tree/main/production/helm/loki
 loki:
   # Lightweight single-binary mode for local development
   deploymentMode: SingleBinary
@@ -305,7 +305,7 @@ mimir:
 # Mimir — Metrics (distributed, opt-in)
 # =============================================================================
 # All values under this key are passed to the mimir-distributed subchart.
-# Ref: https://github.com/grafana/helm-charts/tree/main/charts/mimir-distributed
+# Ref: https://github.com/grafana/mimir/tree/main/operations/helm/charts/mimir-distributed
 mimir-distributed:
   # Opt-in distributed Mimir. Default is OFF: the chart deploys monolithic
   # single-binary Mimir instead (see the `mimir` block above). Flip to true
@@ -350,6 +350,17 @@ mimir-distributed:
   #         bucket_name: my-mimir-ruler
   minio:
     enabled: true
+    # MinIO no longer publishes public images (quay.io/minio/* and Docker Hub
+    # minio/* both require auth), so the subchart's defaults fail with
+    # ImagePullBackOff. Use pgsty/silo, a maintained MinIO fork with the same
+    # S3 API that bundles both the server and the mc client. Same override
+    # upstream ships in mimir-distributed 6.2.1; drop it when bumping to that.
+    image:
+      repository: pgsty/silo
+      tag: RELEASE.2026-09-03T13-18-01Z
+    mcImage:
+      repository: pgsty/silo
+      tag: RELEASE.2026-09-03T13-18-01Z
   # Lightweight config for local development — single replicas, no Kafka
   mimir:
     structuredConfig:
@@ -454,6 +465,9 @@ prometheus-node-exporter:
 # Kubernetes resource — earlier attempts to in-place patch NIC's ConfigMap
 # hit upstream ArgoCD bug argoproj/argo-cd#7478 (apply step writes the full
 # rendered resource on every sync regardless of ignoreDifferences).
+#
+# The override's pipelines set only exporters: the collector replaces lists
+# when merging, so restating receivers or processors would drop NIC's (issue #30).
 #
 # Set enabled=false in environments where NIC is not deploying the collector
 # (e.g. standalone LGTM installs against a user-managed collector).

@@ -3,8 +3,17 @@
 # file. NIC's chart values mount `opentelemetry-collector-overrides` (optional)
 # at /conf/overrides, and an init container copies relay.yaml into an emptyDir
 # the collector reads at startup. The collector deep-merges this with its base
-# config — adding our exporters and replacing the pipelines' exporter lists so
-# logs/traces/metrics route to Loki/Tempo/Mimir instead of the debug exporter.
+# config, adding our exporters and replacing only the pipelines' exporter lists
+# so logs/traces/metrics route to Loki/Tempo/Mimir instead of the debug exporter.
+#
+# Pipelines set ONLY exporters. The collector replaces (not appends) lists
+# when merging --config files, so restating receivers or processors would
+# clobber NIC's rendered lists, including the k8sattributes processor its
+# kubernetesAttributes preset prepends at render time (issue #30). Keys
+# omitted here survive the map merge from NIC's base config. This relies on
+# NIC's base config defining the logs, traces, and metrics pipelines with
+# their receivers and processors; a pipeline that exists only here would have
+# no receivers and the collector would refuse to start.
 #
 # This approach replaces a previous design that tried to in-place patch NIC's
 # chart-rendered ConfigMap with ArgoCD ignoreDifferences. That approach hit
@@ -42,16 +51,10 @@ data:
     service:
       pipelines:
         logs:
-          receivers: [otlp]
-          processors: [memory_limiter, batch]
           exporters: [otlphttp/loki]
         traces:
-          receivers: [otlp]
-          processors: [memory_limiter, batch]
           exporters: [otlp/tempo]
         metrics:
-          receivers: [otlp, prometheus]
-          processors: [memory_limiter, batch]
           exporters: [otlphttp/mimir]
 ---
 # Restart the OTel collector DaemonSet so the init container re-resolves the
