@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Template-rendering assertions for both Mimir modes (monolithic default,
-# distributed opt-in). Pure `helm template` — no cluster required.
-# Prerequisite: helm dependency update chart
+# distributed opt-in). Uses `helm template` and `yq`, no cluster required.
+# Prerequisites: helm dependency update chart; mikefarah yq v4 on PATH
 set -euo pipefail
+
+command -v yq >/dev/null || { echo "yq (mikefarah v4) is required: https://github.com/mikefarah/yq" >&2; exit 1; }
 
 CHART="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -50,6 +52,10 @@ assert_not_contains DIST_OUT 'serviceName: test-mimir$' \
 # --- Distributed mode: shared object store, no filesystem "buckets" ---
 assert_contains DIST_OUT 'name: test-minio' \
   "distributed mode must deploy the bundled MinIO"
+assert_not_contains DIST_OUT 'image: "\?quay.io/minio/' \
+  "bundled MinIO must not use quay.io/minio images (no longer publicly pullable)"
+assert_contains DIST_OUT 'image: "\?pgsty/silo:' \
+  "bundled MinIO must use the pgsty/silo image"
 assert_contains DIST_OUT 'bucket_name: mimir-tsdb' \
   "distributed blocks storage must point at the MinIO bucket"
 assert_not_contains DIST_OUT 'dir: /data/mimir-blocks' \
@@ -68,6 +74,19 @@ assert_contains DIST_OUT 'url: http://test-mimir-gateway:80/prometheus' \
   "distributed datasource must point at the mimir gateway"
 assert_contains DIST_OUT 'endpoint: http://test-mimir-gateway.default.svc.cluster.local:80/otlp' \
   "distributed OTel exporter must point at the mimir gateway"
+
+# --- OTel override pipelines set only exporters (issue #30) ---
+# The collector replaces lists when merging --config files, so restating
+# processors or receivers here would clobber NIC's rendered lists (and drop
+# the k8sattributes processor its kubernetesAttributes preset injects).
+for mode_out in DEFAULT_OUT DIST_OUT; do
+  OVERRIDE_RELAY="$(yq 'select(.kind == "ConfigMap" and .metadata.name == "opentelemetry-collector-overrides") | .data."relay.yaml"' <<<"${!mode_out}")"
+  [ -n "$OVERRIDE_RELAY" ] || fail "${mode_out}: opentelemetry-collector-overrides ConfigMap must render relay.yaml"
+  for pipeline in logs traces metrics; do
+    keys="$(yq ".service.pipelines.${pipeline} | keys | join(\",\")" <<<"$OVERRIDE_RELAY")"
+    [ "$keys" = "exporters" ] || fail "${mode_out}: override pipeline ${pipeline} must set only exporters, got [${keys}] (issue #30)"
+  done
+done
 
 echo "== rendering with all Mimir disabled =="
 NO_MIMIR_OUT="$(helm template test "$CHART" --namespace default --set nebariapp.enabled=false \
