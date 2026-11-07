@@ -1,0 +1,94 @@
+{{- if and .Values.webapi.healthProber.enabled .Values.webapi.healthProber.networkPolicy.enabled }}
+{{- $egress := .Values.webapi.healthProber.networkPolicy.egress }}
+{{- $protectedNamespaces := list "argocd" "cert-manager" "database" "databases" "db" "envoy-gateway-system" "kube-node-lease" "kube-public" "kube-system" "keycloak" "mariadb" "metallb-system" "mongo" "mongodb" "mysql" "postgres" "postgresql" "redis" "vault" }}
+{{- $protectedPorts := list 2181 2379 2380 3306 5432 6379 6443 9200 9300 10250 10255 11211 27017 27018 27019 }}
+{{- if and $egress.sameNamespaceHealthChecks.enabled (empty $egress.sameNamespaceHealthChecks.namespaceSelector) }}
+{{- fail "webapi.healthProber.networkPolicy.egress.sameNamespaceHealthChecks.namespaceSelector must be non-empty when health-check egress is enabled" }}
+{{- end }}
+{{- if $egress.sameNamespaceHealthChecks.enabled }}
+{{- $excludesProtectedNamespaces := false }}
+{{- range $expr := $egress.sameNamespaceHealthChecks.namespaceSelector.matchExpressions }}
+{{- if and (eq $expr.key "kubernetes.io/metadata.name") (eq $expr.operator "NotIn") }}
+{{- $missing := list }}
+{{- range $protectedNamespaces }}
+{{- if not (has . $expr.values) }}
+{{- $missing = append $missing . }}
+{{- end }}
+{{- end }}
+{{- if empty $missing }}
+{{- $excludesProtectedNamespaces = true }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if not $excludesProtectedNamespaces }}
+{{- fail "webapi.healthProber.networkPolicy.egress.sameNamespaceHealthChecks.namespaceSelector must exclude protected namespaces" }}
+{{- end }}
+{{- range $port := $egress.sameNamespaceHealthChecks.ports }}
+{{- if has (int $port) $protectedPorts }}
+{{- fail (printf "webapi.healthProber.networkPolicy.egress.sameNamespaceHealthChecks.ports must not include protected port %v" $port) }}
+{{- end }}
+{{- end }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "nebari-landing.fullname" . }}-health-prober
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-landing.labels" . | nindent 4 }}
+    app.kubernetes.io/component: health-prober
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "nebari-landing.healthProber.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "nebari-landing.webapi.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.webapi.healthProber.port }}
+  egress:
+    {{- if $egress.dns.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml $egress.dns.namespaceSelector | nindent 14 }}
+          {{- if $egress.dns.podSelector }}
+          podSelector:
+            matchLabels:
+              {{- toYaml $egress.dns.podSelector | nindent 14 }}
+          {{- else }}
+          podSelector: {}
+          {{- end }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- end }}
+    {{- if and $egress.sameNamespaceHealthChecks.enabled $egress.sameNamespaceHealthChecks.ports }}
+    - to:
+        - namespaceSelector:
+            {{- toYaml $egress.sameNamespaceHealthChecks.namespaceSelector | nindent 12 }}
+          {{- if $egress.sameNamespaceHealthChecks.podSelector }}
+          podSelector:
+            matchLabels:
+              {{- toYaml $egress.sameNamespaceHealthChecks.podSelector | nindent 14 }}
+          {{- else }}
+          podSelector: {}
+          {{- end }}
+      ports:
+        {{- range $egress.sameNamespaceHealthChecks.ports }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+    {{- end }}
+    {{- with $egress.additionalRules }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
