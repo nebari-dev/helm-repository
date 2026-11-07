@@ -1,0 +1,63 @@
+{{- if .Values.webapi.healthProber.enabled }}
+{{- if ne (int .Values.webapi.healthProber.service.port) (int .Values.webapi.healthProber.port) }}
+{{- fail "webapi.healthProber.service.port must match webapi.healthProber.port" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nebari-landing.fullname" . }}-health-prober
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-landing.labels" . | nindent 4 }}
+    app.kubernetes.io/component: health-prober
+spec:
+  replicas: {{ .Values.webapi.healthProber.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "nebari-landing.healthProber.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "nebari-landing.labels" . | nindent 8 }}
+        {{- include "nebari-landing.healthProber.selectorLabels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: health-prober
+          image: "{{ .Values.webapi.image.repository }}:{{ .Values.webapi.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.webapi.image.pullPolicy }}
+          args:
+            - --probe-runner
+          ports:
+            - name: http
+              containerPort: {{ .Values.webapi.healthProber.port }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.webapi.healthProber.port | quote }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.webapi.healthProber.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.webapi.healthProber.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.webapi.healthProber.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+      terminationGracePeriodSeconds: 10
+{{- end }}

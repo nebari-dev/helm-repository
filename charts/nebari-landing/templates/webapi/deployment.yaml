@@ -75,6 +75,12 @@ spec:
               value: {{ .Values.webapi.keycloak.adminSecretNamespace | quote }}
             - name: ADMIN_GROUP
               value: {{ .Values.webapi.keycloak.adminGroup | quote }}
+            {{- with include "nebari-landing.staticServices" . }}
+            # Landing-page entries served without a NebariApp (webapi.staticServices
+            # and webapi.keycloak.landingPage).
+            - name: STATIC_SERVICES
+              value: {{ . | quote }}
+            {{- end }}
             # CORS — comma-separated allowed origins; "*" permits all.
             # The webapi is ClusterIP-only (never exposed by the Gateway); this
             # setting matters only when using a Vite dev server with port-forward.
@@ -99,6 +105,10 @@ spec:
             # Health
             - name: HEALTH_INTERVAL
               value: {{ .Values.webapi.healthInterval | quote }}
+            {{- if .Values.webapi.healthProber.enabled }}
+            - name: HEALTH_PROBE_RUNNER_URL
+              value: {{ printf "http://%s-health-prober.%s.svc.cluster.local:%v" (include "nebari-landing.fullname" .) .Release.Namespace .Values.webapi.healthProber.service.port | quote }}
+            {{- end }}
             # Redis
             - name: REDIS_ADDR
               value: {{ include "nebari-landing.redisAddr" . | quote }}

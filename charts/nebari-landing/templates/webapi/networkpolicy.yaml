@@ -1,0 +1,109 @@
+{{- if .Values.webapi.networkPolicy.enabled }}
+{{- $egress := .Values.webapi.networkPolicy.egress }}
+{{- if and $egress.keycloak.enabled (empty $egress.keycloak.namespaceSelector) }}
+{{- fail "webapi.networkPolicy.egress.keycloak.namespaceSelector must be non-empty when keycloak egress is enabled" }}
+{{- end }}
+{{- if and $egress.keycloak.enabled (empty $egress.keycloak.podSelector) }}
+{{- fail "webapi.networkPolicy.egress.keycloak.podSelector must be non-empty when keycloak egress is enabled" }}
+{{- end }}
+{{- $apiCIDRs := list }}
+{{- range $egress.kubernetesAPI.cidrs }}
+{{- $apiCIDRs = append $apiCIDRs . }}
+{{- end }}
+{{- if and (empty $apiCIDRs) $egress.kubernetesAPI.lookup.enabled }}
+{{- $apiService := lookup "v1" "Service" $egress.kubernetesAPI.lookup.namespace $egress.kubernetesAPI.lookup.serviceName }}
+{{- $clusterIP := "" }}
+{{- if $apiService }}
+{{- $clusterIP = dig "spec" "clusterIP" "" $apiService }}
+{{- end }}
+{{- if and $clusterIP (ne $clusterIP "None") }}
+{{- $apiCIDRs = append $apiCIDRs (printf "%s/32" $clusterIP) }}
+{{- end }}
+{{- end }}
+{{- if empty $apiCIDRs }}
+{{- fail "webapi.networkPolicy.enabled=true requires webapi.networkPolicy.egress.kubernetesAPI.cidrs: no Kubernetes API server address was configured and lookup() found none (helm template and ArgoCD cannot use lookup). Without it the egress policy would block the webapi from the Kubernetes API. Set the API server ClusterIP and endpoint CIDRs, or leave the policy disabled." }}
+{{- end }}
+{{- if empty $egress.kubernetesAPI.ports }}
+{{- fail "webapi.networkPolicy.egress.kubernetesAPI.ports must list at least one port when webapi.networkPolicy.enabled=true" }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "nebari-landing.fullname" . }}-webapi-egress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "nebari-landing.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webapi
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "nebari-landing.webapi.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    {{- if $egress.dns.enabled }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml $egress.dns.namespaceSelector | nindent 14 }}
+          {{- if $egress.dns.podSelector }}
+          podSelector:
+            matchLabels:
+              {{- toYaml $egress.dns.podSelector | nindent 14 }}
+          {{- else }}
+          podSelector: {}
+          {{- end }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- end }}
+    {{- if $egress.redis.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: master
+      ports:
+        - protocol: TCP
+          port: 6379
+    {{- end }}
+    {{- if and $egress.keycloak.enabled $egress.keycloak.ports }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml $egress.keycloak.namespaceSelector | nindent 14 }}
+          podSelector:
+            matchLabels:
+              {{- toYaml $egress.keycloak.podSelector | nindent 14 }}
+      ports:
+        {{- range $egress.keycloak.ports }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+    {{- end }}
+    {{- range $apiCIDRs }}
+    - to:
+        - ipBlock:
+            cidr: {{ . | quote }}
+      ports:
+        {{- range $egress.kubernetesAPI.ports }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+    {{- end }}
+    {{- if .Values.webapi.healthProber.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "nebari-landing.healthProber.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.webapi.healthProber.port }}
+    {{- end }}
+    {{- with $egress.additionalRules }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
