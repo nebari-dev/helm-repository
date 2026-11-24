@@ -1,0 +1,6 @@
+apiVersion: v2
+appVersion: v0.1.1
+description: Library chart providing a NebariApp custom resource template.
+name: nebari-app
+type: library
+version: 0.1.1
