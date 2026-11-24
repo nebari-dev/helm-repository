@@ -159,7 +159,7 @@ spec:
           configMap:
             name: {{ . }}
             items:
-              - key: ca-bundle.crt
+              - key: {{ $.Values.orgCABundle.key | default "ca-bundle.crt" }}
                 path: org-ca.crt
         {{- end }}
         {{- if include "nebari-nebi-pack.brandingEnabled" . }}

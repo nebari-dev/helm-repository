@@ -4,13 +4,14 @@
 # =============================================================================
 # Nebari Integration
 # =============================================================================
-# Creates a NebariApp CRD that configures routing and auth via nebari-operator.
-# Set to false when deploying outside of Nebari.
+# NebariApp CR (https://github.com/nebari-dev/nebari-operator).
+# Rendered through the official nebari-app.nebariApp template 
+# (https://github.com/nebari-dev/nebari-operator/tree/main/charts/nebari-app) with templating enabled.
 nebariapp:
   enabled: true
-  # hostname: nebi.example.com  # Required when enabled
+  hostname: '{{ fail "nebariapp.hostname is required if nebariapp.enabled is true" }}'
   service:
-    name: ""  # Defaults to {{ fullname }}
+    name: '{{ include "nebari-nebi-pack.fullname" . | toJson }}'
     port: 80
   routing:
     routes:
@@ -63,7 +64,7 @@ nebariapp:
 # =============================================================================
 image:
   repository: quay.io/nebari/nebi
-  tag: sha-5ca877a
+  tag: sha-07d490b
   pullPolicy: IfNotPresent
 
 replicaCount: 1
@@ -169,25 +170,20 @@ branding:
   # logo; light mode always uses logoUrl. Set only logoUrl to reuse one asset in
   # both schemes (the behaviour before this field existed).
   #
-  # Needs nebi >= the release containing logoUrlDark support (nebari-dev/nebi
-  # PR 516) - the pinned image tag above predates it. On an older image the key
-  # is simply ignored and dark mode keeps using logoUrl, so setting it early is
-  # harmless but has no effect until the image is bumped.
+  # Needs nebi v0.16 or later (nebari-dev/nebi PR 516). On an older image the
+  # key is ignored and dark mode keeps using logoUrl.
   logoUrlDark: ""
   # Favicon, same URL rules as logoUrl. Empty uses the built-in favicon.
   faviconUrl: ""
   # CSS custom-property overrides applied at runtime, per color scheme.
   # `light` is written to :root, `dark` to .dark.
   #
-  # Keys are camelCase token names; they are kebab-cased and prefixed to form
-  # the CSS variable (primaryHover -> --color-primary-hover). `radius` maps to
-  # --radius. A key that already starts with `--` is passed through verbatim.
-  #
-  # Overridable tokens (from the frontend's index.css):
-  #   background, foreground, card, cardForeground, popover, popoverForeground,
-  #   primary, primaryForeground, primaryHover, navHover, secondary,
-  #   secondaryForeground, muted, mutedForeground, accent, accentForeground,
-  #   destructive, destructiveForeground, border, input, ring, radius
+  # Keys are camelCase Nebari design-system token names (primary, primaryHover,
+  # primaryForeground, header, headerForeground, card, muted, border, ring,
+  # radius, ...); the frontend converts each to its CSS custom property. A key
+  # that already starts with `--` is passed through verbatim. The full token
+  # list, what each one paints, and which need a newer image are in the docs:
+  # https://packs.nebari.dev/nebi-pack/branding/
   #
   # Values are sanitized in the browser and dropped if they contain CSS
   # injection characters (; < > { } " ' \) or url(...) / expression(...) /
@@ -222,12 +218,16 @@ branding:
 # does NOT iterate /etc/ssl/certs/, so both the bind mount AND the env var
 # are required — the env var is set automatically when this value is set.
 #
-# The named ConfigMap must already exist in the release namespace and must
-# have a key `ca-bundle.crt` containing one or more PEM-encoded CA certs.
-# When empty (default), no mount is added and `helm template` output is
-# byte-identical to prior versions of the chart.
+# The named ConfigMap must already exist in the release namespace and hold
+# one or more PEM-encoded CA certs under `key`. The bundle replaces the
+# container's default trust store, so it should include the public roots
+# too. On Nebari, trust-manager projects `nebari-trust-bundle` into every
+# namespace with key `ca-certificates.crt`.
+# When configMapName is empty (default), no mount is added and
+# `helm template` output is byte-identical to prior versions of the chart.
 orgCABundle:
   configMapName: ""
+  key: ca-bundle.crt
 
 # =============================================================================
 # Embedded PostgreSQL
