@@ -6,7 +6,7 @@
 # =============================================================================
 image:
   repository: ghcr.io/nebari-dev/software-pack-template/auth-fastapi-example
-  tag: "sha-c208d29"
+  tag: "sha-9feb576"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
