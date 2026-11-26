@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["models"],
+  "if": {
+    "required": ["postgres"],
+    "properties": {
+      "postgres": {
+        "required": ["bundled"],
+        "properties": {
+          "bundled": {
+            "required": ["enabled"],
+            "properties": {"enabled": {"const": false}}
+          }
+        }
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "postgres": {
+        "required": ["external"],
+        "properties": {
+          "external": {
+            "required": ["existingSecret"],
+            "properties": {"existingSecret": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
+    }
+  },
+  "properties": {
+    "callers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["namespace", "serviceAccount", "podSelector"],
+        "properties": {
+          "namespace": {"type": "string", "minLength": 1},
+          "serviceAccount": {"type": "string", "minLength": 1},
+          "podSelector": {"type": "object", "minProperties": 1}
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "egress": {
+          "type": "object",
+          "properties": {
+            "extra": {"type": "array", "items": {"type": "object"}}
+          }
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "required": ["llm", "embedding", "auth"],
+      "properties": {
+        "baseURL": {"type": "string"},
+        "llm": {"type": "string", "minLength": 1},
+        "embedding": {
+          "type": "object",
+          "properties": {
+            "model": {"type": "string"},
+            "dimensions": {"type": ["integer", "null"], "minimum": 1}
+          }
+        },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "tokenURL": {"type": "string"},
+            "scope": {"type": "string"},
+            "existingSecret": {"type": "string"}
+          }
+        }
+      }
+    }
+  }
+}

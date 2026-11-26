@@ -1,0 +1,89 @@
+suite: database
+templates:
+  - templates/database.yaml
+tests:
+  - it: renders a CloudNativePG Cluster with pgvector
+    values: [required-values.yaml]
+    release: {name: rel}
+    asserts:
+      - isKind: {of: Cluster}
+      - isAPIVersion: {of: postgresql.cnpg.io/v1}
+      - equal: {path: metadata.name, value: rel-nebari-mem0-db}
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: nebari-mem0
+      - equal:
+          path: spec.imageName
+          value: ghcr.io/cloudnative-pg/postgresql:18.4-standard-trixie@sha256:ebf3919504d7523a63e8e2fee9b051211de714644b36469275558c624afd50ec
+      - equal: {path: spec.bootstrap.initdb.database, value: mem0}
+      - equal: {path: spec.bootstrap.initdb.owner, value: mem0}
+      - equal:
+          path: spec.bootstrap.initdb.postInitApplicationSQL
+          value: ["CREATE EXTENSION IF NOT EXISTS vector"]
+      - equal: {path: spec.enableSuperuserAccess, value: false}
+      - equal: {path: spec.resources.requests.memory, value: 256Mi}
+
+  - it: takes imageName from values
+    values: [required-values.yaml]
+    set: {postgres.bundled.imageName: example.test/pg:1}
+    asserts:
+      - equal: {path: spec.imageName, value: example.test/pg:1}
+
+  - it: disables the PDB for a single instance
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: spec.instances, value: 1}
+      - equal: {path: spec.enablePDB, value: false}
+
+  - it: leaves the PDB default for three instances
+    values: [required-values.yaml]
+    set: {postgres.bundled.instances: 3}
+    asserts:
+      - equal: {path: spec.instances, value: 3}
+      - notExists: {path: spec.enablePDB}
+
+  - it: takes storage size and class from values
+    values: [required-values.yaml]
+    set: {postgres.bundled.storage.size: 20Gi, postgres.bundled.storage.storageClass: fast}
+    asserts:
+      - equal: {path: spec.storage.size, value: 20Gi}
+      - equal: {path: spec.storage.storageClass, value: fast}
+
+  - it: omits the storage class when empty
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: spec.storage.size, value: 10Gi}
+      - notExists: {path: spec.storage.storageClass}
+
+  - it: renders nothing when bundled is disabled
+    values: [required-values.yaml]
+    set: {postgres.bundled.enabled: false, postgres.external.existingSecret: ext}
+    asserts:
+      - hasDocuments: {count: 0}
+
+  - it: renders no Cluster when bundled is disabled, whatever else is set
+    values: [required-values.yaml]
+    set:
+      postgres.bundled.enabled: false
+      postgres.external.existingSecret: ext-db-app
+      postgres.bundled.instances: 3
+    asserts:
+      - hasDocuments: {count: 0}
+---
+suite: database name limits
+templates:
+  - templates/database.yaml
+  - templates/deployment.yaml
+release: {name: a-very-long-release-name-that-is-exactly-fifty-chars}
+tests:
+  - it: keeps the Cluster name short enough for its derived Services
+    values: [required-values.yaml]
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ^.{1,60}$
+        template: templates/database.yaml
+      - equal:
+          path: "spec.template.spec.initContainers[0].env[0].valueFrom.secretKeyRef.name"
+          value: a-very-long-release-name-that-is-exactly-fifty-cha-db-app
+        template: templates/deployment.yaml

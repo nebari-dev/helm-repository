@@ -1,0 +1,7 @@
+mem0 is installed as {{ include "nebari-mem0.fullname" . }} and listens on port 8000 inside the cluster.
+
+  http://{{ include "nebari-mem0.fullname" . }}.{{ .Release.Namespace }}.svc:8000
+
+There is no per-user access control in mem0: anyone holding the admin API key can read every
+person's memories. Callers send it as the X-API-Key header and must scope each request to a user.
+The key is in Secret {{ include "nebari-mem0.adminKeySecret" . }}, key api-key.

@@ -1,0 +1,93 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- /* The ensure-secret Job pod shares the selector labels but carries a component label; leave it out so egress rules never block its call to the API server. */}}
+{{- $server := dict "matchLabels" (include "nebari-mem0.selectorLabels" . | fromYaml) "matchExpressions" (list (dict "key" "app.kubernetes.io/component" "operator" "NotIn" "values" (list "ensure-secret"))) }}
+{{- $egress := .Values.networkPolicy.egress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "nebari-mem0.fullname" . }}
+  labels:
+    {{- include "nebari-mem0.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    {{- toYaml $server | nindent 4 }}
+  policyTypes:
+    - Ingress
+    {{- if $egress }}
+    - Egress
+    {{- end }}
+  ingress:
+    - from:
+        {{- range .Values.callers }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .namespace | quote }}
+          podSelector:
+            matchLabels:
+              {{- toYaml .podSelector | nindent 14 }}
+        {{- end }}
+      ports:
+        - protocol: TCP
+          port: 8000
+  {{- if $egress }}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    {{- if .Values.postgres.bundled.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ include "nebari-mem0.dbCluster" . }}
+      ports:
+        - protocol: TCP
+          port: 5432
+    {{- end }}
+    {{- with .Values.networkPolicy.egress.extra }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- if .Values.postgres.bundled.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "nebari-mem0.dbCluster" . }}
+  labels:
+    {{- include "nebari-mem0.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: {{ include "nebari-mem0.dbCluster" . }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            {{- toYaml $server | nindent 12 }}
+      ports:
+        - protocol: TCP
+          port: 5432
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.postgres.bundled.operatorNamespace | quote }}
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ include "nebari-mem0.dbCluster" . }}
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 8000
+{{- end }}
+{{- end }}

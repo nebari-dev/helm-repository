@@ -1,0 +1,166 @@
+suite: values schema
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: renders with all required values
+    values: [required-values.yaml]
+    asserts:
+      - hasDocuments: {count: 1}
+
+  - it: fails without embedding dimensions
+    values: [required-values.yaml]
+    set:
+      models.embedding.dimensions: null
+    asserts:
+      - failedTemplate:
+          errorPattern: models.embedding.dimensions is required
+
+  - it: fails without the model auth Secret
+    values: [required-values.yaml]
+    set:
+      models.auth.existingSecret: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: models.auth.existingSecret is required
+
+  - it: fails without the model base URL
+    values: [required-values.yaml]
+    set:
+      models.baseURL: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: models.baseURL is required
+
+  - it: fails when models.baseURL is unset
+    values: [required-values.yaml]
+    set:
+      models.baseURL: null
+    asserts:
+      - failedTemplate:
+          errorPattern: models.baseURL is required
+
+  - it: fails without the token URL
+    values: [required-values.yaml]
+    set:
+      models.auth.tokenURL: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: models.auth.tokenURL is required
+
+  - it: fails without callers
+    values: [required-values.yaml]
+    set:
+      callers: []
+    asserts:
+      - failedTemplate:
+          errorPattern: callers is required
+
+  - it: fails when image tag and digest are both empty
+    values: [required-values.yaml]
+    set:
+      image.tag: ""
+      image.digest: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: set a tag or digest
+
+  - it: fails with the chart defaults for callers
+    values: [required-values.yaml]
+    set:
+      callers: null
+    asserts:
+      - failedTemplate:
+          errorPattern: callers is required
+
+  - it: fails without an external database Secret when bundled is off
+    values: [required-values.yaml]
+    set:
+      postgres.bundled.enabled: false
+    asserts:
+      - failedTemplate: {}
+
+  - it: fails with an empty external database Secret when bundled is off
+    values: [required-values.yaml]
+    set:
+      postgres.bundled.enabled: false
+      postgres.external.existingSecret: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: existingSecret
+
+  - it: renders with an external database Secret when bundled is off
+    values: [required-values.yaml]
+    set:
+      postgres.bundled.enabled: false
+      postgres.external.existingSecret: ext-db-app
+    asserts:
+      - hasDocuments: {count: 1}
+
+  - it: does not need an external database Secret when bundled is on
+    values: [required-values.yaml]
+    set:
+      postgres.external.existingSecret: ""
+    asserts:
+      - hasDocuments: {count: 1}
+
+  - it: fails without an embedding model
+    values: [required-values.yaml]
+    set:
+      models.embedding.model: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: models.embedding.model is required
+
+  - it: fails when the embedding model is unset
+    values: [required-values.yaml]
+    set:
+      models.embedding.model: null
+    asserts:
+      - failedTemplate:
+          errorPattern: models.embedding.model is required
+
+  # Rules for values that are set stay in the schema.
+  - it: rejects zero embedding dimensions
+    values: [required-values.yaml]
+    set:
+      models.embedding.dimensions: 0
+    asserts:
+      - failedTemplate:
+          errorPattern: dimensions
+
+  - it: rejects non-integer embedding dimensions
+    values: [required-values.yaml]
+    set:
+      models.embedding.dimensions: "384"
+    asserts:
+      - failedTemplate:
+          errorPattern: dimensions
+
+  - it: rejects a caller without a service account
+    values: [required-values.yaml]
+    set:
+      callers:
+        - namespace: caller-ns
+          podSelector: {app: caller}
+    asserts:
+      - failedTemplate:
+          errorPattern: serviceAccount
+
+  - it: rejects a caller with an empty pod selector
+    values: [required-values.yaml]
+    set:
+      callers:
+        - namespace: caller-ns
+          serviceAccount: caller-sa
+          podSelector: {}
+    asserts:
+      - failedTemplate:
+          errorPattern: podSelector
+
+  - it: rejects a non-string model base URL
+    values: [required-values.yaml]
+    set:
+      models.baseURL: 5
+    asserts:
+      - failedTemplate:
+          errorPattern: baseURL

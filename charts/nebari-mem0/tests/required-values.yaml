@@ -1,0 +1,11 @@
+image: {repository: repo/server, tag: 1.2.3}
+tools: {image: {repository: repo/tools, tag: 1.2.3}}
+models:
+  baseURL: https://models.test/v1
+  llm: chat-model
+  embedding: {model: embed-model, dimensions: 384}
+  auth: {tokenURL: https://models.test/token, existingSecret: model-client}
+callers:
+  - namespace: caller-ns
+    serviceAccount: caller-sa
+    podSelector: {app: caller}

@@ -1,0 +1,164 @@
+suite: networkpolicy
+templates:
+  - templates/networkpolicy.yaml
+release: {name: rel}
+values: [required-values.yaml]
+tests:
+  - it: server policy selects the server pods and not the ensure-secret Job pod
+    documentIndex: 0
+    asserts:
+      - isKind: {of: NetworkPolicy}
+      - equal: {path: metadata.name, value: rel-nebari-mem0}
+      - equal:
+          path: spec.podSelector.matchLabels
+          value:
+            app.kubernetes.io/name: nebari-mem0
+            app.kubernetes.io/instance: rel
+      - equal:
+          path: spec.podSelector.matchExpressions
+          value:
+            - {key: app.kubernetes.io/component, operator: NotIn, values: [ensure-secret]}
+      - equal: {path: spec.policyTypes, value: [Ingress]}
+      - notExists: {path: spec.egress}
+
+  - it: admits only the callers on port 8000
+    documentIndex: 0
+    set:
+      callers:
+        - {namespace: ns-a, serviceAccount: sa-a, podSelector: {app: a}}
+        - {namespace: ns-b, serviceAccount: sa-b, podSelector: {app: b, tier: gw}}
+    asserts:
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: ns-a}}
+                  podSelector: {matchLabels: {app: a}}
+                - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: ns-b}}
+                  podSelector: {matchLabels: {app: b, tier: gw}}
+              ports:
+                - {protocol: TCP, port: 8000}
+
+  - it: adds Egress and the DNS and database rules when egress is enabled
+    documentIndex: 0
+    set: {networkPolicy.egress.enabled: true}
+    asserts:
+      - equal: {path: spec.policyTypes, value: [Ingress, Egress]}
+      - equal:
+          path: spec.egress
+          value:
+            - to:
+                - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+                  podSelector: {matchLabels: {k8s-app: kube-dns}}
+              ports:
+                - {protocol: UDP, port: 53}
+                - {protocol: TCP, port: 53}
+            - to:
+                - podSelector: {matchLabels: {cnpg.io/cluster: rel-nebari-mem0-db}}
+              ports:
+                - {protocol: TCP, port: 5432}
+
+  - it: renders egress.extra verbatim after the built-in rules
+    documentIndex: 0
+    set:
+      networkPolicy.egress.enabled: true
+      networkPolicy.egress.extra:
+        - to:
+            - ipBlock: {cidr: 10.0.0.0/8}
+          ports:
+            - {protocol: TCP, port: 443}
+    asserts:
+      - lengthEqual: {path: spec.egress, count: 3}
+      - equal:
+          path: spec.egress[2]
+          value:
+            to:
+              - ipBlock: {cidr: 10.0.0.0/8}
+            ports:
+              - {protocol: TCP, port: 443}
+
+  - it: omits the database egress rule with external Postgres
+    documentIndex: 0
+    set:
+      networkPolicy.egress.enabled: true
+      postgres.bundled.enabled: false
+      postgres.external.existingSecret: ext-db
+    asserts:
+      - lengthEqual: {path: spec.egress, count: 1}
+
+  - it: egress to an external database comes only from networkPolicy.egress.extra
+    documentIndex: 0
+    set:
+      networkPolicy.egress.enabled: true
+      postgres.bundled.enabled: false
+      postgres.external.existingSecret: ext-db-app
+      networkPolicy.egress.extra:
+        - to:
+            - ipBlock: {cidr: 10.20.0.0/16}
+          ports:
+            - {protocol: TCP, port: 5432}
+    asserts:
+      - lengthEqual: {path: spec.egress, count: 2}
+      - equal:
+          path: spec.egress[1]
+          value:
+            to:
+              - ipBlock: {cidr: 10.20.0.0/16}
+            ports:
+              - {protocol: TCP, port: 5432}
+      - notContains:
+          path: spec.egress
+          content:
+            to:
+              - podSelector:
+                  matchLabels:
+                    cnpg.io/cluster: rel-nebari-mem0-db
+            ports:
+              - {protocol: TCP, port: 5432}
+
+  - it: database policy admits the server, the operator and its own instances
+    documentIndex: 1
+    asserts:
+      - equal: {path: metadata.name, value: rel-nebari-mem0-db}
+      - equal:
+          path: spec.podSelector.matchLabels
+          value: {cnpg.io/cluster: rel-nebari-mem0-db}
+      - equal: {path: spec.policyTypes, value: [Ingress]}
+      - equal:
+          path: spec.ingress
+          value:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: nebari-mem0
+                      app.kubernetes.io/instance: rel
+                    matchExpressions:
+                      - {key: app.kubernetes.io/component, operator: NotIn, values: [ensure-secret]}
+              ports:
+                - {protocol: TCP, port: 5432}
+            - from:
+                - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: cnpg-system}}
+                - podSelector: {matchLabels: {cnpg.io/cluster: rel-nebari-mem0-db}}
+              ports:
+                - {protocol: TCP, port: 5432}
+                - {protocol: TCP, port: 8000}
+
+  - it: database policy follows operatorNamespace
+    documentIndex: 1
+    set: {postgres.bundled.operatorNamespace: pg-ops}
+    asserts:
+      - equal:
+          path: spec.ingress[1].from[0].namespaceSelector.matchLabels["kubernetes.io/metadata.name"]
+          value: pg-ops
+
+  - it: renders no database policy with external Postgres
+    set:
+      postgres.bundled.enabled: false
+      postgres.external.existingSecret: ext-db
+    asserts:
+      - hasDocuments: {count: 1}
+
+  - it: renders nothing when disabled
+    set: {networkPolicy.enabled: false}
+    asserts:
+      - hasDocuments: {count: 0}

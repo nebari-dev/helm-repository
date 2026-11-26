@@ -1,0 +1,271 @@
+suite: deployment
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: runs one replica with Recreate
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: "spec.replicas", value: 1}
+      - equal: {path: "spec.strategy.type", value: Recreate}
+
+  - it: runs the migrate init container
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: "spec.template.spec.initContainers[0].name", value: migrate}
+      - equal:
+          path: spec.template.spec.initContainers[0].command
+          value: [python, -m, mem0pack.migrate]
+
+  - it: runs token-proxy as a native sidecar wired to the model endpoints
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: "spec.template.spec.initContainers[1].name", value: token-proxy}
+      - equal: {path: "spec.template.spec.initContainers[1].restartPolicy", value: Always}
+      - contains:
+          path: spec.template.spec.initContainers[1].args
+          content: -upstream
+      - equal:
+          path: spec.template.spec.initContainers[1].args[6]
+          value: https://models.test/v1
+      - equal:
+          path: spec.template.spec.initContainers[1].args[8]
+          value: https://models.test/token
+      - notContains:
+          path: spec.template.spec.initContainers[1].args
+          content: -scope
+      - contains:
+          path: spec.template.spec.initContainers[1].volumeMounts
+          content: {name: model-client, mountPath: /var/run/mem0-model-client, readOnly: true}
+      - equal:
+          path: spec.template.spec.initContainers[1].startupProbe.httpGet.path
+          value: /healthz
+      - equal: {path: "spec.template.spec.initContainers[1].startupProbe.periodSeconds", value: 5}
+      - equal: {path: "spec.template.spec.initContainers[1].startupProbe.failureThreshold", value: 60}
+      - notExists:
+          path: spec.template.spec.initContainers[1].livenessProbe
+      - equal:
+          path: spec.template.spec.initContainers[1].readinessProbe.httpGet.port
+          value: health
+
+  - it: passes the scope to token-proxy only when set
+    values: [required-values.yaml]
+    set:
+      models.auth.scope: openid
+    asserts:
+      - equal: {path: "spec.template.spec.initContainers[1].args[-2]", value: -scope}
+      - equal: {path: "spec.template.spec.initContainers[1].args[-1]", value: openid}
+
+  - it: mounts the model auth Secret only into token-proxy
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: "spec.template.spec.volumes[2].secret.secretName", value: model-client}
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: model-client, mountPath: /var/run/mem0-model-client, readOnly: true}
+      - notContains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content: {name: model-client, mountPath: /var/run/mem0-model-client, readOnly: true}
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts
+          value:
+            - {name: data, mountPath: /var/lib/mem0}
+            - {name: tmp, mountPath: /tmp}
+      - lengthEqual:
+          path: spec.template.spec.containers[0].env
+          count: 13
+
+  - it: points the server at the local token proxy
+    values: [required-values.yaml]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: OPENAI_BASE_URL, value: "http://127.0.0.1:8081/v1"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: MEM0PACK_MODEL_BASE_URL, value: "http://127.0.0.1:8081/v1"}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: MEM0PACK_EMBEDDING_DIMS, value: "384"}
+
+  - it: reads the admin key from its Secret
+    values: [required-values.yaml]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_API_KEY
+            valueFrom: {secretKeyRef: {name: mem0-admin-key, key: api-key}}
+
+  - it: uses an existing admin key Secret when given
+    values: [required-values.yaml]
+    set:
+      adminKey.existingSecret: mine
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADMIN_API_KEY
+            valueFrom: {secretKeyRef: {name: mine, key: api-key}}
+
+  - it: reads Postgres settings from the bundled database Secret
+    release: {name: r}
+    values: [required-values.yaml]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_HOST
+            valueFrom: {secretKeyRef: {name: r-nebari-mem0-db-app, key: host}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_PORT
+            valueFrom: {secretKeyRef: {name: r-nebari-mem0-db-app, key: port}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_DB
+            valueFrom: {secretKeyRef: {name: r-nebari-mem0-db-app, key: dbname}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_USER
+            valueFrom: {secretKeyRef: {name: r-nebari-mem0-db-app, key: username}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_PASSWORD
+            valueFrom: {secretKeyRef: {name: r-nebari-mem0-db-app, key: password}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: APP_DB_NAME
+            valueFrom: {secretKeyRef: {name: r-nebari-mem0-db-app, key: dbname}}
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: POSTGRES_HOST
+            valueFrom: {secretKeyRef: {name: r-nebari-mem0-db-app, key: host}}
+
+  - it: reads Postgres settings from the external Secret when not bundled
+    values: [required-values.yaml]
+    set:
+      postgres.bundled.enabled: false
+      postgres.external.existingSecret: ext-db
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_HOST
+            valueFrom: {secretKeyRef: {name: ext-db, key: host}}
+
+  - it: reads every Postgres setting of both containers from the external Secret
+    values: [required-values.yaml]
+    set:
+      postgres.bundled.enabled: false
+      postgres.external.existingSecret: ext-db-app
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].env[?(@.name=="POSTGRES_HOST")].valueFrom.secretKeyRef
+          value: {name: ext-db-app, key: host}
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: POSTGRES_PORT
+            valueFrom: {secretKeyRef: {name: ext-db-app, key: port}}
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: POSTGRES_DB
+            valueFrom: {secretKeyRef: {name: ext-db-app, key: dbname}}
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: POSTGRES_USER
+            valueFrom: {secretKeyRef: {name: ext-db-app, key: username}}
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content:
+            name: POSTGRES_PASSWORD
+            valueFrom: {secretKeyRef: {name: ext-db-app, key: password}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_PORT
+            valueFrom: {secretKeyRef: {name: ext-db-app, key: port}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_DB
+            valueFrom: {secretKeyRef: {name: ext-db-app, key: dbname}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_USER
+            valueFrom: {secretKeyRef: {name: ext-db-app, key: username}}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: POSTGRES_PASSWORD
+            valueFrom: {secretKeyRef: {name: ext-db-app, key: password}}
+
+  - it: hardens every container
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: "spec.template.spec.containers[0].securityContext.runAsNonRoot", value: true}
+      - equal: {path: "spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem", value: true}
+      - equal: {path: "spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation", value: false}
+      - equal: {path: "spec.template.spec.containers[0].securityContext.capabilities.drop", value: [ALL]}
+      - equal: {path: "spec.template.spec.containers[0].securityContext.seccompProfile.type", value: RuntimeDefault}
+      - equal: {path: "spec.template.spec.initContainers[0].securityContext.runAsNonRoot", value: true}
+      - equal: {path: "spec.template.spec.initContainers[0].securityContext.readOnlyRootFilesystem", value: true}
+      - equal: {path: "spec.template.spec.initContainers[0].securityContext.allowPrivilegeEscalation", value: false}
+      - equal: {path: "spec.template.spec.initContainers[0].securityContext.capabilities.drop", value: [ALL]}
+      - equal: {path: "spec.template.spec.initContainers[0].securityContext.seccompProfile.type", value: RuntimeDefault}
+      - equal: {path: "spec.template.spec.initContainers[1].securityContext.runAsNonRoot", value: true}
+      - equal: {path: "spec.template.spec.initContainers[1].securityContext.readOnlyRootFilesystem", value: true}
+      - equal: {path: "spec.template.spec.initContainers[1].securityContext.allowPrivilegeEscalation", value: false}
+      - equal: {path: "spec.template.spec.initContainers[1].securityContext.capabilities.drop", value: [ALL]}
+      - equal: {path: "spec.template.spec.initContainers[1].securityContext.seccompProfile.type", value: RuntimeDefault}
+      - equal: {path: "spec.template.spec.securityContext.fsGroup", value: 10001}
+
+  - it: caps the history volume
+    values: [required-values.yaml]
+    set:
+      history.sizeLimit: 2Gi
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content: {name: data, emptyDir: {sizeLimit: 2Gi}}
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: data, mountPath: /var/lib/mem0}
+
+  - it: probes the server on port 8000
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: "spec.template.spec.containers[0].ports[0].containerPort", value: 8000}
+      - equal: {path: "spec.template.spec.containers[0].readinessProbe.httpGet.path", value: /readyz}
+      - equal: {path: "spec.template.spec.containers[0].livenessProbe.httpGet.path", value: /healthz}
+
+  - it: renders images by tag
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: "spec.template.spec.containers[0].image", value: "repo/server:1.2.3"}
+      - equal: {path: "spec.template.spec.initContainers[1].image", value: "repo/tools:1.2.3"}
+
+  - it: renders images by digest when one is set
+    values: [required-values.yaml]
+    set:
+      image.digest: sha256:aaaa
+      tools.image.digest: sha256:bbbb
+    asserts:
+      - equal: {path: "spec.template.spec.containers[0].image", value: "repo/server@sha256:aaaa"}
+      - equal: {path: "spec.template.spec.initContainers[0].image", value: "repo/server@sha256:aaaa"}
+      - equal: {path: "spec.template.spec.initContainers[1].image", value: "repo/tools@sha256:bbbb"}
+
+  - it: does not mount a service account token or inject service links
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: spec.template.spec.automountServiceAccountToken, value: false}
+      - equal: {path: spec.template.spec.enableServiceLinks, value: false}

@@ -1,0 +1,102 @@
+image:
+  repository: quay.io/nebari/mem0-pack-server
+  tag: "sha-af03344"
+  digest: ""
+  pullPolicy: IfNotPresent
+
+tools:
+  image:
+    repository: quay.io/nebari/mem0-pack-tools
+    tag: "sha-af03344"
+    digest: ""
+    pullPolicy: IfNotPresent
+
+adminKey:
+  # Secret holding key "api-key". The chart creates it unless existingSecret is set.
+  secretName: mem0-admin-key
+  existingSecret: ""
+
+# Services allowed to reach mem0 and to read the admin key Secret. At least one is required.
+callers: []
+#  - namespace: javo
+#    serviceAccount: javo-controller   # Tapas on sqlite (its default); javo-gateway on postgres
+#    podSelector:
+#      app.kubernetes.io/name: javo
+#      app.kubernetes.io/component: gateway
+
+models:
+  # Internal endpoint of the model server, including the /v1 prefix.
+  baseURL: ""
+  llm: Qwen/Qwen3.5-35B-A3B-GPTQ-Int4
+  embedding:
+    model: ""
+    # Fixed at first install: the vector column is created with this width.
+    dimensions:
+  auth:
+    tokenURL: ""
+    scope: ""
+    # Secret with keys client-id and client-secret, created before install.
+    existingSecret: ""
+
+postgres:
+  bundled:
+    enabled: true
+    instances: 1
+    imageName: 
+      ghcr.io/cloudnative-pg/postgresql:18.4-standard-trixie@sha256:ebf3919504d7523a63e8e2fee9b051211de714644b36469275558c624afd50ec
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+    storage:
+      size: 10Gi
+      storageClass: ""
+    operatorNamespace: cnpg-system
+  # External database: set bundled.enabled to false and name a Secret below. The chart then
+  # renders no Cluster and no database NetworkPolicy. The database must already exist, be owned
+  # by the user in the Secret, and have the pgvector extension installed (CREATE EXTENSION
+  # vector); the chart does not create it. With networkPolicy.egress.enabled the chart adds no
+  # rule for the external database: allow it through networkPolicy.egress.extra.
+  external:
+    # Required when bundled.enabled is false. Secret in the release namespace with the keys of
+    # a CloudNativePG app Secret: host, port, dbname, username, password.
+    existingSecret: ""
+
+history:
+  sizeLimit: 1Gi
+
+networkPolicy:
+  enabled: true
+  egress:
+    # When true the server pod may reach only DNS (kube-system) and the bundled database.
+    enabled: false
+    # NetworkPolicyEgressRule objects rendered verbatim. The migrate init container and the
+    # token-proxy share the server pod's policy, so with egress enabled these rules must cover
+    # the model endpoint (models.baseURL) and the token endpoint (models.auth.tokenURL), and the
+    # external database when postgres.bundled.enabled is false.
+    extra: []
+
+podSecurityContext:
+  runAsNonRoot: true
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+
+toolsResources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
