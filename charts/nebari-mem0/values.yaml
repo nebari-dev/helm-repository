@@ -1,13 +1,13 @@
 image:
   repository: quay.io/nebari/mem0-pack-server
-  tag: "sha-af03344"
+  tag: "sha-ce6c18f"
   digest: ""
   pullPolicy: IfNotPresent
 
 tools:
   image:
     repository: quay.io/nebari/mem0-pack-tools
-    tag: "sha-af03344"
+    tag: "sha-ce6c18f"
     digest: ""
     pullPolicy: IfNotPresent
 
@@ -32,6 +32,9 @@ models:
     model: ""
     # Fixed at first install: the vector column is created with this width.
     dimensions:
+    # Approximate-search index on the vector column: auto (hnsw up to 2000 dimensions, none above),
+    # hnsw (refused above 2000, pgvector's limit) or none (exact search).
+    index: auto
   auth:
     tokenURL: ""
     scope: ""

@@ -90,6 +90,8 @@ seccompProfile:
   value: {{ .Values.models.embedding.model | quote }}
 - name: MEM0PACK_EMBEDDING_DIMS
   value: {{ .Values.models.embedding.dimensions | toString | quote }}
+- name: MEM0PACK_EMBEDDING_INDEX
+  value: {{ .Values.models.embedding.index | quote }}
 {{- end -}}
 
 {{/* Values with no usable default. They are checked here, not in values.schema.json, so a bare helm lint (no values) passes while an install without them fails. */}}

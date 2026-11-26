@@ -15,6 +15,44 @@ tests:
       - failedTemplate:
           errorPattern: models.embedding.dimensions is required
 
+  - it: accepts every embedding index value
+    values: [required-values.yaml]
+    set:
+      models.embedding.index: hnsw
+    asserts:
+      - hasDocuments: {count: 1}
+
+  - it: rejects an unknown embedding index
+    values: [required-values.yaml]
+    set:
+      models.embedding.index: ivfflat
+    asserts:
+      - failedTemplate: {}
+
+  - it: rejects hnsw with more than 2000 dimensions
+    values: [required-values.yaml]
+    set:
+      models.embedding.index: hnsw
+      models.embedding.dimensions: 2001
+    asserts:
+      - failedTemplate: {}
+
+  - it: allows hnsw at exactly 2000 dimensions
+    values: [required-values.yaml]
+    set:
+      models.embedding.index: hnsw
+      models.embedding.dimensions: 2000
+    asserts:
+      - hasDocuments: {count: 1}
+
+  - it: allows auto and none with more than 2000 dimensions
+    values: [required-values.yaml]
+    set:
+      models.embedding.index: none
+      models.embedding.dimensions: 3072
+    asserts:
+      - hasDocuments: {count: 1}
+
   - it: fails without the model auth Secret
     values: [required-values.yaml]
     set:
