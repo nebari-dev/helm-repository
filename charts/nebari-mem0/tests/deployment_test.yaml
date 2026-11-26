@@ -72,7 +72,7 @@ tests:
             - {name: tmp, mountPath: /tmp}
       - lengthEqual:
           path: spec.template.spec.containers[0].env
-          count: 13
+          count: 14
 
   - it: points the server at the local token proxy
     values: [required-values.yaml]
@@ -86,6 +86,26 @@ tests:
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: MEM0PACK_EMBEDDING_DIMS, value: "384"}
+
+  - it: passes the embedding index as auto by default, to the server and to migrate
+    values: [required-values.yaml]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: MEM0PACK_EMBEDDING_INDEX, value: "auto"}
+      - contains:
+          path: spec.template.spec.initContainers[0].env
+          content: {name: MEM0PACK_EMBEDDING_INDEX, value: "auto"}
+
+  - it: passes an explicit embedding index
+    values: [required-values.yaml]
+    set:
+      models.embedding.index: none
+      models.embedding.dimensions: 3072
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: MEM0PACK_EMBEDDING_INDEX, value: "none"}
 
   - it: reads the admin key from its Secret
     values: [required-values.yaml]

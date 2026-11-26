@@ -63,7 +63,23 @@
           "type": "object",
           "properties": {
             "model": {"type": "string"},
-            "dimensions": {"type": ["integer", "null"], "minimum": 1}
+            "dimensions": {"type": ["integer", "null"], "minimum": 1},
+            "index": {"enum": ["auto", "hnsw", "none"]}
+          },
+          "if": {
+            "properties": {
+              "index": {"const": "hnsw"},
+              "dimensions": {"type": "integer", "minimum": 2001}
+            },
+            "required": ["index", "dimensions"]
+          },
+          "then": {
+            "properties": {
+              "index": {
+                "not": {"const": "hnsw"},
+                "description": "pgvector's HNSW index supports at most 2000 dimensions: use none or auto"
+              }
+            }
           }
         },
         "auth": {
