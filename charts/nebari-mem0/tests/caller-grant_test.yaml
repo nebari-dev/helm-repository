@@ -1,0 +1,53 @@
+suite: caller-grant
+templates:
+  - templates/caller-grant.yaml
+release: {name: r}
+tests:
+  - it: lets callers get only the admin key Secret
+    values: [required-values.yaml]
+    documentIndex: 0
+    asserts:
+      - isKind: {of: Role}
+      - equal: {path: metadata.name, value: r-nebari-mem0-admin-key-reader}
+      - equal:
+          path: rules
+          value:
+            - apiGroups: [""]
+              resources: [secrets]
+              resourceNames: [mem0-admin-key]
+              verbs: [get]
+
+  - it: binds the Role to each caller's ServiceAccount
+    values: [required-values.yaml]
+    set:
+      callers:
+        - {namespace: ns-a, serviceAccount: sa-a, podSelector: {app: a}}
+        - {namespace: ns-b, serviceAccount: sa-b, podSelector: {app: b}}
+    documentIndex: 1
+    asserts:
+      - isKind: {of: RoleBinding}
+      - equal: {path: roleRef.name, value: r-nebari-mem0-admin-key-reader}
+      - equal:
+          path: subjects
+          value:
+            - {kind: ServiceAccount, name: sa-a, namespace: ns-a}
+            - {kind: ServiceAccount, name: sa-b, namespace: ns-b}
+
+  - it: names the supplied Secret when adminKey.existingSecret is set
+    values: [required-values.yaml]
+    set: {adminKey: {existingSecret: other}}
+    documentIndex: 0
+    asserts:
+      - equal: {path: "rules[0].resourceNames", value: [other]}
+
+  - it: renders numeric and boolean-looking caller names as strings
+    values: [required-values.yaml]
+    set:
+      callers:
+        - {namespace: "123", serviceAccount: "on", podSelector: {app: a}}
+    documentIndex: 1
+    asserts:
+      - equal:
+          path: subjects
+          value:
+            - {kind: ServiceAccount, name: "on", namespace: "123"}

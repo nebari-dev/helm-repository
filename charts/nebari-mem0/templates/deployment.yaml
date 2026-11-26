@@ -1,0 +1,131 @@
+{{- include "nebari-mem0.validate" . | trunc 0 }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "nebari-mem0.fullname" . }}
+  labels:
+    {{- include "nebari-mem0.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "nebari-mem0.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "nebari-mem0.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: migrate
+          image: {{ include "nebari-mem0.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "mem0pack.migrate"]
+          env:
+            {{- include "nebari-mem0.dbEnv" . | nindent 12 }}
+            {{- include "nebari-mem0.modelEnv" . | nindent 12 }}
+          securityContext:
+            {{- include "nebari-mem0.containerSecurityContext" 10001 | nindent 12 }}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/mem0}
+            - {name: tmp, mountPath: /tmp}
+        - name: token-proxy
+          image: {{ include "nebari-mem0.toolsImage" . | quote }}
+          imagePullPolicy: {{ .Values.tools.image.pullPolicy }}
+          restartPolicy: Always
+          args:
+            - token-proxy
+            - -listen
+            - 127.0.0.1:8081
+            - -health-listen
+            - :8082
+            - -upstream
+            - {{ .Values.models.baseURL | quote }}
+            - -token-url
+            - {{ .Values.models.auth.tokenURL | quote }}
+            - -client-id-file
+            - /var/run/mem0-model-client/client-id
+            - -client-secret-file
+            - /var/run/mem0-model-client/client-secret
+            {{- with .Values.models.auth.scope }}
+            - -scope
+            - {{ . | quote }}
+            {{- end }}
+          ports:
+            - {name: health, containerPort: 8082}
+          startupProbe:
+            httpGet: {path: /healthz, port: health}
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: {path: /healthz, port: health}
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.toolsResources | nindent 12 }}
+          securityContext:
+            {{- include "nebari-mem0.containerSecurityContext" 65532 | nindent 12 }}
+          volumeMounts:
+            - {name: model-client, mountPath: /var/run/mem0-model-client, readOnly: true}
+      containers:
+        - name: server
+          image: {{ include "nebari-mem0.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - {name: http, containerPort: 8000}
+          env:
+            {{- include "nebari-mem0.dbEnv" . | nindent 12 }}
+            {{- include "nebari-mem0.modelEnv" . | nindent 12 }}
+            - name: ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nebari-mem0.adminKeySecret" . }}
+                  key: api-key
+            - name: OPENAI_API_KEY
+              value: unused-token-proxy-injects
+            - name: OPENAI_BASE_URL
+              value: http://127.0.0.1:8081/v1
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- include "nebari-mem0.containerSecurityContext" 10001 | nindent 12 }}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/mem0}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: data
+          emptyDir:
+            sizeLimit: {{ .Values.history.sizeLimit | quote }}
+        - name: tmp
+          emptyDir: {}
+        - name: model-client
+          secret:
+            secretName: {{ .Values.models.auth.existingSecret | quote }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

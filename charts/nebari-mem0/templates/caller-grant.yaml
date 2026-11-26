@@ -1,0 +1,29 @@
+# The callers may read the admin key Secret, and nothing else in this namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "nebari-mem0.fullname" . }}-admin-key-reader
+  labels:
+    {{- include "nebari-mem0.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ include "nebari-mem0.adminKeySecret" . | quote }}]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "nebari-mem0.fullname" . }}-admin-key-reader
+  labels:
+    {{- include "nebari-mem0.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "nebari-mem0.fullname" . }}-admin-key-reader
+subjects:
+  {{- range .Values.callers }}
+  - kind: ServiceAccount
+    name: {{ .serviceAccount | quote }}
+    namespace: {{ .namespace | quote }}
+  {{- end }}

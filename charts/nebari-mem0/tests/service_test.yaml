@@ -1,0 +1,15 @@
+suite: service
+templates:
+  - templates/service.yaml
+tests:
+  - it: exposes port 8000 and selects the server pods
+    release: {name: r}
+    values: [required-values.yaml]
+    asserts:
+      - equal: {path: "spec.ports[0].port", value: 8000}
+      - equal: {path: "spec.ports[0].name", value: http}
+      - equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: nebari-mem0
+            app.kubernetes.io/instance: r

@@ -1,0 +1,30 @@
+{{- if .Values.postgres.bundled.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ include "nebari-mem0.dbCluster" . }}
+  labels:
+    {{- include "nebari-mem0.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.postgres.bundled.instances }}
+  imageName: {{ .Values.postgres.bundled.imageName | quote }}
+  enableSuperuserAccess: false
+  {{- if eq (int .Values.postgres.bundled.instances) 1 }}
+  enablePDB: false
+  {{- end }}
+  bootstrap:
+    initdb:
+      database: mem0
+      owner: mem0
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS vector
+  storage:
+    size: {{ .Values.postgres.bundled.storage.size | quote }}
+    {{- with .Values.postgres.bundled.storage.storageClass }}
+    storageClass: {{ . | quote }}
+    {{- end }}
+  {{- with .Values.postgres.bundled.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

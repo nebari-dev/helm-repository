@@ -1,0 +1,6 @@
+apiVersion: v2
+name: nebari-mem0
+description: mem0 memory server for Nebari, with its own pgvector Postgres and a model-token proxy
+type: application
+version: 0.1.0-alpha.1
+appVersion: "2.2.1"
