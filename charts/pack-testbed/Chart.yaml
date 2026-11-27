@@ -1,8 +1,0 @@
-apiVersion: v2
-name: pack-testbed
-description: >-
-  CI test fixture for the Nebari reusable workflows (build/release/signing) and
-  the NebariApp CRD API. NOT a production pack - do not install on shared clusters.
-type: application
-version: 0.1.0
-appVersion: "0.1.0"
