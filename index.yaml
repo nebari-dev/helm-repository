@@ -1224,19 +1224,6 @@ entries:
     urls:
     - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/nebari-superset-0.2.0.tgz
     version: 0.2.0
-  pack-testbed:
-  - apiVersion: v2
-    appVersion: 0.1.0
-    created: "2026-11-27T11:11:34.250592894Z"
-    description: CI test fixture for the Nebari reusable workflows (build/release/signing)
-      and the NebariApp CRD API. NOT a production pack - do not install on shared
-      clusters.
-    digest: 06d69dbf92a886a6183bfdaf3c02804eb4de6a3bedf0f837254e1236bd6adf11
-    name: pack-testbed
-    type: application
-    urls:
-    - https://raw.githubusercontent.com/nebari-dev/helm-repository/gh-pages/helm/pack-testbed-0.1.0.tgz
-    version: 0.1.0
   provenance-collector:
   - apiVersion: v2
     appVersion: 0.1.4
