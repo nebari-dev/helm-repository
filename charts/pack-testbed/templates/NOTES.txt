@@ -1,0 +1,17 @@
+##############################################################################
+#  pack-testbed is a CI TEST FIXTURE, not a product.                          #
+#                                                                            #
+#  Do NOT install this on a shared or production cluster. It exists only to   #
+#  exercise the Nebari reusable workflows and the NebariApp CRD API in        #
+#  ephemeral test clusters.                                                   #
+#                                                                            #
+#  If unsafeEcho=true, the app echoes raw request headers - a credential      #
+#  leak vector. Only ever set that in a disposable test cluster.              #
+##############################################################################
+
+Release: {{ .Release.Name }}  (namespace {{ .Release.Namespace }})
+
+{{- if .Values.unsafeEcho }}
+
+WARNING: unsafeEcho=true - raw header echo is ENABLED. This is test-only.
+{{- end }}
